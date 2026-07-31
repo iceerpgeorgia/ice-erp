@@ -384,11 +384,21 @@ export async function GET(req: NextRequest) {
         const val = filter.value ?? '';
 
         if (op === 'blank') {
-          clauses.push({ OR: [{ [key]: null } as Prisma.rs_waybills_in_apiWhereInput, { [key]: '' } as Prisma.rs_waybills_in_apiWhereInput] });
+          // For UUID fields, only check for NULL (not empty string)
+          if (UUID_FILTER_FIELDS.has(key)) {
+            clauses.push({ [key]: null } as Prisma.rs_waybills_in_apiWhereInput);
+          } else {
+            clauses.push({ OR: [{ [key]: null } as Prisma.rs_waybills_in_apiWhereInput, { [key]: '' } as Prisma.rs_waybills_in_apiWhereInput] });
+          }
           continue;
         }
         if (op === 'notBlank') {
-          clauses.push({ AND: [{ [key]: { not: null } } as Prisma.rs_waybills_in_apiWhereInput, { [key]: { not: '' } } as Prisma.rs_waybills_in_apiWhereInput] });
+          // For UUID fields, only check for NOT NULL (not empty string)
+          if (UUID_FILTER_FIELDS.has(key)) {
+            clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_in_apiWhereInput);
+          } else {
+            clauses.push({ AND: [{ [key]: { not: null } } as Prisma.rs_waybills_in_apiWhereInput, { [key]: { not: '' } } as Prisma.rs_waybills_in_apiWhereInput] });
+          }
           continue;
         }
         if (!val) continue;

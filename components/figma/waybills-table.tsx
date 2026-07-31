@@ -209,6 +209,13 @@ export function WaybillsTable() {
   const [dialogPos, setDialogPos] = useState({ x: 0, y: 0 });
   const dialogDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
+  // Logging utility for filter events
+  const logFilter = useCallback((action: string, data?: any) => {
+    const timestamp = new Date().toISOString();
+    const logEntry = { timestamp, action, data, component: 'WaybillsTable' };
+    console.log(`[WAYBILLS_FILTER] ${action}:`, logEntry);
+  }, []);
+
   const handleDialogDragStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Don't start drag on buttons/inputs inside the header
     if ((e.target as HTMLElement).closest('button,input,select,a')) return;
@@ -470,6 +477,35 @@ export function WaybillsTable() {
   }, []);
 
   useEffect(() => {
+    // First, try to read from URL parameters (for direct filter links)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlAdvancedFilters = params.get('advancedFilters');
+      
+      if (urlAdvancedFilters) {
+        try {
+          const parsed = JSON.parse(urlAdvancedFilters);
+          const restoredAdvanced = new Map<ColumnKey, ColumnFilter>();
+          if (Array.isArray(parsed)) {
+            // Format: [["column_key", { mode, operator, value }], ...]
+            for (const [key, raw] of parsed as Array<[string, any]>) {
+              if (raw?.mode === 'text' && raw.operator) {
+                restoredAdvanced.set(key as ColumnKey, { mode: 'text', operator: raw.operator, value: raw.value });
+              }
+            }
+          }
+          if (restoredAdvanced.size > 0) {
+            setAdvancedFilters(restoredAdvanced);
+            setFiltersInitialized(true);
+            return; // Use URL filters, skip localStorage
+          }
+        } catch (error) {
+          console.error('Failed to parse URL advanced filters:', error);
+        }
+      }
+    }
+    
+    // Fall back to localStorage if no URL filters
     const savedFilters = localStorage.getItem(filtersStorageKey);
     if (savedFilters) {
       try {
@@ -672,8 +708,20 @@ export function WaybillsTable() {
 
   // OPTIMIZATION: Fetch ALL waybills once on mount, then do client-side filtering/sorting/pagination
   useEffect(() => {
+    if (!filtersInitialized) return; // Wait for filters to be initialized from URL/localStorage
+    
     const fetchAllWaybills = async () => {
       setLoading(true);
+      logFilter('FETCH_ALL_WAYBILLS_START', {
+        appliedSearch,
+        periodFrom,
+        periodTo,
+        showMissingCounteragents,
+        sortColumn,
+        sortDirection,
+        columnFiltersCount: columnFilters.length,
+        advancedFiltersCount: advancedFilters.size
+      });
       try {
         // Build request parameters
         const requestParams = {
@@ -737,9 +785,21 @@ export function WaybillsTable() {
         setData(body.data || []);
         setTotal(body.total || 0);
         setMissingCounteragentCount(Number(body.missingCounteragentCount || 0));
+        logFilter('FETCH_ALL_WAYBILLS_SUCCESS', { 
+          dataCount: (body.data || []).length,
+          total: body.total || 0,
+          usePost,
+          urlLength,
+          missingCounteragentCount: body.missingCounteragentCount || 0,
+          appliedFiltersCount: columnFilters.length + advancedFilters.size,
+          hasSearch: !!appliedSearch,
+          hasPeriodFrom: !!periodFrom,
+          hasPeriodTo: !!periodTo
+        });
         // Reset to page 1 when data changes
         setCurrentPage(1);
       } catch (err) {
+        logFilter('FETCH_ALL_WAYBILLS_ERROR', { error: err instanceof Error ? err.message : String(err) });
         console.error('Failed to load waybills', err);
         alert('Failed to load waybills');
       } finally {
@@ -748,7 +808,7 @@ export function WaybillsTable() {
     };
 
     fetchAllWaybills();
-  }, [appliedSearch, periodFrom, periodTo, showMissingCounteragents, sortColumn, sortDirection, columnFilters, advancedFilters]);
+  }, [filtersInitialized, appliedSearch, periodFrom, periodTo, showMissingCounteragents, sortColumn, sortDirection, columnFilters, advancedFilters]);
 
   useEffect(() => {
     const applyPendingResize = () => {
@@ -891,8 +951,8 @@ export function WaybillsTable() {
 
   const projectOptions = useMemo(() => projects.map((p: any) => ({
     value: p.project_uuid,
-    label: p.project_index || p.projectIndex || p.project_uuid,
-    keywords: `${p.project_index || p.projectIndex || ''}`.trim()
+    label: p.project_name || p.project_index || p.projectIndex || p.project_uuid,
+    keywords: `${p.project_name || p.project_index || p.projectIndex || ''}`.trim()
   })), [projects]);
 
   const projectOptionsWithNone = useMemo(() => ([
@@ -915,7 +975,7 @@ export function WaybillsTable() {
     const map = new Map<string, string>();
     projects.forEach((project: any) => {
       if (!project?.project_uuid) return;
-      const label = project.project_index || project.projectIndex || project.project_uuid;
+      const label = project.project_name || project.project_index || project.projectIndex || project.project_uuid;
       map.set(project.project_uuid, label);
     });
     return map;
@@ -936,13 +996,53 @@ export function WaybillsTable() {
       return requiredInsiderName;
     }
     if (columnKey === 'project_uuid') {
-      return projectLabelMap.get(row.project_uuid || '') || row.project_uuid || '';
+      if (!row.project_uuid) return '';
+      
+      // Find the project object
+      const project = projects.find(p => p.project_uuid === row.project_uuid);
+      if (!project) return projectLabelMap.get(row.project_uuid) || row.project_uuid || '';
+      
+      // Build rich format: {project_name} | {project_index} | {counteragent_name} | {sum} | {currency} | {date}
+      const projectName = project.project_name || '';
+      const projectIndex = project.project_index || '';
+      const counteragentName = row.counteragent_name || '';
+      
+      // Format sum with thousands separator
+      let sum = '';
+      if (row.sum) {
+        const sumNum = parseFloat(String(row.sum));
+        if (!Number.isNaN(sumNum)) {
+          sum = sumNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+      }
+      
+      const currency = project.currency || '';
+      
+      // Format date (DD.MM.YYYY)
+      let dateStr = '';
+      if (row.date) {
+        try {
+          const dateObj = new Date(row.date);
+          if (!Number.isNaN(dateObj.getTime())) {
+            const day = String(dateObj.getUTCDate()).padStart(2, '0');
+            const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+            const year = dateObj.getUTCFullYear();
+            dateStr = `${day}.${month}.${year}`;
+          }
+        } catch (e) {
+          // If date parsing fails, use the raw value
+        }
+      }
+      
+      // Build the full label
+      const parts = [projectName, projectIndex, counteragentName, sum, currency, dateStr].filter(p => p);
+      return parts.join(' | ');
     }
     if (columnKey === 'financial_code_uuid') {
       return financialCodeLabelMap.get(row.financial_code_uuid || '') || row.financial_code_uuid || '';
     }
     return (row as any)[columnKey];
-  }, [financialCodeLabelMap, projectLabelMap, requiredInsiderName]);
+  }, [financialCodeLabelMap, projectLabelMap, requiredInsiderName, projects]);
 
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
 
@@ -993,6 +1093,11 @@ export function WaybillsTable() {
   const renderFilterValue = useCallback((columnKey: ColumnKey, value: any) => {
     if (value === null || value === undefined || value === '') return '(Blank)';
     if (columnKey === 'project_uuid') {
+      const project = projects.find(p => p.project_uuid === String(value));
+      if (project) {
+        const parts = [project.project_name, project.project_index].filter(p => p);
+        return parts.join(' | ');
+      }
       return projectLabelMap.get(String(value)) || String(value);
     }
     if (columnKey === 'financial_code_uuid') {
@@ -1005,7 +1110,7 @@ export function WaybillsTable() {
       return String(value);
     }
     return String(value);
-  }, [financialCodeLabelMap, projectLabelMap]);
+  }, [financialCodeLabelMap, projectLabelMap, projects]);
 
   const sortPeriodValues = useCallback((values: any[]) => {
     const parsePeriod = (value: any) => {
@@ -1038,6 +1143,7 @@ export function WaybillsTable() {
 
   const runSearch = () => {
     const nextSearch = search.trim();
+    logFilter('SEARCH_SUBMITTED', { searchTerm: nextSearch, previousPage: currentPage });
     setAppliedSearch(nextSearch);
     if (currentPage !== 1) {
       setCurrentPage(1);
@@ -1283,6 +1389,14 @@ export function WaybillsTable() {
   };
 
   const handleClearFilters = () => {
+    logFilter('CLEAR_FILTERS_START', { 
+      columnFiltersCount: columnFilters.length,
+      advancedFiltersCount: advancedFilters.size,
+      hasSearch: !!appliedSearch,
+      periodFrom,
+      periodTo,
+      showMissingCounteragents
+    });
     setColumnFilters([]);
     setAdvancedFilters(new Map());
     setSearch('');
@@ -1291,6 +1405,7 @@ export function WaybillsTable() {
     setPeriodTo('');
     setCurrentPage(1);
     setShowMissingCounteragents(false);
+    logFilter('CLEAR_FILTERS_COMPLETE', { timestamp: new Date().toISOString() });
   };
 
   const handleExportXlsx = async () => {
@@ -1401,7 +1516,10 @@ export function WaybillsTable() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                logFilter('SEARCH_INPUT_CHANGED', { searchTerm: e.target.value, length: e.target.value.length });
+                setSearch(e.target.value);
+              }}
               placeholder="Search waybills..."
               className="pl-9"
               onKeyDown={(e) => {
@@ -1417,6 +1535,7 @@ export function WaybillsTable() {
                 type="month"
                 value={periodFrom}
                 onChange={(e) => {
+                  logFilter('PERIOD_FROM_CHANGED', { newValue: e.target.value, oldValue: periodFrom });
                   setPeriodFrom(e.target.value);
                   setCurrentPage(1);
                 }}
@@ -1430,6 +1549,7 @@ export function WaybillsTable() {
                 type="month"
                 value={periodTo}
                 onChange={(e) => {
+                  logFilter('PERIOD_TO_CHANGED', { newValue: e.target.value, oldValue: periodTo });
                   setPeriodTo(e.target.value);
                   setCurrentPage(1);
                 }}
@@ -1692,6 +1812,7 @@ export function WaybillsTable() {
                         activeFilters={filtersMap.get(col.key) || new Set()}
                         activeFilter={advancedFilters.get(col.key)}
                         onFilterChange={(values) => {
+                          logFilter('COLUMN_FILTER_CHANGED', { columnKey: col.key, columnLabel: col.label, filterCount: values.size, filterValues: Array.from(values) });
                           setColumnFilters((prev: { id: string; value: any[] }[]) => {
                             const existing = prev.find(f => f.id === col.key);
                             if (values.size === 0) {
@@ -1707,6 +1828,7 @@ export function WaybillsTable() {
                         }}
                         {...(!col.format || col.format === 'text' ? {
                           onAdvancedFilterChange: (filter: ColumnFilter | null) => {
+                            logFilter('ADVANCED_FILTER_CHANGED', { columnKey: col.key, columnLabel: col.label, filter });
                             setAdvancedFilters((prev: Map<ColumnKey, ColumnFilter>) => {
                               const next = new Map(prev);
                               if (filter) next.set(col.key, filter);
@@ -1717,6 +1839,7 @@ export function WaybillsTable() {
                           },
                         } : {})}
                         onSort={(direction) => {
+                          logFilter('SORT_CHANGED', { columnKey: col.key, columnLabel: col.label, direction });
                           setSorting({ id: col.key, desc: direction === 'desc' });
                           setCurrentPage(1);
                         }}

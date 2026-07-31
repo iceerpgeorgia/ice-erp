@@ -14,6 +14,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { normalizeToIsoDate, toDisplayDate, toDateSortTimestamp } from '@/lib/date-normalization';
 import * as XLSX from 'xlsx';
 
 // Lazy-load the heavy (~150 KB) bank transactions table; only fetched when this page mounts.
@@ -30,26 +31,11 @@ const BankTransactionsTable = dynamic(
 );
 
 const formatDate = (date: string | Date): string => {
-  const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}.${month}.${year}`;
+  return toDisplayDate(date);
 };
 
 const toIsoDateFromDisplay = (value: string): string => {
-  if (!value) return '';
-  if (value.includes('.')) {
-    const [day, month, year] = value.split('.');
-    if (year && month && day) {
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-  }
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    return value.slice(0, 10);
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
+  return normalizeToIsoDate(value) ?? '';
 };
 
 const toValidDate = (val: any): Date | null => {
@@ -447,7 +433,7 @@ export default function PaymentStatementPage() {
       ledgerId: entry.id, // Store ledger ID for editing
       type: 'ledger' as const,
       date: formatDate(entry.effectiveDate),
-      dateSort: new Date(entry.effectiveDate).getTime(),
+      dateSort: toDateSortTimestamp(entry.effectiveDate),
       accrual: entry.accrual,
       payment: 0,
       order: entry.order,
@@ -484,7 +470,7 @@ export default function PaymentStatementPage() {
       bankId: tx.id,
       type: 'bank' as const,
       date: formatDate(tx.date),
-      dateSort: new Date(tx.date).getTime(),
+      dateSort: toDateSortTimestamp(tx.date),
       accrual: 0,
       // Keep bank transaction sign in Payment column (outgoing: negative, incoming: positive).
       payment: signedPayment,
@@ -508,7 +494,7 @@ export default function PaymentStatementPage() {
       adjustmentId: adj.id,
       type: 'adjustment' as const,
       date: formatDate(adj.effectiveDate),
-      dateSort: new Date(adj.effectiveDate).getTime(),
+      dateSort: toDateSortTimestamp(adj.effectiveDate),
       accrual: 0,
       payment: adj.nominalAmount ?? adj.amount,
       order: 0,
@@ -1020,16 +1006,28 @@ export default function PaymentStatementPage() {
   const handleSaveEdit = async () => {
     if (!editingEntry || !newPaymentId) return;
 
+    // Validate date format before saving
+    if (!newDate) {
+      alert('Effective Date is required');
+      return;
+    }
+    const dateMatch = newDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (!dateMatch) {
+      alert('Effective Date must be in dd.mm.yyyy format');
+      return;
+    }
+
     // Close confirmation and start saving
     setShowConfirmation(false);
     setIsSaving(true);
     try {
+      const isoDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
       const response = await fetch(`/api/payments-ledger/${editingEntry.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: newPaymentId,
-          effectiveDate: (() => { const m = newDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : (newDate || undefined); })(),
+          effectiveDate: isoDate,
           accrual: parseFloat(newAccrual) || 0,
           order: parseFloat(newOrder) || 0,
           comment: newComment || null
@@ -1054,7 +1052,7 @@ export default function PaymentStatementPage() {
             // Update the changed entry
             return {
               ...entry,
-              effectiveDate: newDate,
+              effectiveDate: isoDate,
               accrual: parseFloat(newAccrual) || 0,
               order: parseFloat(newOrder) || 0,
               comment: newComment || null
@@ -1361,15 +1359,31 @@ export default function PaymentStatementPage() {
 
   const handleExportXlsx = () => {
     const fmtNum = (v: number | null | undefined) => (v == null ? '' : Number(Number(v).toFixed(2)));
-    const fmtDate = (v: string | Date | null | undefined) => {
-      if (!v) return '';
-      const d = new Date(v);
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      return `${day}.${month}.${d.getFullYear()}`;
+    const toExcelDateSerial = (value: unknown): number | string => {
+      if (!value) return '';
+      const { normalizeToIsoDate } = require('@/lib/date-normalization');
+      const dateValue = typeof value === 'string' ? value.trim() : value;
+      
+      if (typeof dateValue === 'string') {
+        const isoDate = normalizeToIsoDate(dateValue);
+        if (!isoDate) return dateValue;
+        const utcMillis = Date.parse(`${isoDate}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return dateValue;
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      if (dateValue instanceof Date) {
+        if (Number.isNaN(dateValue.getTime())) return '';
+        const isoStr = dateValue.toISOString().split('T')[0];
+        const utcMillis = Date.parse(`${isoStr}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return '';
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      return String(dateValue);
     };
-    const rows = filteredTransactions.map(row => ({
-      'Date': fmtDate(row.date),
+    const rows: any[] = filteredTransactions.map(row => ({
+      'Date': toExcelDateSerial(row.date),
       'Type': row.type,
       'Accrual': fmtNum(row.accrual),
       'Payment': fmtNum(row.payment),
@@ -1386,9 +1400,24 @@ export default function PaymentStatementPage() {
       'Batch ID': row.batchId ?? '',
       'ID1': row.id1 ?? '',
       'ID2': row.id2 ?? '',
-      'Created At': fmtDate(row.createdAt),
-    }));
+      'Created At': toExcelDateSerial(row.createdAt),
+    } as any));
     const ws = XLSX.utils.json_to_sheet(rows);
+    
+    // Apply date formatting to Date and Created At columns
+    const dateColumns = [0, 17]; // Column A (Date) and Column R (Created At)
+    Object.keys(ws).forEach(key => {
+      if (key.startsWith('!')) return; // Skip meta keys
+      const cell = ws[key];
+      if (!cell) return;
+      
+      const col = XLSX.utils.decode_col(key.match(/[A-Z]+/)?.[0] || 'A');
+      if (dateColumns.includes(col) && typeof cell.v === 'number') {
+        cell.t = 'n'; // Ensure numeric type
+        cell.z = 'dd.mm.yyyy'; // Apply date format
+      }
+    });
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Statement');
     const payId = statementData.payment.paymentId ?? 'export';
@@ -1920,6 +1949,11 @@ export default function PaymentStatementPage() {
                   />
                   <input
                     type="date"
+                    value={(() => {
+                      if (!addEffectiveDate) return '';
+                      const match = addEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                      return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+                    })()}
                     onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setAddEffectiveDate(`${d}.${m}.${y}`); } }}
                     className="border border-gray-300 rounded-md px-3 cursor-pointer w-12 flex-shrink-0"
                     title="Pick date from calendar"
@@ -2038,6 +2072,11 @@ export default function PaymentStatementPage() {
                   />
                   <input
                     type="date"
+                    value={(() => {
+                      if (!adjEffectiveDate) return '';
+                      const match = adjEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                      return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+                    })()}
                     onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setAdjEffectiveDate(`${d}.${m}.${y}`); } }}
                     className="border border-gray-300 rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
                     title="Pick date from calendar"
@@ -2305,6 +2344,11 @@ export default function PaymentStatementPage() {
                   />
                   <input
                     type="date"
+                    value={(() => {
+                      if (!newDate) return '';
+                      const match = newDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                      return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+                    })()}
                     onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setNewDate(`${d}.${m}.${y}`); } }}
                     className="border border-gray-300 rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
                     title="Pick date from calendar"
@@ -2419,12 +2463,12 @@ export default function PaymentStatementPage() {
                     <span className="text-green-600 font-bold">{newPaymentId}</span>
                   </div>
                 )}
-                {newDate !== editingEntry?.date.split('.').reverse().join('-') && (
+                {normalizeToIsoDate(newDate) !== normalizeToIsoDate(editingEntry?.date) && (
                   <div className="flex items-center gap-2 bg-white rounded p-3 border border-amber-200">
                     <span className="font-semibold text-gray-700 min-w-[120px]">Date:</span>
                     <span className="text-red-600 line-through">{editingEntry?.date}</span>
                     <span className="text-gray-400 text-xl">→</span>
-                    <span className="text-green-600 font-bold">{newDate.split('-').reverse().join('.')}</span>
+                    <span className="text-green-600 font-bold">{newDate}</span>
                   </div>
                 )}
                 {parseFloat(newAccrual) !== editingEntry?.accrual && (

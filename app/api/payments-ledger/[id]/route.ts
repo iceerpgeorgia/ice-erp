@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { normalizeToIsoDate } from '@/lib/date-normalization';
 
 export const revalidate = 0;
 
@@ -93,6 +94,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Effective date is required' }, { status: 400 });
     }
 
+    const normalizedEffectiveDate = normalizeToIsoDate(effectiveDate);
+    if (!normalizedEffectiveDate) {
+      return NextResponse.json(
+        { error: 'Invalid effective date. Use dd.mm.yyyy or yyyy-mm-dd format.' },
+        { status: 400 }
+      );
+    }
+
     // Verify the new payment exists
     const paymentData = await prisma.$queryRawUnsafe<Array<{
       payment_id: string;
@@ -175,7 +184,7 @@ export async function PATCH(
            updated_at = NOW()
        WHERE id = $7`,
       paymentId,
-      effectiveDate,
+      normalizedEffectiveDate,
       accrual || 0,
       order || 0,
       comment || null,

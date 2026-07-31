@@ -63,6 +63,7 @@ export type Job = {
   weight: number | null;
   isFf: boolean;
   sellingPrice: number | null;
+  serviceState: string;
   brandUuid: string | null;
   brandName: string;
   jobIndex: string;
@@ -106,6 +107,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'floors', label: 'Floors', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'weight', label: 'Weight (kg)', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'sellingPrice', label: 'Selling Price', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
+  { key: 'serviceState', label: 'Service State', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'isFf', label: 'FF', width: 80, visible: true, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
@@ -126,11 +128,14 @@ export function JobsTable() {
   const [isBulkBindOpen, setIsBulkBindOpen] = useState(false);
   const [bulkProjectUuids, setBulkProjectUuids] = useState<string[]>([]);
   const [isBulkBinding, setIsBulkBinding] = useState(false);
+  const [isBulkServiceStateOpen, setIsBulkServiceStateOpen] = useState(false);
+  const [bulkServiceState, setBulkServiceState] = useState<string>('Active');
+  const [isBulkServiceStateUpdating, setIsBulkServiceStateUpdating] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('jobs-table-columns');
       const version = localStorage.getItem('jobs-table-columns-version');
-      const currentVersion = '6'; // Increment this when changing default column visibility
+      const currentVersion = '7'; // Increment this when changing default column visibility
       
       if (saved && version === currentVersion) {
         try {
@@ -174,6 +179,7 @@ export function JobsTable() {
     floors: '' as string | number,
     weight: '' as string | number,
     sellingPrice: '' as string | number,
+    serviceState: 'Active',
     isFf: false,
     brandUuid: '',
     insiderUuid: '',
@@ -277,6 +283,7 @@ export function JobsTable() {
               floors: job.floors ?? null,
               weight: job.weight ?? null,
               sellingPrice: job.sellingPrice !== undefined && job.sellingPrice !== null ? Number(job.sellingPrice) : null,
+              serviceState: job.serviceState || 'Active',
               isFf: job.isFf ?? job.is_ff ?? false,
               brandUuid: job.brandUuid || job.brand_uuid || null,
               brandName: job.brandName || job.brand_name,
@@ -444,6 +451,7 @@ export function JobsTable() {
       floors: job.floors ?? '',
       weight: job.weight ?? '',
       sellingPrice: job.sellingPrice ?? '',
+      serviceState: job.serviceState || 'Active',
       isFf: job.isFf,
       brandUuid: job.brandUuid || '',
       insiderUuid: isInsiderFixed ? (fixedInsider?.insiderUuid || '') : '',
@@ -494,6 +502,32 @@ export function JobsTable() {
     }
   };
 
+  const handleBulkServiceStateUpdate = async () => {
+    if (selectedJobUuids.size === 0 || !bulkServiceState) return;
+    setIsBulkServiceStateUpdating(true);
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobUuids: Array.from(selectedJobUuids),
+          serviceState: bulkServiceState,
+          bulkUpdate: true,
+        }),
+      });
+      if (res.ok) {
+        setSelectedJobUuids(new Set());
+        setBulkServiceState('Active');
+        setIsBulkServiceStateOpen(false);
+        await fetchJobs();
+      }
+    } catch (error) {
+      console.error('Failed to bulk update service state:', error);
+    } finally {
+      setIsBulkServiceStateUpdating(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       projectUuid: '',
@@ -503,6 +537,7 @@ export function JobsTable() {
       floors: '',
       weight: '',
       sellingPrice: '',
+      serviceState: 'Active',
       isFf: false,
       brandUuid: '',
       insiderUuid: fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '',
@@ -595,14 +630,23 @@ export function JobsTable() {
         </div>
         <div className="flex items-center gap-2">
           {selectedJobUuids.size > 0 && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => { setBulkProjectUuids([]); setIsBulkBindOpen(true); }}
-            >
-              <Link className="h-4 w-4 mr-2" />
-              Bind {selectedJobUuids.size} to Projects
-            </Button>
+            <>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => { setBulkProjectUuids([]); setIsBulkBindOpen(true); }}
+              >
+                <Link className="h-4 w-4 mr-2" />
+                Bind {selectedJobUuids.size} to Projects
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => { setBulkServiceState('Active'); setIsBulkServiceStateOpen(true); }}
+              >
+                Edit Service State ({selectedJobUuids.size})
+              </Button>
+            </>
           )}
           <Button
             variant="outline"
@@ -953,6 +997,46 @@ export function JobsTable() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Service State Dialog */}
+      <Dialog open={isBulkServiceStateOpen} onOpenChange={setIsBulkServiceStateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Service State</DialogTitle>
+            <DialogDescription>
+              Update service state for {selectedJobUuids.size} selected job{selectedJobUuids.size !== 1 ? 's' : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="service-state-select">New Service State</Label>
+              <Select value={bulkServiceState} onValueChange={setBulkServiceState}>
+                <SelectTrigger id="service-state-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Conversion">Conversion</SelectItem>
+                  <SelectItem value="Free">Free</SelectItem>
+                  <SelectItem value="Others">Others</SelectItem>
+                  <SelectItem value="Recovery">Recovery</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsBulkServiceStateOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkServiceStateUpdate}
+                disabled={isBulkServiceStateUpdating || !bulkServiceState}
+              >
+                {isBulkServiceStateUpdating ? 'Updating...' : 'Update Service State'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1114,6 +1198,26 @@ export function JobForm({
           }
           placeholder="Enter selling price"
         />
+      </div>
+
+      {/* Service State */}
+      <div>
+        <Label htmlFor="serviceState">Service State</Label>
+        <Select
+          value={formData.serviceState}
+          onValueChange={(value) => setFormData({ ...formData, serviceState: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select service state..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Conversion">Conversion</SelectItem>
+            <SelectItem value="Free">Free</SelectItem>
+            <SelectItem value="Others">Others</SelectItem>
+            <SelectItem value="Recovery">Recovery</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Is FF Switch */}

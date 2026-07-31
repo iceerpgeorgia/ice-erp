@@ -1,0 +1,156 @@
+Now I have a good picture of the codebase. Let me now design the completely rewritten MTD Consolidated Divergence Lines indicator.
+
+Key design decisions:
+
+3 Indicators only: RSI (configurable period), MACD (configurable fast/slow/signal), StochRSI (configurable RSI period, stoch period, K smooth, D smooth) - synchronized with companion indicators
+
+16 Timeframes: 1, 3, 5, 15, 30, 60, 120, 180, 240, 360, 480, 720, 1440, 2880, W, M
+
+Each can be individually toggled
+TF mode: "current only", "higher", "lower", "all"
+Line plotting:
+
+Confirmed divergences: colored lines (green bull, red bear)
+Tentative divergences (unconfirmed - the last right_bars bars can't confirm): gray dotted lines
+Architecture: Use request.security() with a function that computes indicators within each timeframe's context, then detect pivots and divergences
+
+The key challenge is detecting divergences across timeframes in Pine Script. I'll compute each indicator inside request.security() so the calculations happen in their respective timeframe contexts.
+
+Defining the divergence detection function... Tracking previous pivot states...
+
+I'm realizing that line.new() can't be called inside request.security(), so I need to return the divergence coordinates from the function and draw the lines in the main chart context instead. For each detected divergence, I'll pass back the bar indices, prices, direction, and type, then draw them when the values change. Since divergences are infrequent events, I can track just the most recent one detected each bar and update the visualization accordingly.
+
+The function needs to calculate RSI, MACD, and Stochastic RSI across the timeframe, then return all the raw values needed for divergence detection in the main context. But I'm hitting an issue—the bar indices inside a higher timeframe request don't directly correspond to the chart's bar indices, so I need to figure out how to map them correctly. The key insight is that line.new() needs chart-level bar indices, not higher timeframe indices. So instead of trying to map higher TF bar indices directly, I should use request.security() to fetch the higher timeframe's OHLCV data and RSI values at each chart bar, then run the divergence detection logic in the main chart context where I have access to the correct bar indices for drawing lines. So instead of trying to work with the higher timeframe data on the chart's bar resolution, I could compute the entire divergence detection logic inside the security function where everything naturally operates at the 1H resolution—then just return a signal back to the main chart indicating whether a divergence was found. That way ta.pivothigh() and ta.pivotlow() work on actual 1H bars rather than trying to map them back to 5m bars. The key is detecting when a higher timeframe candle closes on the chart by watching for value changes in the security call—when the value shifts, we know we're at the first bar after that higher TF close and can run pivot detection. Instead of buffering all historical data, I'll maintain compact arrays of just the recent higher TF candles and perform pivot detection on those, which is much more efficient.
+
+Writing array initialization... Continuing with the array logic...
+
+I'm realizing this approach gets unwieldy fast—managing arrays across 16 timeframes with pivot detection on each one creates a lot of overhead. Let me step back and think about what actually matters here. Maybe I should focus on detecting divergences just on the chart's native timeframe first, then use request.security() to pull in data from higher and lower timeframes when needed. That way I can get the core feature working cleanly without getting bogged down in managing multiple arrays and complex state for every single timeframe combination. the divergence detection logic on those buffers. The main work is stripping out Stochastic, CCI, and Momentum from the data structure, then expanding to cover 16 timeframes with mode filtering for higher/lower/current timeframe plotting, plus adding gray dotted lines for tentative divergences. Memory could be a concern though—16 timeframes × 900 candles means roughly 14,400 objects, and I need to verify Pine Script won't hit its limits with that many fields stored. So I'm hitting Pine Script's 10,000 UDT instance limit—14,400 Candle objects would exceed that. I could reduce the buffer to 100 candles per timeframe, bringing it down to 1,600 instances, or switch to separate arrays for each value instead of using the UDT structure, or only load the timeframes relevant to the current mode rather than all 16 at once.
+
+Actually, I'm reconsidering the whole approach. The render app uses a database for historical data and does full pivot-based divergence detection, but Pine Script can't handle that efficiently with massive buffers. A better strategy would be to leverage Pine's built-in ta.pivothigh() and ta.pivotlow() functions on series data, then use request.security() to pull indicator values from higher timeframes and run pivot detection on those series instead.
+
+The tricky part is that when you apply pivot detection to a higher timeframe series on a lower timeframe chart, the left and right bar counts are measured in chart bars, not higher timeframe bars. So if I'm on a 5-minute chart looking at 1-hour data with left_bars=9, that's actually 9 five-minute bars, not 9 hours. I need to scale the bar counts by the ratio of timeframes to get the correct lookback window.
+
+I'm calculating the adjusted bar counts by multiplying the desired higher timeframe bars by the ratio of the higher timeframe period to the chart period in seconds, then fetching the 1-hour RSI series to apply the pivot detection to.
+
+Now I can detect pivots on the 1-hour RSI using these adjusted bar counts, which correctly identifies local extrema at the 1-hour resolution even though I'm working on a 5-minute chart. The pivot's chart bar index can then be recovered by subtracting the right bar offset from the current bar index. work, though I need to be careful about the chart timeframe relative to the target timeframe. If the chart is on a higher timeframe than what I'm analyzing—like viewing 5-minute data on a 1-hour chart—the multiplier becomes fractional, which won't work for pivot bars. Pine Script handles this by returning the most recent lower timeframe value at each chart bar, so the pivot detection would operate on those values instead. To keep this manageable, I should probably restrict higher timeframe lines to only display when the chart timeframe is equal to or lower than the target timeframe.
+
+Actually, the user wants lines from higher timeframes regardless of the chart timeframe, so I need a different strategy. I'll use a hybrid approach: detect pivots natively on the current chart timeframe, then use a rolling buffer for other timeframes but with smaller buffers—50 candles instead of 900. That gives me 16 timeframes × 50 candles = 800 UDT instances, which stays well within limits. For the Candle UDT, I'll keep it lean with just the essential fields.
+
+Defining the rolling buffer approach... Writing the indicator structure... Setting up buffers for 16 different timeframes and fetching data across all of them using request.security calls...
+
+Now I'm defining a function to update each buffer when a new candle forms, storing the candle's OHLC data along with technical indicators, and maintaining a maximum buffer size by removing old entries...
+
+Moving into divergence detection and line drawing logic...
+
+Defining the line drawing function that iterates through the buffer to identify pivot points by checking if price bars form local highs or lows within the specified left and right bar windows... I'm simplifying the approach by tracking the most recent pivot highs and lows in separate variables rather than searching through the buffer each time, which avoids the complexity of nested loops. When a new candle is added, I'll check if it forms a local pivot and compare it to the previously stored pivot to detect divergence. I'm planning to use a function-based structure that keeps the state clean and manageable. With 16 buffers and a maximum of 50 candles each, the O(n²) complexity works out to around 40,000 operations per bar, which is acceptable. I'm going to optimize this by tracking the last confirmed pivot per buffer instead of rescanning the entire buffer each time a new pivot is found. I'm reconsidering how Pine Script's var scope works within functions—each function definition maintains its own persistent state, but I need to be careful about how that state is shared across different call sites.
+
+Actually, I realize the issue: if I define a single f_detect_divergence() function with var state and call it for each of the 16 timeframes, all calls will share the same var variables. That won't work. I need to use per-timeframe arrays in the main scope to track the last confirmed pivot price and index for each of the 16 buffers.
+
+Writing state tracking arrays... Writing the pivot detection logic... Writing divergence detection logic... So I can modify global arrays from within functions using array.set(), which is exactly what I need for tracking the pivot highs and lows across timeframes.
+
+Now I'm laying out the full structure: I'll define 16 timeframes with their corresponding minute values, then set up the inputs for RSI, MACD, and Stochastic parameters.
+
+For data collection, I'm using request.security() to fetch OHLC values and indicator calculations across all timeframes, storing each one in a buffer array with a 50-candle limit. I'll manage these buffers by updating them as new data arrives.
+
+When a new candle forms, I'm detecting divergences by tracking the last confirmed pivot (high or low) for each indicator on each timeframe, then comparing it against the previous pivot to identify regular or hidden divergences. Simultaneously, I'm drawing tentative gray dotted lines for the most recent candle if it shows potential divergence against the last confirmed pivot, even before full confirmation. Finally, I'm filtering which timeframes to display based on the chart's current timeframe and the selected mode—showing only higher, lower, or all timeframes as configured.
+
+Now I'm defining a function that calculates RSI, MACD, and Stochastic RSI values...
+
+I need to call this function inside request.security() to fetch those indicators from the 1-minute timeframe. In Pine Script v5+, I can pass a function call as an expression to request.security(), and it'll return a tuple of values. The key thing is that close, open, high, low inside the function will reference the security's data, not the chart's data, while the parameters like rsi_period are passed from the module level. need to reconsider how request.security() handles tuple returns in Pine v6. I'm thinking the direct array approach might be cleaner—unpacking multiple values like close, open, high, low, and various indicators all at once from the 1-minute timeframe.
+
+Actually, wrapping this in a helper function is probably the way to go. I can define a function that calculates all the indicators I need, then pass that function to request.security() so it handles the tuple unpacking properly.
+
+Writing the helper function... The local variables inside the function won't cause issues since they're scoped properly. Now I need to write out the full implementation, starting with the timeframe conversion logic—converting chart timeframes like "1", "60", "1D", "1W", and "1M" into their equivalent seconds so I can properly filter and aggregate the data across different intervals.
+
+Writing the filtering logic... Writing the function body... Calling the same function across all 16 timeframes using request.security() with different timeframe strings, so I can reuse the same indicator calculations rather than duplicating the logic.
+
+Now I need to think about how to store the bar index for each timeframe's candle in the Candle user-defined type.
+
+I'm defining a Candle type that holds the OHLC data along with RSI, MACD, and Stochastic RSI values, plus the bar_index from when that candle closed. This is crucial for drawing lines accurately across different timeframes.
+
+When a new 1-minute candle opens (detected by the open price changing), the previous candle is complete, so I push it to the buffer using the prior bar's values and its corresponding bar_index.
+
+On higher timeframes like 1H viewed from a 5m chart, the open stays constant throughout the candle, so the condition triggers only at the first bar after the candle closes—at that point, the previous bar's OHLC values represent the just-closed higher timeframe candle.
+
+With lookahead=barmerge.lookahead_off, I'm getting the last confirmed data from the higher timeframe, meaning at the first 5m bar of a new 1H candle, the current close is the new 1H's open while the previous bar's close is the prior 1H's close.
+
+For lower timeframes like 1m viewed from a 5m chart, each 5m bar captures the latest 1m close, but since series data updates continuously, the open comparison doesn't fire multiple times within a single 5m bar the way I initially thought.
+
+The real issue is that request.security() only gives me the most recent value per chart bar, so looking at lower timeframes from a higher resolution means missing intermediate candles entirely—on a 5m chart, a buffer approach would only capture one out of every five 1m candles. This is a fundamental limitation of the API for the lower TF lines feature, though the user's request to plot lower timeframe lines would ideally need a different approach. The downsampling means I'd only capture about one-fifth of the 1-minute candles when viewing from a 5-minute chart, which limits accuracy for lower timeframe divergences, but this is a fundamental constraint of request.security(). I'll accept this limitation and let users check the lower timeframe chart directly for precise divergences. So I'm moving forward with request.security() across all 16 timeframes, and now I need to handle drawing tentative divergences—those potential divergences on the current bar that haven't yet been confirmed as new pivots after waiting the required number of bars.
+
+Writing divergence drawing logic... Setting up tentative line management...
+
+For confirmed divergences, I need to track whether a line has already been drawn for a given pivot to avoid redrawing it every bar. The current logic checks if the bar index changed, but with higher timeframes, the same bar_index might persist across multiple chart bars, so I need a more reliable way to detect when a divergence first becomes confirmed and only draw once at that moment. Now I'm ready to implement the full solution. I'll structure it with a custom type for candles containing all the indicator values, set up the configuration options for RSI, MACD, and StochRSI parameters, create a function to compute those indicators across different timeframes, fetch data using security calls for each timeframe, maintain circular buffers to track candles, and manage state arrays to track which pivot pairs have already had divergence lines drawn.
+
+Writing Pine Script code... Setting up more indicator parameters... Defining timeframe toggles... Adding visual configuration options... Fetching data across multiple timeframes... Fetching multi-timeframe data... Fetching multi-timeframe data... Setting up rolling buffers for 16 different timeframes, each with a maximum capacity of 50 candles... Initializing more state arrays... Writing buffer and divergence logic... Checking if the pivot point is a local high or low by comparing it against surrounding bars, then if it's a confirmed high, I'm retrieving the previous pivot high data including price, bar index, RSI, MACD, and stochastic RSI to set up for divergence detection.
+
+Now I'm evaluating different types of bearish divergences—regular bearish where price makes a higher high but the indicator is lower, and hidden bearish where price makes a lower high but the indicator is higher—across RSI, MACD, and stochastic RSI sources.
+
+When any of these conditions trigger, I'm drawing lines connecting the previous pivot high to the current bar, using different opacity levels to distinguish between regular and hidden divergences, then updating the tracking array with the new pivot high location.
+
+Now I'm storing the current bar's price, bar index, and indicator values as the last confirmed pivot high, then moving into the logic for detecting bullish divergences at pivot lows.
+
+Continuing with divergence detection... Drawing the hidden divergence line with reduced opacity, then updating the stored values for the last confirmed pivot low across all indicators so I can track them for future comparisons. Writing tentative line logic... Writing indicator logic... Finishing the timeframe conversions for 2-day, weekly, and monthly intervals, then defining a function that determines whether each timeframe should be active based on the enabled flag and the current mode setting. Now I'm applying that function to generate active states for all the timeframes, and starting to set up the main execution logic that will update buffers when new candles are detected.
+
+Pushing previous candle data... Adding more timeframe checks... Completing the buffer push calls for the remaining timeframes... Processing each timeframe buffer...
+
+I'm noticing a problem though—the functions are referencing global variable arrays that need to be properly scoped. Pine Script does allow functions to read and write to global arrays using array.set() since arrays are passed by reference, and drawing operations like line.new() and line.delete() work fine inside functions too. The real constraint I'm hitting is the sheer volume of data: with 16 buffers holding up to 50 Candle objects each, that's 800 objects with 7 fields per object, which is pushing against Pine Script's memory and object limits.
+
+The function f_process_tf() gets called 16 times per bar with different buffer arguments, and it correctly accesses the passed buffer array while maintaining per-timeframe state through the global state arrays indexed by tf_idx. Input parameters like div_left and div_right are accessible as global constants from within functions, so that's not an issue.
+
+I'm also verifying that nested function calls work in Pine Script v6 — they do, as long as the called functions don't use drawing or plotting commands at the module level. Since f_extend() uses line.new() and array operations, which are fine to call from within functions, this should work. The function also references line_ext as an input variable, which is accessible globally.
+
+Now I'm reconsidering the buffer update logic. When I detect a new 1-minute candle with o1m != o1m[1], I'm pushing the previous bar's closed values into the buffer using [1] indexing to get those final values, along with bar_index - 1 to mark which chart bar it came from. But on the very first bar, o1m[1] would be na, so I need to add a guard condition to avoid processing invalid data. Adding the na-check should handle the first bar issue. Now I'm thinking about performance—calling f_process_tf() 16 times per bar with all that array manipulation and line drawing could hit Pine Script's timeout limits. For each bar, the function loops through roughly 12 iterations per timeframe when there's enough data, so the cumulative work across all timeframes and historical bars might be substantial.
+
+Let me verify the timeframe notation too—TradingView supports "2D" for 2-day charts directly, though I'm seeing references to "1440" minutes in the existing code that I should reconcile. I can simplify the timeframe filtering by converting the chart's current timeframe to minutes, then using a helper function to check if each timeframe should be active based on the selected mode—comparing against the chart's timeframe rather than trying to parse different timeframe string formats. Completing the timeframe mappings for all intervals, then I'm noticing a potential issue with how timeframe.in_seconds() calculates values for weekly and monthly charts—the conversion to minutes works cleanly for most intervals, but weekly and monthly have some edge cases to consider.
+
+For the "current" mode specifically, the equality check should hold up in typical scenarios: weekly charts will match the 10080-minute constant, and monthly charts will generally align with 43200 minutes assuming a 30-day month, though this could vary slightly depending on the actual month length.
+
+Now I'm thinking about the request.security() call limits in Pine Script...
+
+we're making 16 calls across our timeframes, which is well within the v5+ maximum of 40. Each call returns a tuple of 7 values (close, open, high, low, RSI, MACD, stochastic RSI), which is fine. The real question is whether I can call a user-defined function inside request.security() that itself uses built-in functions like ta.macd(). Pine Script should allow this since the function executes in the security's context, but I need to verify there aren't any restrictions around calling ta.macd() from within a function passed to request.security().
+
+For the MACD tuple destructuring inside the function, I'm initializing local variables and then reassigning them via tuple unpacking from ta.macd(). This should work in Pine Script v6 since tuple destructuring is allowed in function bodies. The key constraint is that plotting functions can't be called inside such functions, but indicator calculations are fine.
+
+There's a potential shadowing concern with declaring float _ml = na and then reassigning via [_ml, _ms, _mh] = .... To avoid this, I should combine the declaration and assignment into a single operation instead of initializing to na first. Checking the function signatures and parameters for Pine v6 compatibility — ta.stoch() takes four positional arguments correctly, ta.rsi() properly references the security's close price in the security context, and line.new() accepts the named parameters like style, color, and extend as valid Pine v6 syntax. " = 2H ✅
+
+"180" = 3H ✅
+"240" = 4H ✅
+"360" = 6H ✅
+"480" = 8H ✅
+"720" = 12H ✅
+"1440" = 1D ✅
+"2D" = 2D ✅ (TradingView supports this)
+"W" = Weekly ✅
+"M" = Monthly ✅
+OK I think the code is ready to be written. Let me also think about whether to use "D" or "1440" for daily. TradingView documentation shows that for daily+, the string format is "D", "W", "M". For intraday, it's numbers. But actually, both "1440" and "D" work for daily
+
+I need to verify how TradingView handles timeframe conversions in Pine Script. Both "1440" and "D" should resolve to 86400 seconds for a full day, and when calculating chart minutes from the daily timeframe, dividing 86400 by 60 gives us 1440 minutes. For consistency with TradingView's canonical format, I'll use "D" for daily and "2D" for two-day timeframes in the buffer configuration.
+
+Now I'm checking the buffer update logic—when a new 1-minute candle forms, the condition o1m != o1m[1] triggers, and at that point I'm pushing the previous candle's high, low, close, and indicator values into the buffer using the bar index from one candle ago.
+
+The issue is that bar_index - 1 refers to the chart's bar index, not the 1-minute timeframe's bar index. If I'm viewing 1-minute data on a 5-minute chart, the 1-minute candle closed several chart bars ago, so using bar_index - 1 doesn't accurately capture where that 1-minute close actually occurred on the chart. However, this becomes less problematic when viewing higher timeframe data from a lower timeframe chart, since the higher timeframe candle only updates once per period anyway.
+
+For drawing the divergence lines, using bar_index - 1 as an approximation is acceptable—the lines won't be perfectly pixel-precise when viewing lower timeframe data on a higher timeframe chart, but they'll still display the correct divergence patterns. The real question is whether the condition o1m != o1m[1] even triggers on a 5-minute chart, since o1m would represent the most recent 1-minute open available to that timeframe. The 16 timeframe buffers work best when the chart timeframe is close to the target timeframes, so for very different scales like 1-minute data on a daily chart, the divergence detection will be approximate but that's acceptable. Now I'm ready to write the full implementation, and I need to remember that timeframe.in_seconds() handles weekly and monthly timeframes correctly. The f_process_tf() function accesses all the global inputs like div_left, div_right, show_reg, show_hid, and the various color and styling inputs, so those are all available within the function scope.
+
+Writing the extend function... I need to clarify how confirmed versus tentative pivots work in this approach. A confirmed pivot has enough right bars observed to validate it, while a tentative pivot is the current live bar showing a potential divergence that hasn't been confirmed yet. Since the tentative line gets redrawn every bar, I'm creating and deleting it repeatedly, which might be inefficient but should still work correctly.
+
+For the bar indices when drawing lines, I'm using the chart bar index from when each pivot was added to the buffer, so the line connects the actual chart positions where those pivots occurred.
+
+When dealing with higher timeframe data on a lower timeframe chart—like 1H candles on a 5m chart—the bar indices can be far apart, which means the lines will span long distances visually, but that's the correct behavior. I'm confident this approach works, so now I'm ready to start implementing the code.
+
+I need to verify a few things about Pine Script v6: arrays of user-defined types can be passed to functions by reference, so modifications inside the function affect the original array. The for k = a to b loop handles edge cases properly—if a > b, the loop simply doesn't execute, which is what we want when calculating pivot indices that might fall outside valid ranges.
+
+Wait, there's actually a potential issue: if pivot_idx - div_left is negative, the loop for k = pivot_idx - div_left to pivot_idx + div_right would try to access array indices with negative values, which would throw an error. I need to clamp the loop bounds using math.max(0, pivot_idx - div_left) and math.min(n-1, pivot_idx + div_right) to ensure we only access valid indices. Let me make sure that's in the final implementation.
+
+Also, when div_right = 0, the pivot is positioned at pivot_idx = n - 1 (the last element), and the loop checks the last div_left + 1 elements. This means the current bar itself becomes a potential pivot candidate, which is a "tentative" mode—it works but ideally div_right >= 1 for proper divergence detection.
+
+Now I'm ready to write the actual code. One thing to verify: the function calls like f_process_tf(buf_1m, 0, active_1m) use the tf_idx parameter to index into global state arrays, which is how we maintain per-timeframe state without duplicating the function. That's the key design here. Though calling this function 16 times per bar might have performance implications I should consider. I need to decide whether to use the last closed candle or the live candle for tentative divergence checks. The render app uses live data, but for simplicity and to avoid complexity, I'll stick with checking against the most recently closed candle in the buffer—it's nearly real-time and keeps the logic cleaner. The buffer will only hold closed candles, and tentative divergence checks will use the most recent closed candle in the buffer—this keeps things simple and clean, with users seeing tentative signals as soon as a candle closes and shows potential divergence, even before right_bars confirmation kicks in. I'm going to finalize the code now without further planning, making sure the f_process_tf function stays within Pine v6 limits with its three parameters and that f_active() works correctly based on timeframe logic.
+
+Writing the complete indicator structure... the order matters in Pine Script—inputs need to come first since functions reference them, then function definitions, then the request.security() calls that invoke those functions, and finally the variable declarations and main execution loop. I'm realizing that Pine Script handles module-level var declarations specially, so functions can reference them even if they're defined later, but I need to be careful about the execution order to avoid runtime errors. I'm concerned about the performance impact of calling this function 16 times per bar when it contains substantial logic—with a 50-candle buffer, each invocation runs through array operations and loops that could add up quickly, so I need to verify this won't cause execution timeouts. Tentative lines get created and deleted each bar per active timeframe, so they don't accumulate—that's good. Now I'm writing out the complete Pine Script code, starting with the indicator declaration and the candle struct to hold OHLC and indicator data.
+
+Setting up the input parameters for RSI, MACD, and StochRSI... Adding more input parameters... Adding more timeframe toggles... Completing the MACD calculation and then computing a stochastic RSI by applying smoothing, before returning all the key indicators along with price data. Then I'm fetching data across 16 different timeframes...
+
+Fetching security data... Fetching multi-timeframe data... Fetching multi-timeframe data... Initializing rolling buffers for multiple timeframes... Initializing arrays to track drawn pivot highs and lows across timeframes, plus line handles for tentative support and resistance lines, then setting up a helper function to determine line extension behavior. Writing buffer and divergence logic... Continuing the pivot detection logic...
+
+Now I'm checking for both regular and hidden bearish divergences at this pivot high—regular divergence when price makes a higher high but the indicator is lower, and hidden divergence when price makes a lower high but the indicator is higher. If either condition is met and the corresponding display flag is enabled, I'll draw a line connecting the previous pivot to the current one.

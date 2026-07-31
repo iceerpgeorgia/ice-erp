@@ -3,10 +3,87 @@
 ## Documentation Policy
 **Always update `AGENTS.md` when logic changes.** Any time domain logic, integration rules, architectural decisions, or key constraints are added or modified, the relevant section in this file must be updated in the same session. This file is the single source of truth for how the system works. New sections should follow the style of existing ones.
 
+## AppShell Global Component Safety Rules
+**CRITICAL**: AppShell (`app/app-shell.tsx`) is the parent wrapper for ALL pages. Any error in a component rendered here breaks the entire application silently on all pages.
+
+### Prevention Rules
+- **NEVER** add untested components directly to AppShell without local verification with `pnpm dev`
+- **ALWAYS** test new AppShell changes locally on multiple routes before deploying
+- **ALWAYS** wrap AppShell additions in error boundaries: `<ErrorBoundary fallback={null}><Component /></ErrorBoundary>`
+- **ALWAYS** use lazy loading for optional features: `const Component = dynamic(() => import(...), {ssr: false})`
+- **NEVER** render components using authentication hooks (useSession, useRouter) directly in AppShell without handling hydration timing
+- **ALWAYS** verify no console hydration errors: `Warning: useLayoutEffect does nothing on the server`
+- **ALWAYS** test session loading with NextAuth (session may be undefined during initial load)
+
+### Historical Issues (Pattern)
+- Deployment #347: Feature added to AppShell broke all pages
+- Deployment #351: FloatingAIButton (with useSession hook) added to AppShell broke all pages
+- Root cause both times: Component errors in AppShell propagate globally, breaking entire app
+
+### Solution
+If a component needs to appear on all pages:
+1. Create as client-only: `'use client'` directive
+2. Wrap in error boundary in AppShell
+3. Use dynamic import with {ssr: false}
+4. Test locally on ≥3 different routes
+5. Verify in browser console for hydration warnings
+6. Only then add to AppShell
+
+### Reference
+See `/memories/repo/ui-breaking-pattern.md` for detailed debugging process.
+
 ## Project Structure & Module Organization
 The workspace is a single Next.js 14 application (App Router) with co-located API routes. Pages and components live in `app/` with co-located hooks and styles. API routes are in `app/api/` (50+ route files). Shared Prisma schema and migrations sit in `prisma/`, reusable types in `types/`, shared utilities in `lib/` (auth, Prisma client, audit logging, Zod schemas). Python scripts for bank XML processing live at the project root. Vercel cron jobs handle scheduled tasks (BOG import, NBG rates, cash accruals) via `vercel.json`.
 
 - Jobs CRUD now includes `selling_price` support in the Prisma schema, API handlers, and the Jobs table/form UI.
+
+## Project Balance Calculation
+
+### Overview
+Project balance is calculated as: `balance = project.value - total_payments`
+
+Where `total_payments` aggregates all financial activity:
+1. **Bank Transactions**: Amounts from raw bank account tables (GE65TB..., GE78BG...)
+2. **Batch Partitions**: Partitioned amounts from bank_transaction_batches when applicable
+3. **Payment Adjustments**: Manual adjustments from payment_adjustments table (NEW: Deployment #351)
+
+### Implementation
+Calculated in two API routes using identical UNION ALL patterns:
+- **GET /api/projects-v2**: Main endpoint for projects list (preferred)
+- **GET /api/projects**: Legacy endpoint, supports single project by uuid param and main list
+
+### Query Structure
+Both routes aggregate in a LEFT JOIN with a complex subquery:
+```sql
+LEFT JOIN (
+  SELECT payment_id, SUM(nominal_amount) as total_payment
+  FROM (
+    -- Bank transactions (not in batches)
+    SELECT cba.payment_id, cba.nominal_amount ...
+    UNION ALL
+    -- Batch partitions
+    SELECT btb.payment_id, (COALESCE(...) * sign) ...
+    UNION ALL
+    -- Payment adjustments (Deployment #351)
+    SELECT pa.payment_id, COALESCE(pa.nominal_amount, pa.amount) ...
+    WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
+  ) combined
+  WHERE payment_id IS NOT NULL
+  GROUP BY payment_id
+) bank_agg ON p.payment_id = bank_agg.payment_id
+```
+
+### Payment Adjustments Integration
+- **nominal_amount**: Used for face currency conversions (primary amount in payment currency)
+- **amount**: Fallback for legacy direct-mode adjustments
+- **is_deleted filter**: Non-deleted adjustments only (consistent with payment statements)
+- **Deployment #351**: Added UNION ALL clause to include payment_adjustments table
+
+### Design Decisions
+- Adjustments use `nominal_amount` column which is always in payment's currency (already converted)
+- Falls back to `amount` field for legacy adjustments created before currency conversion mode
+- Filter ensures deleted adjustments don't artificially inflate project balances
+- Uses ABS() wrapper to normalize sign (both negative and positive flows supported)
 
 ## BOG GEL Bank Statement Processing - Three-Stage Approach
 
@@ -184,6 +261,20 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Check `app/api/bank-transactions/route.ts` for the list of active source tables
 - Each bank account has its own table with naming pattern: `{IBAN}_{BANK}_{CURRENCY}`
 
+### Transaction-Payment Sync (PATCH and Bulk-Bind)
+When a payment is assigned to a bank transaction via `PATCH /api/bank-transactions/[id]` or `PATCH /api/bank-transactions/bulk-bind`:
+- **Automatic sync from payment:**
+  - `nominal_currency_uuid` is set to the payment's `currency_uuid`
+  - `exchange_rate` and `nominal_amount` are recalculated based on the new currency
+  - **NEW (2026-06-10)**: `project_uuid` is synced from the payment's `project_uuid` (unless explicitly overridden in request)
+  - **NEW (2026-06-10)**: `financial_code_uuid` is synced from the payment's `financial_code_uuid` (unless explicitly overridden in request)
+  - `counteragent_uuid` is auto-assigned from payment if transaction has no counteragent yet
+  - `parsing_lock` is set to `true` to prevent re-processing
+- **When payment is cleared:**
+  - All above fields are reset: `project_uuid`, `financial_code_uuid`, `nominal_currency_uuid` revert to defaults
+  - `parsing_lock` is set to `false`
+- **Rationale**: Handovers job distribution grid filters by `project_uuid` and income `financial_code_uuid`. Without this sync, manually editing a transaction with an existing payment would orphan it from the handovers view.
+
 ## Project Value Scaling
 - When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.
 - Selection rules for payments to scale:
@@ -338,6 +429,68 @@ Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, AP
 
 ## Coding Style & Naming Conventions
 All code is TypeScript and must satisfy the shared ESLint + Prettier rules via `pnpm lint` or `pnpm lint --fix`. Name files in kebab-case (`user-profile.ts`), React components in PascalCase (`UserProfile.tsx`), and variables or functions in camelCase. Keep comments purposeful: explain non-obvious invariants, integration quirks, or domain rules.
+
+## Handovers Export & Loading Optimization (2026-06-11)
+The Handovers page implements a multi-stage loading pipeline with export caching to optimize performance and prevent premature export attempts.
+
+### Loading States & Coordination
+Three independent loading flags coordinate when export is ready:
+- **`loadingProjects`**: Initial fetch of projects, brands, insiders (runs once on mount)
+- **`loadingJobs`**: Per-project fetch of jobs, lift cert dates, bank transactions, income payments, distributions
+- **`ratesLoading`**: NBG rate lookups for each unique lift cert date (runs after jobs load)
+
+**Computed Flag**: `isTableFullyLoaded = !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== ''`
+
+**Export Button Disabled When**: `!isTableFullyLoaded || sortedJobs.length === 0`
+- Prevents export before Debit GEL and Total GEL columns are populated (which require NBG rates)
+- Dynamic tooltip shows "Loading all tables including rates..." when disabled
+- Button enables only after all async operations complete
+
+### Export Data Cache Structure
+When jobs fully load and rates are fetched, `exportCache` state is populated:
+```typescript
+{
+  projectUuid: string | null,           // Selected project UUID
+  projectData: {                         // Project metadata
+    projectName: string,
+    currencyCode: string,
+    liftCertMap: Record<string, { date, docNo }>
+  },
+  jobsData: any[],                      // Raw job records from /api/jobs
+  paymentsData: any[],                  // Income payments from /api/payments-report
+  distributionsData: any[],             // Job distributions from /api/payments-jobs
+  rateCache: Map<string, number | null>, // NBG rates keyed by date|currency
+  timestamp: number                      // Cache creation timestamp
+}
+```
+
+**Cache Population**: Occurs in `fetchJobs` after:
+1. Lift cert info fetched and mapped
+2. Payments and distributions processed
+3. NBG rates batch-fetched and stored in `rateByDate`
+4. Before `setJobs()` updates jobs state with calculated Debit GEL/Total GEL
+
+**Cache Usage**: Prepared for export API to use cached data instead of re-querying database when `useCache=true` flag passed (future optimization).
+
+### Rate Fetching Sequence
+1. Extract unique cert dates from jobs: `Set<string>`
+2. Call `Promise.all()` on `uniqueCertDates.map(date => lookupNbgRate(date, projectCurrencyCode))`
+3. `lookupNbgRate` caches per `date|currency` key in `rateCacheRef`
+4. Return rates in `rateByDate` Map
+5. Used in job rendering: `debitGel = (sellingPrice - paidNominal) * rate`, `totalGel = paidGel + debitGel`
+
+**Caching Strategy**:
+- `rateCacheRef` persists across renders (useRef)
+- Failed rate lookups cached as `null` to prevent retries
+- GEL→GEL conversions return `1` immediately
+- Deduplicates identical date+currency requests within same fetch cycle
+
+### Debit GEL and Total GEL Column Dependency
+These computed columns **depend on NBG rates** and return `null` until rates are available:
+- **Debit GEL**: `(sellingPrice - paidNominal) * rate`
+- **Total GEL**: `paidGel + debitGel`
+
+If `rate` is `undefined` (still loading) or `null` (fetch failed), columns show `—` placeholder. Export button stays disabled until all rows have valid calculations.
 
 ## Testing Guidelines
 Favor tests on public contracts: API handlers, Prisma services, and UI state reducers. Co-locate Jest specs as `*.test.ts(x)` near their source or under `tests/`, and refresh fixtures in `tests/fixtures/` when behavior shifts. Capture cross-surface flows, including auth, with Playwright specs; start `pnpm dev` before launching them to ensure all services are available.

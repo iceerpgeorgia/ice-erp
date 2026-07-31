@@ -291,21 +291,62 @@ export default function NBGRatesPage() {
   };
 
   const handleExportXlsx = () => {
+    const { normalizeToIsoDate } = require('@/lib/date-normalization');
+    const toExcelDateSerial = (value: unknown): number | string => {
+      if (!value) return '';
+      const dateValue = typeof value === 'string' ? value.trim() : value;
+      
+      if (typeof dateValue === 'string') {
+        const isoDate = normalizeToIsoDate(dateValue);
+        if (!isoDate) return dateValue;
+        const utcMillis = Date.parse(`${isoDate}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return dateValue;
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      if (dateValue instanceof Date) {
+        if (Number.isNaN(dateValue.getTime())) return '';
+        const isoStr = dateValue.toISOString().split('T')[0];
+        const utcMillis = Date.parse(`${isoStr}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return '';
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      return String(dateValue);
+    };
+    
     const exportColumns = visibleColumns;
-    const exportData = filteredRates.map((rate) => {
-      const row: Record<string, string | number> = {};
+    const rows: any[] = filteredRates.map((rate) => {
+      const row: Record<string, any> = {};
       exportColumns.forEach((col) => {
         if (col.key === "date") {
-          row[col.label] = formatDateForExport(rate.date);
+          (row as any)[col.label] = toExcelDateSerial(rate.date);
         } else {
           const value = rate[col.key];
-          row[col.label] = typeof value === "number" ? value : value ?? "";
+          (row as any)[col.label] = typeof value === "number" ? value : value ?? "";
         }
       });
-      return row;
+      return row as any;
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    
+    // Apply date formatting to date column
+    const dateColIndex = exportColumns.findIndex(col => col.key === 'date');
+    if (dateColIndex >= 0) {
+      Object.keys(worksheet).forEach(key => {
+        if (key.startsWith('!')) return;
+        const cell = worksheet[key];
+        if (!cell) return;
+        
+        const col = XLSX.utils.decode_col(key.match(/[A-Z]+/)?.[0] || 'A');
+        if (col === dateColIndex && typeof cell.v === 'number') {
+          cell.t = 'n';
+          cell.z = 'dd.mm.yyyy';
+        }
+      });
+    }
+    
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "NBG Rates");
     XLSX.writeFile(workbook, `nbg_exchange_rates_${new Date().toISOString().slice(0, 10)}.xlsx`);

@@ -282,6 +282,7 @@ function toApi(row: any) {
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
     is_balance_record: false, // Regular transaction
+    document: row.docnomination ?? null, // Document type from raw data
     
     // Join data from raw SQL
     account_number: row.account_number ?? null,
@@ -322,6 +323,7 @@ function balanceToApi(row: any, currencyCode: string) {
     updatedAt: null,
     is_balance_record: true, // Flag to disable view/edit actions
     applied_rule_id: null,
+    document: null, // Balance records don't have document type
     
     // Join data
     account_number: row.accountNumber && currencyCode ? `${row.accountNumber}${currencyCode}` : row.accountNumber,

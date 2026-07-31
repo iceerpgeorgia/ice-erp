@@ -1,0 +1,49 @@
+CORRECTED PAYMENT RECORD
+======================================================================
+
+✓ Account UUID (corrected):    GE65TB7856036050100002
+  └─ Removed "GEL" suffix
+
+✓ Bank Account Currency:       GEL
+✓ Bank Account Amount:         100,578.80 GEL
+
+📊 Calculated Nominal Amount:
+  └─ Formula: 100,578.80 GEL ÷ 2.9653 (NBG USD/GEL rate) 
+  └─ Result: 33,918.59 USD
+
+======================================================================
+IMPORT TEMPLATE ROW (CSV):
+======================================================================
+
+account_uuid,counteragent_uuid,project_uuid,financial_code_uuid,currency_code,amount,transaction_date,correction_date,income_tax,comment,purpose,operation_id_1,operation_id_2,order_id,record_id,usd_gel_rate,eur_gel_rate
+GE65TB7856036050100002,B4968862-3843-414D-9E73-1A7611618B41,CFFC1C06-B78B-45A0-8A02-37A23706EAFC,B59170EC-16CC-499A-9FF7-0428DCB8F727,GEL,100578.80,05.11.2019,,false,ავანსი ლიფტების შესასყიდად,Payment for lift procurement,2594,698fe5_ac_8a076d,,fa7ff134-f253-4538-9f84-7a6586b9b975,2.9653,3.3093
+
+======================================================================
+FIELD BREAKDOWN:
+======================================================================
+
+✓ account_uuid:         GE65TB7856036050100002 (bank account)
+✓ counteragent_uuid:    B4968862-3843-414D-9E73-1A7611618B41 (იუნიქს)
+✓ project_uuid:         CFFC1C06-B78B-45A0-8A02-37A23706EAFC (UNIX Marselle)
+✓ financial_code_uuid:  B59170EC-16CC-499A-9FF7-0428DCB8F727 (1.1.1. Income)
+✓ currency_code:        GEL (bank account currency)
+✓ amount:               100578.80 (GEL - actual bank payment amount)
+✓ transaction_date:     05.11.2019 (November 5, 2019)
+✓ income_tax:           false
+✓ comment:              ავანსი ლიფტების შესასყიდად
+✓ purpose:              Payment for lift procurement
+✓ operation_id_1:       2594
+✓ operation_id_2:       698fe5_ac_8a076d
+✓ record_id:            fa7ff134-f253-4538-9f84-7a6586b9b975
+✓ usd_gel_rate:         2.9653 (for reference)
+✓ eur_gel_rate:         3.3093 (for reference)
+
+======================================================================
+NOTES:
+======================================================================
+
+Currency: The system will store 100,578.80 GEL as the payment amount
+Nominal: If needed for reporting, the USD equivalent is 33,918.59 USD
+Rate: NBG rate 2.9653 used for USD/GEL conversion on 05.11.2019
+
+This record is now ready for import!

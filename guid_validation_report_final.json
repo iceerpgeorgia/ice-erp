@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-07-08T15:55:35.494405",
+  "summary": {
+    "counteragent": {
+      "xlsx_count": 622,
+      "db_count": 3456,
+      "missing_in_db": 4,
+      "missing_in_xlsx": 2838,
+      "coverage": "99.4%"
+    },
+    "project": {
+      "xlsx_count": 231,
+      "db_count": 1039,
+      "missing_in_db": 2,
+      "missing_in_xlsx": 810,
+      "coverage": "99.1%"
+    },
+    "inventory": {
+      "xlsx_count": 3163,
+      "db_count": 11441,
+      "missing_in_db": 3,
+      "missing_in_xlsx": 8281,
+      "coverage": "99.9%"
+    },
+    "code": {
+      "xlsx_count": 28,
+      "db_count": 224,
+      "missing_in_db": 0,
+      "missing_in_xlsx": 196,
+      "coverage": "100.0%"
+    }
+  },
+  "invalid_guids": {
+    "counteragent": [
+      "8f7abf7d-e3c5-4bcf-b4ec-f7cfe4b291cf",
+      "c7487f41-db5e-45cb-8aa2-a13311814430",
+      "ab192988-c4e7-4c1d-833e-c5e201c66065",
+      "3c7b4214-56a8-4863-b535-0e1effd0f4a2"
+    ],
+    "project": [
+      "#n/a",
+      "4a7dc853-4112-4372-9421-aae9cd83adec"
+    ],
+    "inventory": [
+      "967ddbb4-b699-4823-b3b1-0e8760a0cdba",
+      "23bacef3-9c0a-4277-b1a2-14d1f8101d81",
+      "43fd3d8f-5626-4420-bf66-532814b6a5a8"
+    ],
+    "code": []
+  }
+}

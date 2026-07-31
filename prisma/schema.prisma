@@ -571,6 +571,7 @@ model financial_codes {
   bank_transaction_batches bank_transaction_batches[]
   financial_codes          financial_codes?           @relation("financial_codesTofinancial_codes", fields: [parent_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
   other_financial_codes    financial_codes[]          @relation("financial_codesTofinancial_codes")
+  calculations             calculations_financial_codes[]
 
   @@index([code], map: "idx_financial_codes_code")
   @@index([parent_uuid], map: "idx_financial_codes_parent")
@@ -578,21 +579,22 @@ model financial_codes {
 }
 
 model jobs {
-  id            BigInt   @id @default(autoincrement())
-  job_uuid      String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  project_uuid  String?  @db.Uuid
+  id            BigInt               @id @default(autoincrement())
+  job_uuid      String               @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_uuid  String?              @db.Uuid
   job_name      String
   floors        Int?
   weight        Int?
-  is_ff         Boolean  @default(false)
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @default(now()) @updatedAt
-  brand_uuid    String?  @db.Uuid
-  insider_uuid  String   @db.Uuid
+  is_ff         Boolean              @default(false)
+  is_active     Boolean              @default(true)
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @default(now()) @updatedAt
+  brand_uuid    String?              @db.Uuid
+  insider_uuid  String               @db.Uuid
   factory_no    String?
-  selling_price Decimal? @db.Decimal(18, 2)
-  brands        brands?  @relation(fields: [brand_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "fk_jobs_brand_uuid")
+  selling_price Decimal?             @db.Decimal(18, 2)
+  service_state job_service_state?   @default(Active)
+  brands        brands?              @relation(fields: [brand_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "fk_jobs_brand_uuid")
   payments_jobs payments_jobs[]
 
   @@index([job_uuid], map: "idx_jobs_job_uuid")
@@ -3004,6 +3006,29 @@ model incident_backup_synthetic_bog_gel_20260311201530 {
   @@ignore
 }
 
+model templates {
+  id                  BigInt    @id @default(autoincrement())
+  uuid                String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  operation_type      String    // "handover", "invoice", "certificate", etc.
+  file_name           String
+  storage_provider    String    @default("supabase")
+  storage_bucket      String?
+  storage_path        String
+  file_size_bytes     BigInt?
+  file_hash_sha256    String?
+  is_active           Boolean   @default(false)
+  archived_at         DateTime?
+  created_by_user_id  String?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @default(now()) @updatedAt
+  calculations        calculations_financial_codes[]
+
+  @@index([operation_type], map: "idx_templates_operation_type")
+  @@index([is_active], map: "idx_templates_is_active")
+  @@index([created_at], map: "idx_templates_created_at")
+  @@index([operation_type, is_active], map: "idx_templates_operation_active")
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model payment_id_duplicates {
   id                   Int       @id @default(autoincrement())
@@ -3147,4 +3172,31 @@ model tbc_gel_raw_6050100002 {
   is_processed           Boolean  @default(false)
   created_at             DateTime @default(now()) @db.Timestamp(6)
   updated_at             DateTime @default(now()) @db.Timestamp(6)
+}
+
+model calculations_financial_codes {
+  id                   BigInt            @id @default(autoincrement())
+  uuid                 String            @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  financial_code_uuid  String            @db.Uuid
+  template_uuid        String            @db.Uuid
+  template_name        String            @db.VarChar(255)
+  is_active            Boolean           @default(true)
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @default(now()) @updatedAt
+  financial_code       financial_codes?  @relation(fields: [financial_code_uuid], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
+  template             templates?        @relation(fields: [template_uuid], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([financial_code_uuid, template_uuid], map: "uq_calc_fc_template")
+  @@index([financial_code_uuid], map: "idx_calculations_fc_uuid")
+  @@index([template_uuid], map: "idx_calculations_template_uuid")
+  @@index([is_active], map: "idx_calculations_is_active")
+  @@map("calculations_financial_codes")
+}
+
+enum job_service_state {
+  Active
+  Conversion
+  Free
+  Others
+  Recovery
 }

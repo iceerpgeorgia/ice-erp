@@ -27,13 +27,10 @@ import { ColumnFilterPopover } from '../../../components/figma/shared/column-fil
 import { ClearFiltersButton } from '../../../components/figma/shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from '../../../components/figma/shared/table-filters';
 import { matchesFilter, buildFacetBaseData, buildUniqueValuesCache } from '../../../components/figma/shared/table-filters';
+import { normalizeToIsoDate, toDateInputValue, toDateSortTimestamp, toDisplayDate } from '../../../lib/date-normalization';
 
 const formatDate = (date: string | Date): string => {
-  const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}.${month}.${year}`;
+  return toDisplayDate(date);
 };
 
 const toValidDate = (val: any): Date | null => {
@@ -46,8 +43,7 @@ const toValidDate = (val: any): Date | null => {
 const toISO = (d: Date | null): string => (d ? d.toISOString() : '');
 
 const toInputDate = (val: any): string => {
-  const date = toValidDate(val);
-  return date ? date.toISOString().split('T')[0] : '';
+  return toDateInputValue(val);
 };
 
 type StatementRow = {
@@ -585,7 +581,7 @@ export default function CounteragentStatementPage() {
           type: 'ledger' as const,
           paymentId: entry.paymentId,
           date: formatDate(entry.effectiveDate),
-          dateSort: new Date(entry.effectiveDate).getTime(),
+          dateSort: toDateSortTimestamp(entry.effectiveDate),
           ledgerId: entry.id,
           effectiveDateRaw: entry.effectiveDate,
           project: entry.project ?? info.project ?? null,
@@ -613,7 +609,7 @@ export default function CounteragentStatementPage() {
           type: 'bank' as const,
           paymentId: tx.paymentId || null,
           date: formatDate(tx.date),
-          dateSort: new Date(tx.date).getTime(),
+          dateSort: toDateSortTimestamp(tx.date),
           bankId: tx.id,
           bankSourceId: tx.sourceId ?? tx.id,
           bankUuid: tx.uuid,
@@ -642,7 +638,7 @@ export default function CounteragentStatementPage() {
           type: 'adjustment' as const,
           paymentId: adj.paymentId || null,
           date: formatDate(adj.effectiveDate),
-          dateSort: new Date(adj.effectiveDate).getTime(),
+          dateSort: toDateSortTimestamp(adj.effectiveDate),
           adjustmentId: adj.id,
           project: adj.project ?? info.project ?? null,
           financialCode: adj.financialCode ?? info.financialCode ?? null,
@@ -778,8 +774,33 @@ export default function CounteragentStatementPage() {
 
   const handleExportXlsx = () => {
     if (!filteredRows.length) return;
+    
+    const { normalizeToIsoDate } = require('@/lib/date-normalization');
+    const toExcelDateSerial = (value: unknown): number | string => {
+      if (!value) return '';
+      const dateValue = typeof value === 'string' ? value.trim() : value;
+      
+      if (typeof dateValue === 'string') {
+        const isoDate = normalizeToIsoDate(dateValue);
+        if (!isoDate) return dateValue;
+        const utcMillis = Date.parse(`${isoDate}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return dateValue;
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      if (dateValue instanceof Date) {
+        if (Number.isNaN(dateValue.getTime())) return '';
+        const isoStr = dateValue.toISOString().split('T')[0];
+        const utcMillis = Date.parse(`${isoStr}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return '';
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      return String(dateValue);
+    };
+    
     const visibleColumns = columns.filter((col) => col.visible);
-    const rows = filteredRows.map((row) => {
+    const rows: any[] = filteredRows.map((row) => {
       const record: Record<string, any> = {};
       visibleColumns.forEach((col) => {
         let value: any = row[col.key];
@@ -796,12 +817,33 @@ export default function CounteragentStatementPage() {
             value = Number(value).toFixed(2);
           }
         }
-        record[col.label] = value ?? '';
+        // Convert date fields to serial numbers instead of display strings
+        if (col.key === 'date') {
+          value = toExcelDateSerial(row.effectiveDateRaw || value);
+        }
+        (record as any)[col.label] = value ?? '';
       });
-      return record;
+      return record as any;
     });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
+    
+    // Apply date formatting to date column (typically column A)
+    const dateColIndex = visibleColumns.findIndex(col => col.key === 'date');
+    if (dateColIndex >= 0) {
+      Object.keys(worksheet).forEach(key => {
+        if (key.startsWith('!')) return;
+        const cell = worksheet[key];
+        if (!cell) return;
+        
+        const col = XLSX.utils.decode_col(key.match(/[A-Z]+/)?.[0] || 'A');
+        if (col === dateColIndex && typeof cell.v === 'number') {
+          cell.t = 'n';
+          cell.z = 'dd.mm.yyyy';
+        }
+      });
+    }
+    
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Counteragent Statement');
     const fileName = `counteragent-statement-${counteragentUuid}-${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -1254,7 +1296,11 @@ export default function CounteragentStatementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: editPaymentId,
-          effectiveDate: (() => { if (!editEffectiveDate) return editEffectiveDate; const m = editEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : editEffectiveDate; })(),
+          effectiveDate: (() => {
+            if (!editEffectiveDate) return editEffectiveDate;
+            const normalized = normalizeToIsoDate(editEffectiveDate);
+            return normalized ?? editEffectiveDate;
+          })(),
           accrual: editAccrual ? Number(editAccrual) : 0,
         }),
       });
@@ -1272,7 +1318,7 @@ export default function CounteragentStatementPage() {
           return {
             ...entry,
             paymentId: resolvedPaymentId,
-            effectiveDate: editEffectiveDate,
+            effectiveDate: normalizeToIsoDate(editEffectiveDate) ?? editEffectiveDate,
             accrual: editAccrual ? Number(editAccrual) : 0,
             order: editOrder ? Number(editOrder) : 0,
             comment: editComment || null,
@@ -1788,6 +1834,11 @@ export default function CounteragentStatementPage() {
                           />
                           <input
                             type="date"
+                            value={(() => {
+                              if (!effectiveDate) return '';
+                              const match = effectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                              return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+                            })()}
                             onChange={(e) => {
                               if (e.target.value) {
                                 const [year, month, day] = e.target.value.split('-');
@@ -2145,6 +2196,11 @@ export default function CounteragentStatementPage() {
                 />
                 <input
                   type="date"
+                  value={(() => {
+                    if (!editEffectiveDate) return '';
+                    const match = editEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                    return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+                  })()}
                   onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setEditEffectiveDate(`${d}.${m}.${y}`); } }}
                   className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
                   title="Pick date from calendar"

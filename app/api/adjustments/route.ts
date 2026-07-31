@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { normalizeToIsoDate } from '@/lib/date-normalization';
 
 export const revalidate = 0;
 
@@ -88,9 +89,9 @@ async function computeNominalAmount(
 }
 
 function parseDateInput(effectiveDate?: string | null): string {
-  if (!effectiveDate) return new Date().toISOString().split('T')[0];
-  const m = effectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : effectiveDate;
+  const fallback = normalizeToIsoDate(new Date());
+  if (!effectiveDate) return fallback || new Date().toISOString().split('T')[0];
+  return normalizeToIsoDate(effectiveDate) || '';
 }
 
 async function getPaymentNominalCurrency(paymentId: string): Promise<string> {
@@ -200,6 +201,12 @@ export async function POST(request: NextRequest) {
     }
 
     const finalEffectiveDate = parseDateInput(effectiveDate);
+    if (!finalEffectiveDate) {
+      return NextResponse.json(
+        { error: 'Invalid effective date. Use dd.mm.yyyy or yyyy-mm-dd format.' },
+        { status: 400 }
+      );
+    }
 
     let finalAmount: number;
     let finalFaceCurrencyCode: string | null = null;
@@ -308,6 +315,12 @@ export async function PATCH(request: NextRequest) {
     let paramIdx = 1;
 
     const finalDate = effectiveDate !== undefined ? parseDateInput(effectiveDate) : null;
+    if (effectiveDate !== undefined && !finalDate) {
+      return NextResponse.json(
+        { error: 'Invalid effective date. Use dd.mm.yyyy or yyyy-mm-dd format.' },
+        { status: 400 }
+      );
+    }
     if (finalDate) {
       sets.push(`effective_date = $${paramIdx}::timestamp`);
       params.push(finalDate);

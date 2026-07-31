@@ -43,6 +43,7 @@ export const MASTER_NAV: MasterNavItem[] = [
   // Admin
   { routeKey: '/admin/users', label: 'Users', defaultIcon: 'Users', defaultGroup: 'Admin', desc: 'User management' },
   { routeKey: '/admin/financial-codes', label: 'Financial Codes', defaultIcon: 'BookOpen', defaultGroup: 'Admin', desc: 'Chart of accounts' },
+  { routeKey: '/admin/templates', label: 'Templates', defaultIcon: 'Layout', defaultGroup: 'Admin', desc: 'XLSX templates' },
   { routeKey: '/admin/attachments', label: 'Attachments', defaultIcon: 'FileSpreadsheet', defaultGroup: 'Admin', desc: 'File attachments' },
   { routeKey: '/admin/document-types', label: 'Document Types', defaultIcon: 'ClipboardList', defaultGroup: 'Admin', desc: 'Document registry' },
   { routeKey: '/admin/permissions', label: 'Permissions', defaultIcon: 'ShieldCheck', defaultGroup: 'Admin', desc: 'Role permissions' },

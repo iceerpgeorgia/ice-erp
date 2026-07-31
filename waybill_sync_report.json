@@ -1,0 +1,1421 @@
+{
+  "timestamp": "2026-07-08T16:33:40.812690",
+  "stats": {
+    "total": 35280,
+    "processed": 31482,
+    "inserted": 0,
+    "updated": 0,
+    "skipped": 3798
+  },
+  "issues": {
+    "invalid_counteragent_guids": [
+      {
+        "row": 24853,
+        "guid": "8f7abf7d-e3c5-4bcf-b4ec-f7cfe4b291cf",
+        "waybill": "0745677358"
+      },
+      {
+        "row": 24854,
+        "guid": "8f7abf7d-e3c5-4bcf-b4ec-f7cfe4b291cf",
+        "waybill": "0745677358"
+      },
+      {
+        "row": 26956,
+        "guid": "c7487f41-db5e-45cb-8aa2-a13311814430",
+        "waybill": "0720391926"
+      },
+      {
+        "row": 29131,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0691383310"
+      },
+      {
+        "row": 29132,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0691383310"
+      },
+      {
+        "row": 29133,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0691383310"
+      },
+      {
+        "row": 29266,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686271632"
+      },
+      {
+        "row": 29267,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686271632"
+      },
+      {
+        "row": 29268,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686271632"
+      },
+      {
+        "row": 29269,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686271632"
+      },
+      {
+        "row": 29270,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686271632"
+      },
+      {
+        "row": 29271,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686271632"
+      },
+      {
+        "row": 29272,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686271632"
+      },
+      {
+        "row": 29273,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686271632"
+      },
+      {
+        "row": 29274,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686273613"
+      },
+      {
+        "row": 29275,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686273613"
+      },
+      {
+        "row": 29276,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686273613"
+      },
+      {
+        "row": 29277,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686273613"
+      },
+      {
+        "row": 29278,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686274475"
+      },
+      {
+        "row": 29279,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686275473"
+      },
+      {
+        "row": 29280,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686275473"
+      },
+      {
+        "row": 29281,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686275473"
+      },
+      {
+        "row": 29282,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0686275473"
+      },
+      {
+        "row": 30050,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0669025494"
+      },
+      {
+        "row": 30051,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0669025494"
+      },
+      {
+        "row": 30052,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0669025494"
+      },
+      {
+        "row": 30053,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0669025494"
+      },
+      {
+        "row": 30054,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0669025494"
+      },
+      {
+        "row": 30060,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668446426"
+      },
+      {
+        "row": 30061,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668449001"
+      },
+      {
+        "row": 30062,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30063,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30064,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30065,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30066,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30067,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30068,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30069,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30070,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30071,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30072,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0668454355"
+      },
+      {
+        "row": 30256,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0666417665"
+      },
+      {
+        "row": 30257,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0666417665"
+      },
+      {
+        "row": 30258,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0666417665"
+      },
+      {
+        "row": 30259,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0666417665"
+      },
+      {
+        "row": 30260,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0666417665"
+      },
+      {
+        "row": 30261,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0666417665"
+      },
+      {
+        "row": 30343,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0665195419"
+      },
+      {
+        "row": 30344,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0665195419"
+      },
+      {
+        "row": 30345,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0665195419"
+      },
+      {
+        "row": 30346,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0665195419"
+      },
+      {
+        "row": 30368,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0664807751"
+      },
+      {
+        "row": 30369,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0664807751"
+      },
+      {
+        "row": 30370,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0664807751"
+      },
+      {
+        "row": 30371,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0664808107"
+      },
+      {
+        "row": 30578,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30579,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30580,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30581,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30582,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30583,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30584,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30585,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30586,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30587,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30588,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662431168"
+      },
+      {
+        "row": 30629,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662015570"
+      },
+      {
+        "row": 30630,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662015570"
+      },
+      {
+        "row": 30631,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0662015570"
+      },
+      {
+        "row": 30869,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0659105260"
+      },
+      {
+        "row": 30870,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0659105260"
+      },
+      {
+        "row": 30871,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0659105260"
+      },
+      {
+        "row": 30968,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0658203320"
+      },
+      {
+        "row": 30969,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0658203320"
+      },
+      {
+        "row": 30970,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0658203320"
+      },
+      {
+        "row": 30988,
+        "guid": "3c7b4214-56a8-4863-b535-0e1effd0f4a2",
+        "waybill": "0657919786"
+      },
+      {
+        "row": 31023,
+        "guid": "ab192988-c4e7-4c1d-833e-c5e201c66065",
+        "waybill": "0657702618"
+      }
+    ],
+    "invalid_project_guids": [
+      {
+        "row": 20802,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0780140779"
+      },
+      {
+        "row": 20955,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20956,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20957,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20958,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20959,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20960,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20961,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20962,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20963,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20964,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 20965,
+        "guid": "#n/a",
+        "waybill": "0779395110"
+      },
+      {
+        "row": 21152,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0777210411"
+      },
+      {
+        "row": 21362,
+        "guid": "#n/a",
+        "waybill": "0776227217"
+      },
+      {
+        "row": 21363,
+        "guid": "#n/a",
+        "waybill": "0776227217"
+      },
+      {
+        "row": 21474,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0775133491"
+      },
+      {
+        "row": 21486,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0774651804"
+      },
+      {
+        "row": 21487,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0774651804"
+      },
+      {
+        "row": 21488,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0774651804"
+      },
+      {
+        "row": 21489,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0774651804"
+      },
+      {
+        "row": 21490,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0774652751"
+      },
+      {
+        "row": 21491,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0774652751"
+      },
+      {
+        "row": 21525,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0774400836"
+      },
+      {
+        "row": 21560,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0774158791"
+      },
+      {
+        "row": 21561,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0774158791"
+      },
+      {
+        "row": 21810,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0772586066"
+      },
+      {
+        "row": 21856,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0772300679"
+      },
+      {
+        "row": 21857,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0772300679"
+      },
+      {
+        "row": 21890,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0772092957"
+      },
+      {
+        "row": 21936,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0771340232"
+      },
+      {
+        "row": 21937,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0771340232"
+      },
+      {
+        "row": 21962,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0770755930"
+      },
+      {
+        "row": 21963,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0770755930"
+      },
+      {
+        "row": 22051,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0770372083"
+      },
+      {
+        "row": 22052,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0770372083"
+      },
+      {
+        "row": 22172,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0768703024"
+      },
+      {
+        "row": 22187,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0768744342"
+      },
+      {
+        "row": 22516,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0765875862"
+      },
+      {
+        "row": 22517,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0765875862"
+      },
+      {
+        "row": 22637,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764870148"
+      },
+      {
+        "row": 22638,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764870148"
+      },
+      {
+        "row": 22639,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764870148"
+      },
+      {
+        "row": 22640,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764870148"
+      },
+      {
+        "row": 22641,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764870148"
+      },
+      {
+        "row": 22673,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764286871"
+      },
+      {
+        "row": 22674,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764286871"
+      },
+      {
+        "row": 22713,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764403532"
+      },
+      {
+        "row": 22714,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764403532"
+      },
+      {
+        "row": 22715,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0764403532"
+      },
+      {
+        "row": 22835,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0763726256"
+      },
+      {
+        "row": 22836,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0763726256"
+      },
+      {
+        "row": 22837,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0763726256"
+      },
+      {
+        "row": 22838,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0763726256"
+      },
+      {
+        "row": 22915,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0762542997"
+      },
+      {
+        "row": 23066,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0761060835"
+      },
+      {
+        "row": 23067,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0761060835"
+      },
+      {
+        "row": 23068,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0761060835"
+      },
+      {
+        "row": 23168,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0760103519"
+      },
+      {
+        "row": 23202,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23203,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23204,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23205,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23206,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23207,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23208,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23209,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23210,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23211,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23212,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759639979"
+      },
+      {
+        "row": 23239,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759052364"
+      },
+      {
+        "row": 23248,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0759126929"
+      },
+      {
+        "row": 23320,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0758075732"
+      },
+      {
+        "row": 23321,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0758075732"
+      },
+      {
+        "row": 23343,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0758100975"
+      },
+      {
+        "row": 23344,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0758100975"
+      },
+      {
+        "row": 23369,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0757889044"
+      },
+      {
+        "row": 23418,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0757298049"
+      },
+      {
+        "row": 23419,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0757298049"
+      },
+      {
+        "row": 23420,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0757298049"
+      },
+      {
+        "row": 23421,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0757298049"
+      },
+      {
+        "row": 23422,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0757298049"
+      },
+      {
+        "row": 23423,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0757298049"
+      },
+      {
+        "row": 23489,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756766888"
+      },
+      {
+        "row": 23490,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756766888"
+      },
+      {
+        "row": 23506,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756515942"
+      },
+      {
+        "row": 23507,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756515942"
+      },
+      {
+        "row": 23519,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756536403"
+      },
+      {
+        "row": 23521,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756607766"
+      },
+      {
+        "row": 23572,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756322687"
+      },
+      {
+        "row": 23573,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756322687"
+      },
+      {
+        "row": 23595,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0755942276"
+      },
+      {
+        "row": 23596,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0755942276"
+      },
+      {
+        "row": 23606,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756000111"
+      },
+      {
+        "row": 23610,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756064669"
+      },
+      {
+        "row": 23611,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756064669"
+      },
+      {
+        "row": 23612,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756064669"
+      },
+      {
+        "row": 23613,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756064669"
+      },
+      {
+        "row": 23614,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756064669"
+      },
+      {
+        "row": 23615,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756064669"
+      },
+      {
+        "row": 23616,
+        "guid": "4a7dc853-4112-4372-9421-aae9cd83adec",
+        "waybill": "0756064669"
+      }
+    ],
+    "invalid_inventory_guids": [
+      {
+        "row": 27047,
+        "guid": "967ddbb4-b699-4823-b3b1-0e8760a0cdba",
+        "waybill": "0719954211"
+      },
+      {
+        "row": 29251,
+        "guid": "23bacef3-9c0a-4277-b1a2-14d1f8101d81",
+        "waybill": "0686187011"
+      },
+      {
+        "row": 29993,
+        "guid": "43fd3d8f-5626-4420-bf66-532814b6a5a8",
+        "waybill": "0670006328"
+      }
+    ],
+    "invalid_code_guids": [],
+    "missing_required_fields": [
+      {
+        "row": 1641,
+        "waybill": "0917776997",
+        "code": null
+      },
+      {
+        "row": 3632,
+        "waybill": "0932222349",
+        "code": null
+      },
+      {
+        "row": 4687,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4688,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4689,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4690,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4691,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4692,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4693,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4694,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4695,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4696,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4697,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4698,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4699,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4700,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4701,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4702,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4703,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4704,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4705,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4706,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4707,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4708,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4709,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4710,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4711,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4712,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4713,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4714,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4715,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4716,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4717,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4718,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4719,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4720,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4721,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4722,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4723,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4724,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4725,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4726,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4727,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4728,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4729,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4730,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4731,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4732,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4733,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4734,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4735,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4736,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4737,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4738,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4739,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4740,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4741,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4742,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4743,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4744,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4745,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4746,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4747,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4748,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4749,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4750,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4751,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4752,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4753,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4754,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4755,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4756,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4757,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4758,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4759,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4760,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4761,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4762,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4763,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4764,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4765,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4766,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4767,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4768,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4769,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4770,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4771,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4772,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4773,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4774,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4775,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4776,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4777,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4778,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4779,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4780,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4781,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4782,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4783,
+        "waybill": null,
+        "code": null
+      },
+      {
+        "row": 4784,
+        "waybill": null,
+        "code": null
+      }
+    ]
+  }
+}

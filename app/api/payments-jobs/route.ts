@@ -334,6 +334,22 @@ export async function POST(req: NextRequest) {
 
       result = await prisma.$transaction(async (tx) => {
 
+        // Check for emitted records that cannot be deleted
+        const emittedRecords = await tx.payments_jobs.findMany({
+          where: {
+            ...deleteWhere,
+            emission_uuid: { not: null },
+          },
+          select: { uuid: true, emission_uuid: true },
+        });
+
+        if (emittedRecords.length > 0) {
+          throw new Error(
+            `Cannot replace distributions: ${emittedRecords.length} record(s) have been emitted (emission_uuid set). ` +
+            `Emitted records cannot be modified. Contact an administrator.`
+          );
+        }
+
         await tx.payments_jobs.deleteMany({
           where: {
             ...deleteWhere,
@@ -383,6 +399,14 @@ export async function POST(req: NextRequest) {
         });
 
         if (existing) {
+          // Check if this record has been emitted
+          if (existing.emission_uuid) {
+            throw new Error(
+              `Cannot update distribution: this record has been emitted (emission_uuid: ${existing.emission_uuid}). ` +
+              `Emitted records cannot be modified. Contact an administrator.`
+            );
+          }
+
           const updated = await prisma.payments_jobs.update({
             where: { uuid: existing.uuid },
             data: {

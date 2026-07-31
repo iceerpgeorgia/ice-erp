@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Columns3, Download, Edit2, FileText, Link2, Settings, User, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Columns3, Download, Edit2, FileText, Link2, Settings, User, X, Plus, Filter, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Label } from './ui/label';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import type { ColumnFormat } from './shared/table-filters';
 import { ClearFiltersButton } from './shared/clear-filters-button';
@@ -14,6 +15,10 @@ import * as XLSX from 'xlsx-js-style';
 import { AddProjectDialog } from './add-project-dialog';
 import { RowAttachments } from './row-attachments';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Combobox } from '../ui/combobox';
+import { MultiCombobox } from '../ui/multi-combobox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Switch } from './ui/switch';
 
 type FinancialCode = {
   uuid: string;
@@ -40,7 +45,13 @@ type ServicesRow = {
   hasUnboundCounteragentTransactions?: boolean;
   currency: string;
   paymentCount: number;
-  jobsCount: number;
+  jobsByState: {
+    active: number;
+    conversion: number;
+    free: number;
+    others: number;
+    recovery: number;
+  };
   jobNames: string[];
   accrual: number;
   latestAccrual: number;
@@ -48,6 +59,13 @@ type ServicesRow = {
   lastMonthAccrual: number;
   lastMonthOrder: number;
   payment: number;
+  costAccrual: number;
+  costOrder: number;
+  costPayment: number;
+  profit: number;
+  projectCurrencyUuid: string | null;
+  projectCurrencyCode: string;
+  costPaymentIds: string[];
   due: number;
   balance: number;
   confirmed: boolean;
@@ -57,11 +75,14 @@ type ServicesRow = {
 type ServicesSummaryRow = {
   status: string;
   projectsCount: number;
-  jobsCount: number;
   paymentCount: number;
   accrual: number;
   order: number;
   payment: number;
+  costAccrual: number;
+  costOrder: number;
+  costPayment: number;
+  profit: number;
   due: number;
   balance: number;
 };
@@ -71,7 +92,6 @@ type ServicesReportResponse = {
   summaryByStatus: ServicesSummaryRow[];
   totals: {
     projectsCount: number;
-    jobsCount: number;
     paymentCount: number;
     accrual: number;
     order: number;
@@ -85,11 +105,13 @@ type JobRow = {
   jobUuid: string;
   jobName: string;
   projectName: string;
+  projectIndex: string;
   brandName: string;
   floors: number | null;
   weight: number | null;
   isFf: boolean;
   isActive: boolean;
+  serviceState: string | null;
 };
 
 type JobLinkDialogState = {
@@ -170,10 +192,18 @@ type SectionColumnKey =
   | 'counteragent'
   | 'paymentIds'
   | 'paymentCount'
-  | 'jobsCount'
+  | 'jobsActive'
+  | 'jobsConversion'
+  | 'jobsFree'
+  | 'jobsOthers'
+  | 'jobsRecovery'
   | 'accrual'
   | 'order'
   | 'payment'
+  | 'costAccrual'
+  | 'costOrder'
+  | 'costPayment'
+  | 'profit'
   | 'due'
   | 'balance'
   | 'confirmed'
@@ -185,7 +215,7 @@ type SectionColumn = {
   label: string;
   visible: boolean;
   width: number;
-  align?: 'left' | 'right';
+  align?: 'left' | 'right' | 'center';
 };
 
 type SectionData = {
@@ -196,11 +226,14 @@ type SectionData = {
 
 const DEFAULT_TOTALS = {
   projectsCount: 0,
-  jobsCount: 0,
   paymentCount: 0,
   accrual: 0,
   order: 0,
   payment: 0,
+  costAccrual: 0,
+  costOrder: 0,
+  costPayment: 0,
+  profit: 0,
   due: 0,
   balance: 0,
 };
@@ -220,10 +253,18 @@ const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'counteragent', label: 'Counteragent', visible: true, width: 220, align: 'left' },
   { key: 'paymentIds', label: 'Payment IDs', visible: true, width: 260, align: 'left' },
   { key: 'paymentCount', label: 'Payments', visible: true, width: 100, align: 'right' },
-  { key: 'jobsCount', label: 'Jobs', visible: true, width: 90, align: 'right' },
+  { key: 'jobsActive', label: 'A', visible: true, width: 60, align: 'center' },
+  { key: 'jobsConversion', label: 'C', visible: true, width: 60, align: 'center' },
+  { key: 'jobsFree', label: 'F', visible: true, width: 60, align: 'center' },
+  { key: 'jobsOthers', label: 'O', visible: true, width: 60, align: 'center' },
+  { key: 'jobsRecovery', label: 'R', visible: true, width: 60, align: 'center' },
   { key: 'accrual', label: 'Accrual', visible: true, width: 130, align: 'right' },
   { key: 'order', label: 'Order', visible: true, width: 130, align: 'right' },
   { key: 'payment', label: 'Payment', visible: true, width: 130, align: 'right' },
+  { key: 'costAccrual', label: 'Cost Accrual', visible: true, width: 130, align: 'right' },
+  { key: 'costOrder', label: 'Cost Order', visible: false, width: 130, align: 'right' },
+  { key: 'costPayment', label: 'Cost Payment', visible: false, width: 130, align: 'right' },
+  { key: 'profit', label: 'Profit (VAT Adj.)', visible: true, width: 150, align: 'right' },
   { key: 'due', label: 'Due', visible: true, width: 130, align: 'right' },
   { key: 'balance', label: 'Balance', visible: true, width: 130, align: 'right' },
   { key: 'confirmed', label: 'Confirmed', visible: true, width: 110, align: 'left' },
@@ -247,10 +288,23 @@ const formatDate = (value: string | null) => {
   return `${day}.${month}.${year}`;
 };
 
+// Job service state colors with abbreviations - pastel tones
+const JOB_STATE_COLORS: Record<string, { bg: string; text: string; abbr: string }> = {
+  active: { bg: '#E8F8F5', text: '#2D7366', abbr: 'A' }, // Pastel green
+  conversion: { bg: '#F5EDD9', text: '#8B6F47', abbr: 'C' }, // Pastel orange
+  free: { bg: '#E6F7F9', text: '#3B7A8A', abbr: 'F' }, // Pastel teal
+  others: { bg: '#F0F1F2', text: '#6B7280', abbr: 'O' }, // Pastel gray
+  recovery: { bg: '#F9E8EB', text: '#A55D7E', abbr: 'R' }, // Pastel pink
+};
+
 const COLUMN_BG: Partial<Record<SectionColumnKey, string>> = {
   accrual: '#ffebee',
   order: '#fff9e6',
   payment: '#e8f5e9',
+  costAccrual: '#ffe0b2',
+  costOrder: '#fdd835',
+  costPayment: '#c8e6c9',
+  profit: '#e1bee7',
 };
 
 const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
@@ -260,10 +314,18 @@ const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
   projectAddress: 'text',
   sum: 'currency',
   paymentCount: 'number',
-  jobsCount: 'number',
+  jobsActive: 'number',
+  jobsConversion: 'number',
+  jobsFree: 'number',
+  jobsOthers: 'number',
+  jobsRecovery: 'number',
   accrual: 'currency',
   order: 'currency',
   payment: 'currency',
+  costAccrual: 'currency',
+  costOrder: 'currency',
+  costPayment: 'currency',
+  profit: 'currency',
   due: 'currency',
   balance: 'currency',
   confirmed: 'boolean',
@@ -280,12 +342,30 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
       return row.latestDate;
     case 'accrual':
       return row.accrual;
+    case 'costAccrual':
+      return row.costAccrual;
+    case 'costOrder':
+      return row.costOrder;
+    case 'costPayment':
+      return row.costPayment;
+    case 'profit':
+      return row.profit;
     case 'confirmed':
       return row.confirmed;
     case 'projectAddress':
       return row.projectAddress || '';
     case 'paymentIds':
       return row.paymentIds.join(', ');
+    case 'jobsActive':
+      return row.jobsByState.active;
+    case 'jobsConversion':
+      return row.jobsByState.conversion;
+    case 'jobsFree':
+      return row.jobsByState.free;
+    case 'jobsOthers':
+      return row.jobsByState.others;
+    case 'jobsRecovery':
+      return row.jobsByState.recovery;
     case 'actions':
       return '';
     default:
@@ -358,6 +438,48 @@ export function ServicesReportTable() {
   } | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
+  // Add Ledger for Costs dialog state (two-step flow)
+  const [addLedgerCostsDialogOpen, setAddLedgerCostsDialogOpen] = useState(false);
+  const [addLedgerCostsStep, setAddLedgerCostsStep] = useState<'payment' | 'ledger'>('payment');
+  const [addLedgerCostsProjectUuid, setAddLedgerCostsProjectUuid] = useState('');
+  const [addLedgerCostsProjectName, setAddLedgerCostsProjectName] = useState('');
+  const [isCreatingCostPayment, setIsCreatingCostPayment] = useState(false);
+  const [preSelectedCostPaymentId, setPreSelectedCostPaymentId] = useState<string | null>(null);
+  const [selectedCostPaymentDetails, setSelectedCostPaymentDetails] = useState<{
+    paymentId: string;
+    counteragent: string;
+    project: string;
+    financialCode: string;
+    currency: string;
+  } | null>(null);
+  
+  // Form fields for cost payment creation
+  const [selectedCostCounteragentUuid, setSelectedCostCounteragentUuid] = useState('');
+  const [selectedCostFinancialCodeUuid, setSelectedCostFinancialCodeUuid] = useState('');
+  const [selectedCostCurrencyUuid, setSelectedCostCurrencyUuid] = useState('');
+  const [selectedCostLabel, setSelectedCostLabel] = useState('');
+  
+  // Form fields for cost ledger entry
+  const [costEffectiveDate, setCostEffectiveDate] = useState('');
+  const [costAccrual, setCostAccrual] = useState('');
+  const [costOrder, setCostOrder] = useState('');
+  const [costComment, setCostComment] = useState('');
+  const [isSubmittingCostLedger, setIsSubmittingCostLedger] = useState(false);
+  
+  // Data lists
+  const [costFinancialCodes, setCostFinancialCodes] = useState<FinancialCodeOption[]>([]);
+  const [costCounterAgents, setCostCounterAgents] = useState<Array<{ uuid: string; name: string }>>([]);
+  const [costCurrencies, setCostCurrencies] = useState<Array<{ uuid: string; code: string }>>([]);
+  const [costPayments, setCostPayments] = useState<Array<{ 
+    paymentId: string; 
+    counteragentUuid?: string | null;
+    counteragentName?: string | null;
+    projectName?: string | null;
+    financialCode?: string | null;
+    currencyCode?: string | null;
+  }>>([]);
+  const [skipCostCounteragentFilter, setSkipCostCounteragentFilter] = useState<{ uuid: string; name: string } | null>(null);
+
   const [jobLinkDialog, setJobLinkDialog] = useState<JobLinkDialogState>({
     open: false,
     projectUuid: '',
@@ -368,7 +490,56 @@ export function ServicesReportTable() {
     loading: false,
     saving: false,
   });
+  const [jobLinkBulkServiceState, setJobLinkBulkServiceState] = useState<string>('Active');
+  const [jobLinkBulkUpdating, setJobLinkBulkUpdating] = useState(false);
+  const [jobLinkBulkBindDialog, setJobLinkBulkBindDialog] = useState<{
+    open: boolean;
+    selectedProjectUuids: string[];
+    loading: boolean;
+    saving: boolean;
+  }>({
+    open: false,
+    selectedProjectUuids: [],
+    loading: false,
+    saving: false,
+  });
+  const [jobLinkColumnFilters, setJobLinkColumnFilters] = useState<Record<string, string[]>>({});
+  const [jobLinkEditDialog, setJobLinkEditDialog] = useState<{
+    open: boolean;
+    jobUuid: string | null;
+    id: number | null;
+    jobName: string;
+    factoryNo: string;
+    floors: string;
+    weight: string;
+    sellingPrice: string;
+    isFf: boolean;
+    brandUuid: string;
+    serviceState: string;
+    projectUuids: string[];
+    insiderUuid: string;
+    loading: boolean;
+    saving: boolean;
+  }>({
+    open: false,
+    jobUuid: null,
+    id: null,
+    jobName: '',
+    factoryNo: '',
+    floors: '',
+    weight: '',
+    sellingPrice: '',
+    isFf: false,
+    brandUuid: '',
+    serviceState: 'Active',
+    projectUuids: [],
+    insiderUuid: '',
+    loading: false,
+    saving: false,
+  });
   const [paymentProjects, setPaymentProjects] = useState<ProjectOption[]>([]);
+  const [jobEditBrands, setJobEditBrands] = useState<any[]>([]);
+  const [jobEditInsiderOptions, setJobEditInsiderOptions] = useState<any[]>([]);
   const [paymentCounteragents, setPaymentCounteragents] = useState<CounteragentOption[]>([]);
   const [paymentFinancialCodes, setPaymentFinancialCodes] = useState<FinancialCodeOption[]>([]);
   const [paymentCurrencies, setPaymentCurrencies] = useState<CurrencyOption[]>([]);
@@ -420,7 +591,13 @@ export function ServicesReportTable() {
       try {
         const parsed = JSON.parse(savedColumns) as SectionColumn[];
         if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.key) {
-          setColumns(parsed);
+          // Merge saved columns with defaults to include any new columns added since last save
+          const savedMap = new Map(parsed.map((col) => [col.key, col]));
+          const merged = DEFAULT_SECTION_COLUMNS.map((defaultCol) => {
+            const saved = savedMap.get(defaultCol.key);
+            return saved ? { ...defaultCol, visible: saved.visible } : defaultCol;
+          });
+          setColumns(merged);
         }
       } catch {
         // ignore
@@ -686,11 +863,13 @@ export function ServicesReportTable() {
         jobUuid: j.jobUuid,
         jobName: j.jobName || j.job_name || '',
         projectName: j.projectName || j.project_name || '',
+        projectIndex: j.projectIndex || j.project_index || '-',
         brandName: j.brandName || j.brand_name || '',
         floors: j.floors ?? null,
         weight: j.weight ?? null,
         isFf: Boolean(j.isFf || j.is_ff),
         isActive: j.is_active !== false,
+        serviceState: j.serviceState || j.service_state || null,
       }));
       const linkedJobUuids = new Set<string>(Array.isArray(linksData) ? linksData : []);
       for (const payment of (Array.isArray(paymentsData) ? paymentsData : [])) {
@@ -713,14 +892,54 @@ export function ServicesReportTable() {
   };
 
   const filteredDialogJobs = useMemo(() => {
-    const s = jobLinkDialog.search.toLowerCase();
-    if (!s) return jobLinkDialog.allJobs;
-    return jobLinkDialog.allJobs.filter((j) =>
-      j.jobName.toLowerCase().includes(s) ||
-      j.projectName.toLowerCase().includes(s) ||
-      j.brandName.toLowerCase().includes(s)
-    );
-  }, [jobLinkDialog.allJobs, jobLinkDialog.search]);
+    let jobs = [...jobLinkDialog.allJobs];
+
+    // Apply search filter
+    const s = jobLinkDialog.search.trim().toLowerCase();
+    if (s) {
+      jobs = jobs.filter((j) =>
+        j.jobName.toLowerCase().includes(s) ||
+        (j.projectName && j.projectName.toLowerCase().includes(s)) ||
+        (j.brandName && j.brandName.toLowerCase().includes(s))
+      );
+    }
+
+    // Apply column filters
+    const hasColumnFilters = Object.keys(jobLinkColumnFilters).some((col) => jobLinkColumnFilters[col].length > 0);
+    if (hasColumnFilters) {
+      jobs = jobs.filter((job) => {
+        for (const [column, values] of Object.entries(jobLinkColumnFilters)) {
+          if (!values || values.length === 0) continue;
+          
+          let fieldValue = '';
+          if (column === 'jobName') fieldValue = job.jobName || '';
+          else if (column === 'projectIndex') fieldValue = job.projectIndex || '';
+          else if (column === 'projectName') fieldValue = job.projectName || '';
+          else if (column === 'brandName') fieldValue = job.brandName || '';
+          else if (column === 'floors') fieldValue = (job.floors !== null && job.floors !== undefined) ? String(job.floors) : '';
+          else if (column === 'weight') fieldValue = (job.weight !== null && job.weight !== undefined) ? String(job.weight) : '';
+          else if (column === 'isFf') fieldValue = job.isFf ? 'FF' : 'No';
+          else if (column === 'isActive') fieldValue = job.isActive ? 'Yes' : 'No';
+          else if (column === 'serviceState') fieldValue = job.serviceState ? String(job.serviceState) : '-';
+          
+          // Check if fieldValue is in the filter values (case-insensitive for text)
+          const valueStrings = values.map((v) => String(v || '').trim());
+          const matchesFilter = valueStrings.some((v) => {
+            if (column === 'jobName' || column === 'projectIndex' || column === 'projectName' || column === 'brandName') {
+              return fieldValue.toLowerCase() === v.toLowerCase();
+            }
+            return fieldValue === v;
+          });
+          
+          if (!matchesFilter) return false;
+        }
+        return true;
+      });
+    }
+
+    return jobs;
+  }, [jobLinkDialog.allJobs, jobLinkDialog.search, jobLinkColumnFilters]);
+
 
   const allFilteredChecked = filteredDialogJobs.length > 0 && filteredDialogJobs.every((j) => jobLinkDialog.linkedJobUuids.has(j.jobUuid));
 
@@ -949,12 +1168,468 @@ export function ServicesReportTable() {
         throw new Error(data?.error || 'Failed to save job links');
       }
 
+      // Close dialog without reloading all jobs
       setJobLinkDialog((prev) => ({ ...prev, open: false, saving: false }));
-      await fetchReport();
+      console.log(`[Bind Dialog] Bound ${jobUuids.length} jobs to project ${jobLinkDialog.projectUuid}`);
     } catch (err: any) {
       alert(err?.message || 'Failed to save job links');
       setJobLinkDialog((prev) => ({ ...prev, saving: false }));
     }
+  };
+
+  const handleJobLinkBulkServiceStateUpdate = async () => {
+    if (jobLinkDialog.linkedJobUuids.size === 0 || !jobLinkBulkServiceState) return;
+    setJobLinkBulkUpdating(true);
+    try {
+      const jobUuids = Array.from(jobLinkDialog.linkedJobUuids).filter((value) => UUID_REGEX.test(value));
+      const res = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobUuids,
+          serviceState: jobLinkBulkServiceState,
+          bulkUpdate: true,
+        }),
+      });
+      if (res.ok) {
+        // Update service state inline for all selected jobs
+        setJobLinkDialog((prev) => ({
+          ...prev,
+          allJobs: prev.allJobs.map((job) =>
+            jobUuids.includes(job.jobUuid)
+              ? { ...job, serviceState: jobLinkBulkServiceState }
+              : job
+          ),
+        }));
+        setJobLinkBulkServiceState('');
+        console.log(`[Bind Dialog] Updated service state for ${jobUuids.length} jobs to ${jobLinkBulkServiceState}`);
+      } else {
+        throw new Error('Failed to update service state');
+      }
+    } catch (error) {
+      console.error('Failed to update service state:', error);
+      alert('Failed to update service state');
+    } finally {
+      setJobLinkBulkUpdating(false);
+    }
+  };
+
+  const openJobLinkEditDialog = async (jobUuid: string) => {
+    setJobLinkEditDialog((prev) => ({ ...prev, open: true, jobUuid, loading: true }));
+    try {
+      // Fetch full job details and dictionaries
+      const [jobsRes, projectsRes, brandsRes, insiderRes] = await Promise.all([
+        fetch(`/api/jobs`),
+        fetch('/api/projects-v2'),
+        fetch('/api/brands'),
+        fetch('/api/insider-selection'),
+      ]);
+
+      if (jobsRes.ok && projectsRes.ok && brandsRes.ok && insiderRes.ok) {
+        const jobsData = await jobsRes.json();
+        const projectsData = await projectsRes.json();
+        const brandsData = await brandsRes.json();
+        const insiderData = await insiderRes.json();
+        
+        const job = Array.isArray(jobsData) ? jobsData.find((j: any) => j.jobUuid === jobUuid) : null;
+        if (job) {
+          // Gather all project bindings for this job
+          const allJobs = Array.isArray(jobsData) ? jobsData : [];
+          const allBindings = allJobs.filter((j: any) => j.jobUuid === jobUuid);
+          const allProjectUuids = [...new Set(allBindings.map((b: any) => b.projectUuid).filter(Boolean))];
+
+          // Store dictionaries for the form
+          const projectsList = Array.isArray(projectsData) ? projectsData : (Array.isArray(projectsData?.data) ? projectsData.data : []);
+          const brandsList = Array.isArray(brandsData) ? brandsData : (Array.isArray(brandsData?.data) ? brandsData.data : []);
+          const insiderOptions = insiderData?.options || [];
+          
+          setPaymentProjects(projectsList);
+          setJobEditBrands(brandsList);
+          setJobEditInsiderOptions(insiderOptions);
+
+          setJobLinkEditDialog((prev) => ({
+            ...prev,
+            id: job.id || null,
+            jobName: job.jobName || job.job_name || '',
+            factoryNo: job.factoryNo || job.factory_no || '',
+            floors: job.floors?.toString() || '',
+            weight: job.weight?.toString() || '',
+            sellingPrice: (job.sellingPrice ?? job.selling_price)?.toString() || '',
+            isFf: Boolean(job.isFf || job.is_ff),
+            brandUuid: job.brandUuid || job.brand_uuid || '',
+            serviceState: job.serviceState || job.service_state || 'Active',
+            projectUuids: allProjectUuids,
+            insiderUuid: job.insiderUuid || job.insider_uuid || '',
+            loading: false,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch job details:', error);
+      setJobLinkEditDialog((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleJobLinkEditSave = async () => {
+    if (!jobLinkEditDialog.jobUuid) return;
+    setJobLinkEditDialog((prev) => ({ ...prev, saving: true }));
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: jobLinkEditDialog.id,
+          jobName: jobLinkEditDialog.jobName,
+          factoryNo: jobLinkEditDialog.factoryNo || null,
+          floors: jobLinkEditDialog.floors ? parseInt(jobLinkEditDialog.floors) : null,
+          weight: jobLinkEditDialog.weight ? parseFloat(jobLinkEditDialog.weight) : null,
+          sellingPrice: jobLinkEditDialog.sellingPrice ? parseFloat(jobLinkEditDialog.sellingPrice) : null,
+          isFf: jobLinkEditDialog.isFf,
+          brandUuid: jobLinkEditDialog.brandUuid || null,
+          serviceState: jobLinkEditDialog.serviceState || 'Active',
+          projectUuids: jobLinkEditDialog.projectUuids && jobLinkEditDialog.projectUuids.length > 0 ? jobLinkEditDialog.projectUuids : [],
+        }),
+      });
+
+      if (response.ok) {
+        // Update the job inline in the dialog instead of reloading all jobs
+        setJobLinkDialog((prev) => ({
+          ...prev,
+          allJobs: prev.allJobs.map((job) =>
+            job.jobUuid === jobLinkEditDialog.jobUuid
+              ? {
+                  ...job,
+                  jobName: jobLinkEditDialog.jobName,
+                  floors: jobLinkEditDialog.floors ? parseInt(jobLinkEditDialog.floors) : null,
+                  weight: jobLinkEditDialog.weight ? parseFloat(jobLinkEditDialog.weight) : null,
+                  isFf: jobLinkEditDialog.isFf,
+                  serviceState: jobLinkEditDialog.serviceState || 'Active',
+                }
+              : job
+          ),
+        }));
+        setJobLinkEditDialog((prev) => ({ ...prev, open: false, saving: false, jobUuid: null }));
+        console.log(`[Bind Dialog] Updated job ${jobLinkEditDialog.jobUuid} inline`);
+      } else {
+        throw new Error('Failed to save job');
+      }
+    } catch (error) {
+      console.error('Failed to save job:', error);
+      alert('Failed to save job changes');
+      setJobLinkEditDialog((prev) => ({ ...prev, saving: false }));
+    }
+  };
+
+  const handleJobLinkBulkBind = async () => {
+    if (jobLinkDialog.linkedJobUuids.size === 0 || jobLinkBulkBindDialog.selectedProjectUuids.length === 0) return;
+    
+    setJobLinkBulkBindDialog((prev) => ({ ...prev, saving: true }));
+    try {
+      const jobUuids = Array.from(jobLinkDialog.linkedJobUuids).filter((value) => UUID_REGEX.test(value));
+      
+      // Bind each selected job to each selected project
+      const bindPromises = jobLinkBulkBindDialog.selectedProjectUuids.map((projectUuid) =>
+        fetch('/api/job-projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectUuid,
+            jobUuids,
+          }),
+        }).then((res) => {
+          if (!res.ok) throw new Error(`Failed to bind jobs to project ${projectUuid}`);
+          return res.json();
+        })
+      );
+
+      await Promise.all(bindPromises);
+
+      console.log(`[Bind Dialog] Successfully bound ${jobUuids.length} job(s) to ${jobLinkBulkBindDialog.selectedProjectUuids.length} project(s)`);
+      
+      // Close dialog without reloading all jobs
+      setJobLinkBulkBindDialog((prev) => ({ ...prev, open: false, saving: false, selectedProjectUuids: [] }));
+      setJobLinkDialog((prev) => ({ ...prev, linkedJobUuids: new Set() }));
+    } catch (error) {
+      console.error('Failed to bulk bind jobs:', error);
+      alert('Failed to bind jobs to projects: ' + (error instanceof Error ? error.message : String(error)));
+      setJobLinkBulkBindDialog((prev) => ({ ...prev, saving: false }));
+    }
+  };
+
+  const openJobLinkBulkBindDialog = async (predefinedProjectUuid?: string) => {
+    // If project is predefined from the row, skip loading all projects
+    if (predefinedProjectUuid) {
+      // Pre-populate with the predefined project
+      setJobLinkBulkBindDialog((prev) => ({ 
+        ...prev, 
+        open: true, 
+        selectedProjectUuids: [predefinedProjectUuid],
+        loading: false 
+      }));
+      console.log(`[Bind Dialog] Pre-populated with project: ${predefinedProjectUuid}`);
+      return;
+    }
+    
+    // Load projects if not already loaded
+    if (paymentProjects.length === 0) {
+      setJobLinkBulkBindDialog((prev) => ({ ...prev, loading: true }));
+      try {
+        const projectsRes = await fetch('/api/projects-v2');
+        if (!projectsRes.ok) throw new Error('Failed to load projects');
+        const projectsData = await projectsRes.json();
+        const projectsList = Array.isArray(projectsData)
+          ? projectsData
+          : Array.isArray(projectsData?.data)
+            ? projectsData.data
+            : [];
+        setPaymentProjects(projectsList);
+        console.log(`[Bind Dialog] Loaded ${projectsList.length} projects`);
+      } catch (error) {
+        console.error('Failed to load projects:', error);
+        alert('Failed to load projects');
+        return;
+      } finally {
+        setJobLinkBulkBindDialog((prev) => ({ ...prev, loading: false }));
+      }
+    }
+    
+    setJobLinkBulkBindDialog((prev) => ({ ...prev, open: true }));
+  };
+
+
+  const openAddLedgerCostsDialog = async (projectUuid: string, projectName: string) => {
+    setAddLedgerCostsProjectUuid(projectUuid);
+    setAddLedgerCostsProjectName(projectName);
+    setAddLedgerCostsStep('payment');
+    setAddLedgerCostsDialogOpen(true);
+
+    try {
+      // Load financial codes (cost only: is_income = false && applies_to_pl = true)
+      const fcResponse = await fetch('/api/financial-codes?leafOnly=true');
+      if (fcResponse.ok) {
+        const fcData = await fcResponse.json();
+        const costFcs = (Array.isArray(fcData) ? fcData : []).filter(
+          (fc: any) => fc.is_income === false && fc.applies_to_pl === true
+        );
+        setCostFinancialCodes(costFcs.map((fc: any) => ({ uuid: fc.uuid, validation: fc.validation, code: fc.code })));
+      }
+
+      // Load counteragents
+      const caResponse = await fetch('/api/counteragents');
+      if (caResponse.ok) {
+        const caData = await caResponse.json();
+        const cas = (Array.isArray(caData) ? caData : []).map((ca: any) => ({
+          uuid: ca.counteragent_uuid || ca.uuid,
+          name: ca.counteragent || ca.name,
+        }));
+        setCostCounterAgents(cas);
+      }
+
+      // Load currencies
+      const currResponse = await fetch('/api/currencies');
+      if (currResponse.ok) {
+        const currData = await currResponse.json();
+        const currsList = Array.isArray(currData)
+          ? currData
+          : Array.isArray(currData?.data)
+            ? currData.data
+            : [];
+        const currs = currsList.map((curr: any) => ({
+          uuid: curr.uuid,
+          code: curr.code,
+        }));
+        setCostCurrencies(currs);
+      }
+
+      // Load existing cost payments
+      await fetchCostPayments();
+    } catch (err: any) {
+      console.error('Failed to load dialog data:', err);
+      setCostFinancialCodes([]);
+      setCostCounterAgents([]);
+      setCostCurrencies([]);
+    }
+  };
+
+  const fetchCostPayments = async () => {
+    try {
+      const response = await fetch('/api/payment-id-options');
+      if (!response.ok) throw new Error('Failed to fetch payments');
+      const data = await response.json();
+      if (!Array.isArray(data)) {
+        console.warn('[Services Report] Expected payments array, received:', data);
+        setCostPayments([]);
+        return;
+      }
+      // Filter to only cost financial codes (is_income = false)
+      setCostPayments(data
+        .filter((p: any) => {
+          const financialCodeIsIncome = p.financialCodeIsIncome ?? p.financial_code_is_income;
+          return financialCodeIsIncome === false;
+        })
+        .map((p: any) => ({
+          paymentId: p.paymentId || p.payment_id,
+          counteragentUuid: p.counteragentUuid || p.counteragent_uuid || null,
+          counteragentName: p.counteragentName || p.counteragent_name || null,
+          projectName: p.projectName || p.project_name || null,
+          financialCode: p.financialCode || p.financialCodeValidation || p.financial_code || null,
+          currencyCode: p.currencyCode || p.currency_code || null,
+        })));
+    } catch (error) {
+      console.error('Error fetching cost payments:', error);
+      setCostPayments([]);
+    }
+  };
+
+  const handleCreateCostPayment = async () => {
+    if (!selectedCostCounteragentUuid || !selectedCostFinancialCodeUuid || !selectedCostCurrencyUuid) {
+      alert('Please fill Counteragent, Financial Code, and Currency');
+      return;
+    }
+
+    setIsCreatingCostPayment(true);
+    try {
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          counteragentUuid: selectedCostCounteragentUuid,
+          projectUuid: addLedgerCostsProjectUuid,
+          financialCodeUuid: selectedCostFinancialCodeUuid,
+          incomeTax: false,
+          currencyUuid: selectedCostCurrencyUuid,
+          label: selectedCostLabel || null
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create payment');
+      }
+
+      const result = await response.json();
+      const newPaymentId = result?.data?.payment_id || result?.data?.paymentId;
+
+      if (!newPaymentId) {
+        throw new Error('Payment ID not returned from server');
+      }
+
+      const counteragent = costCounterAgents.find(ca => ca.uuid === selectedCostCounteragentUuid);
+      const financialCode = costFinancialCodes.find(fc => fc.uuid === selectedCostFinancialCodeUuid);
+      const currency = costCurrencies.find(c => c.uuid === selectedCostCurrencyUuid);
+
+      setPreSelectedCostPaymentId(newPaymentId);
+      setSelectedCostPaymentDetails({
+        paymentId: newPaymentId,
+        counteragent: counteragent?.name || 'N/A',
+        project: addLedgerCostsProjectName,
+        financialCode: financialCode?.validation || financialCode?.code || 'N/A',
+        currency: currency?.code || 'N/A'
+      });
+
+      await fetchCostPayments();
+      setAddLedgerCostsStep('ledger');
+    } catch (error: any) {
+      console.error('Error creating payment:', error);
+      alert(error.message || 'Failed to create payment');
+    } finally {
+      setIsCreatingCostPayment(false);
+    }
+  };
+
+  const handleSkipToCostLedger = () => {
+    if (selectedCostCounteragentUuid) {
+      const ca = costCounterAgents.find(c => c.uuid === selectedCostCounteragentUuid);
+      setSkipCostCounteragentFilter({
+        uuid: selectedCostCounteragentUuid,
+        name: ca?.name || selectedCostCounteragentUuid,
+      });
+    } else {
+      setSkipCostCounteragentFilter(null);
+    }
+    setAddLedgerCostsStep('ledger');
+  };
+
+  const handleSaveCostLedger = async () => {
+    if (isSubmittingCostLedger) return;
+
+    if (!preSelectedCostPaymentId) {
+      alert('Please select a payment');
+      return;
+    }
+
+    const accrualValue = costAccrual ? parseFloat(costAccrual) : null;
+    const orderValue = costOrder ? parseFloat(costOrder) : null;
+
+    if ((!accrualValue || accrualValue === 0) && (!orderValue || orderValue === 0)) {
+      alert('Either Accrual or Order must be provided and cannot be zero');
+      return;
+    }
+
+    // Convert ISO date to ISO format if needed
+    let isoDate: string | undefined = undefined;
+    if (costEffectiveDate) {
+      // Check if already in ISO format (yyyy-mm-dd)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(costEffectiveDate)) {
+        isoDate = costEffectiveDate;
+      } else {
+        // Try dd.mm.yyyy format
+        const datePattern = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+        const match = costEffectiveDate.match(datePattern);
+        if (match) {
+          const [, day, month, year] = match;
+          isoDate = `${year}-${month}-${day}`;
+        } else {
+          alert('Please enter date in yyyy-mm-dd or dd.mm.yyyy format');
+          return;
+        }
+      }
+    }
+
+    setIsSubmittingCostLedger(true);
+    try {
+      const response = await fetch('/api/payments-ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId: preSelectedCostPaymentId,
+          effectiveDate: isoDate,
+          accrual: accrualValue,
+          order: orderValue,
+          comment: costComment || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create ledger entry');
+      }
+
+      resetCostLedgerForm();
+      setAddLedgerCostsDialogOpen(false);
+      await fetchReport();
+    } catch (error: any) {
+      console.error('Error adding ledger entry:', error);
+      alert(error.message || 'Failed to add ledger entry');
+    } finally {
+      setIsSubmittingCostLedger(false);
+    }
+  };
+
+  const resetCostLedgerForm = () => {
+    setCostEffectiveDate('');
+    setCostAccrual('');
+    setCostOrder('');
+    setCostComment('');
+    setPreSelectedCostPaymentId(null);
+    setSelectedCostPaymentDetails(null);
+    setSelectedCostCounteragentUuid('');
+    setSelectedCostFinancialCodeUuid('');
+    setSelectedCostCurrencyUuid('');
+    setSelectedCostLabel('');
+    setSkipCostCounteragentFilter(null);
+    setAddLedgerCostsStep('payment');
+    setIsSubmittingCostLedger(false);
   };
 
   const handleExportXlsx = useCallback(() => {
@@ -1022,7 +1697,7 @@ export function ServicesReportTable() {
           (acc, row) => {
             acc.rows += 1;
             acc.payments += row.paymentCount;
-            acc.jobs += row.jobsCount;
+            acc.jobs += row.jobsByState.active + row.jobsByState.conversion + row.jobsByState.free + row.jobsByState.others + row.jobsByState.recovery;
             acc.sum += row.sum;
             acc.accrual += row.accrual;
             acc.order += row.order;
@@ -1141,7 +1816,7 @@ export function ServicesReportTable() {
           row.counteragentUuid ?? '',
           row.paymentIds.join(', '),
           row.paymentCount,
-          row.jobsCount,
+          row.jobsByState.active + row.jobsByState.conversion + row.jobsByState.free + row.jobsByState.others + row.jobsByState.recovery,
           row.jobNames.join(', '),
           row.currency,
           row.sum,
@@ -1209,6 +1884,20 @@ export function ServicesReportTable() {
       setIsExporting(false);
     }
   }, [sections]);
+
+  const handleOpenCostPaymentFilter = useCallback((row: ServicesRow) => {
+    if (!row.costPaymentIds || row.costPaymentIds.length === 0) {
+      alert('No cost payments found for this project');
+      return;
+    }
+
+    // Build query parameters for Payments Report
+    const costPaymentIdsParam = row.costPaymentIds.join(',');
+    const url = `/dictionaries/payments-report?paymentIds=${encodeURIComponent(costPaymentIdsParam)}&isIncome=false`;
+    
+    // Open in new tab
+    window.open(url, '_blank');
+  }, []);
 
   const getSortIcon = (field: SectionColumnKey) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-50" />;
@@ -1521,6 +2210,17 @@ export function ServicesReportTable() {
                       const bg = COLUMN_BG[column.key];
                       const isSortable = column.key !== 'actions';
                       const isFilterable = column.key !== 'actions';
+                      
+                      // Apply job state colors to columns - pastel tones
+                      const jobStateColorMap: Record<string, string> = {
+                        jobsActive: '#E8F8F5',
+                        jobsConversion: '#F5EDD9',
+                        jobsFree: '#E6F7F9',
+                        jobsOthers: '#F0F1F2',
+                        jobsRecovery: '#F9E8EB',
+                      };
+                      const headerBg = jobStateColorMap[column.key] || bg || '#f9fafb';
+                      
                       return (
                       <th
                         key={column.key}
@@ -1528,10 +2228,10 @@ export function ServicesReportTable() {
                         onDragStart={() => setDraggedColumn({ key: column.key })}
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={() => handleColumnDrop(column.key)}
-                        className={`px-3 py-2 relative overflow-hidden ${column.align === 'right' ? 'text-right' : 'text-left'}`}
-                        style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, backgroundColor: bg || '#f9fafb' }}
+                        className={`px-3 py-2 relative overflow-hidden font-semibold ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'}`}
+                        style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, backgroundColor: headerBg }}
                       >
-                        <div className={`flex items-center gap-2 min-w-0 ${column.align === 'right' ? 'justify-end pr-2' : ''}`}>
+                        <div className={`flex items-center gap-2 min-w-0 ${column.align === 'center' ? 'justify-center' : column.align === 'right' ? 'justify-end pr-2' : ''}`}>
                           {isSortable ? (
                             <button
                               onClick={() => handleSort(column.key)}
@@ -1624,6 +2324,29 @@ export function ServicesReportTable() {
                             </td>
                           );
                         }
+                        // Job state columns with colored backgrounds
+                        const jobStateMap: Record<string, keyof typeof JOB_STATE_COLORS> = {
+                          jobsActive: 'active',
+                          jobsConversion: 'conversion',
+                          jobsFree: 'free',
+                          jobsOthers: 'others',
+                          jobsRecovery: 'recovery',
+                        };
+                        if (column.key in jobStateMap) {
+                          const stateKey = jobStateMap[column.key as keyof typeof jobStateMap];
+                          const colors = JOB_STATE_COLORS[stateKey];
+                          const count = typeof rawValue === 'number' ? rawValue : 0;
+                          return (
+                            <td
+                              key={column.key}
+                              className="px-2 py-2 text-center overflow-hidden font-semibold"
+                              style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, backgroundColor: colors.bg, color: colors.text }}
+                              title={`${stateKey.charAt(0).toUpperCase() + stateKey.slice(1)}: ${count}`}
+                            >
+                              {count > 0 ? count : '-'}
+                            </td>
+                          );
+                        }
                         const value =
                           column.align === 'right' && typeof rawValue === 'number'
                             ? formatMoney(rawValue)
@@ -1633,7 +2356,7 @@ export function ServicesReportTable() {
                         return (
                           <td
                             key={column.key}
-                            className={`px-3 py-2 overflow-hidden ${column.align === 'right' ? 'text-right' : 'text-left'} ${
+                            className={`px-3 py-2 overflow-hidden ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'} ${
                               column.key === 'sum' && isSumMismatch ? 'font-bold text-red-600' : ''
                             }`}
                             style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
@@ -1696,9 +2419,8 @@ export function ServicesReportTable() {
                                   </a>
                                 )}
                               </div>
-                            ) : column.key === 'jobsCount' ? (
-                              <div className="flex items-center justify-end gap-1">
-                                <span>{row.jobsCount}</span>
+                            ) : column.key === 'actions' ? (
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <button
                                   onClick={() => openJobLinkDialog(row)}
                                   title={row.jobNames.length > 0 ? `Jobs: ${row.jobNames.join(', ')}` : 'Link jobs to payments'}
@@ -1706,9 +2428,6 @@ export function ServicesReportTable() {
                                 >
                                   <Link2 className="w-3.5 h-3.5" />
                                 </button>
-                              </div>
-                            ) : column.key === 'actions' ? (
-                              <div className="flex items-center gap-1.5 flex-wrap">
                                 {row.paymentIds.map((paymentId) => (
                                   <span key={`${row.projectUuid}-${paymentId}`} className="inline-flex items-center gap-0.5">
                                     <a
@@ -1753,6 +2472,28 @@ export function ServicesReportTable() {
                                 >
                                   <User className="w-4 h-4" />
                                 </a>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openAddLedgerCostsDialog(row.projectUuid, row.projectName)}
+                                  className="text-xs h-7"
+                                  title="Add cost ledger entries for this project"
+                                >
+                                  + Cost
+                                </Button>
+                              </div>
+                            ) : column.key === 'costAccrual' ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span>{value}</span>
+                                {row.costPaymentIds && row.costPaymentIds.length > 0 && (
+                                  <button
+                                    onClick={() => handleOpenCostPaymentFilter(row)}
+                                    className="inline-flex items-center justify-center rounded p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                    title={`Filter cost payments (${row.costPaymentIds.length}): ${row.costPaymentIds.slice(0, 3).join(', ')}${row.costPaymentIds.length > 3 ? '...' : ''}`}
+                                  >
+                                    <Filter className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
                               </div>
                             ) : (
                               value
@@ -1778,7 +2519,20 @@ export function ServicesReportTable() {
             <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
               <div className="flex items-center gap-3">
                 <h2 className="text-base font-semibold">Link Jobs to Project</h2>
-                <span className="text-sm text-gray-500 font-medium">{jobLinkDialog.projectName}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500 font-medium">{jobLinkDialog.projectName}</span>
+                  {jobLinkDialog.projectUuid && (
+                    <a
+                      href={`/admin/projects?projectUuid=${encodeURIComponent(jobLinkDialog.projectUuid)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center rounded p-1 transition-colors text-gray-400 hover:text-blue-600 hover:bg-blue-50 flex-shrink-0"
+                      title="Open project in admin panel"
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-gray-500">
@@ -1792,14 +2546,73 @@ export function ServicesReportTable() {
                 </button>
               </div>
             </div>
-            <div className="px-5 py-3 border-b shrink-0">
-              <Input
-                placeholder="Search by job name, project, or brand..."
-                value={jobLinkDialog.search}
-                onChange={(e) => setJobLinkDialog((prev) => ({ ...prev, search: e.target.value }))}
-                className="w-full max-w-md"
-              />
+            <div className="px-5 py-3 border-b shrink-0 flex items-center gap-2">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search jobs by name, project, or brand..."
+                  value={jobLinkDialog.search}
+                  onChange={(e) => setJobLinkDialog((prev) => ({ ...prev, search: e.target.value }))}
+                  className="pl-9 pr-8 w-full"
+                  autoFocus
+                />
+                {jobLinkDialog.search && (
+                  <button
+                    onClick={() => setJobLinkDialog((prev) => ({ ...prev, search: '' }))}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    title="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {jobLinkDialog.search && (
+                <span className="text-xs text-gray-500 whitespace-nowrap">
+                  {filteredDialogJobs.length} result{filteredDialogJobs.length !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
+            {/* Bulk operations toolbar */}
+            {jobLinkDialog.linkedJobUuids.size > 0 && (
+              <div className="px-5 py-3 border-b bg-blue-50 flex items-center gap-4 shrink-0">
+                <span className="text-sm font-medium text-gray-700">
+                  {jobLinkDialog.linkedJobUuids.size} job{jobLinkDialog.linkedJobUuids.size !== 1 ? 's' : ''} selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <Select value={jobLinkBulkServiceState} onValueChange={setJobLinkBulkServiceState}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Conversion">Conversion</SelectItem>
+                      <SelectItem value="Free">Free</SelectItem>
+                      <SelectItem value="Others">Others</SelectItem>
+                      <SelectItem value="Recovery">Recovery</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleJobLinkBulkServiceStateUpdate}
+                    disabled={jobLinkBulkUpdating || !jobLinkBulkServiceState}
+                    className="h-8 text-xs"
+                  >
+                    {jobLinkBulkUpdating ? 'Updating...' : 'Update Service State'}
+                  </Button>
+                </div>
+                <div className="h-6 w-px bg-gray-300" />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => openJobLinkBulkBindDialog(jobLinkDialog.projectUuid)}
+                  className="h-8 text-xs"
+                  disabled={jobLinkBulkBindDialog.loading}
+                >
+                  {jobLinkBulkBindDialog.loading ? 'Loading...' : 'Bind to Projects'}
+                </Button>
+              </div>
+            )}
             <div className="flex-1 overflow-auto">
               {jobLinkDialog.loading ? (
                 <div className="text-sm text-gray-500 py-12 text-center">Loading jobs...</div>
@@ -1814,37 +2627,194 @@ export function ServicesReportTable() {
                           title="Select / deselect all filtered"
                         />
                       </th>
-                      <th className="px-4 py-2 text-left">Job Name</th>
-                      <th className="px-4 py-2 text-left">Original Project</th>
-                      <th className="px-4 py-2 text-left">Brand</th>
-                      <th className="px-4 py-2 text-right">Floors</th>
-                      <th className="px-4 py-2 text-right">Weight</th>
-                      <th className="px-4 py-2 text-center">FF</th>
-                      <th className="px-4 py-2 text-center">Active</th>
+                      <th className="px-4 py-2 text-left">
+                        <div className="flex items-center gap-2">
+                          <span>Job Name</span>
+                          <ColumnFilterPopover
+                            columnKey="jobName"
+                            columnLabel="Job Name"
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.jobName).filter(Boolean)))}
+                            activeFilters={new Set(jobLinkColumnFilters.jobName || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                jobName: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-left">
+                        <div className="flex items-center gap-2">
+                          <span>Original Project</span>
+                          <ColumnFilterPopover
+                            columnKey="projectIndex"
+                            columnLabel="Original Project"
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.projectIndex).filter(Boolean)))}
+                            activeFilters={new Set(jobLinkColumnFilters.projectIndex || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                projectIndex: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-left">
+                        <div className="flex items-center gap-2">
+                          <span>Brand</span>
+                          <ColumnFilterPopover
+                            columnKey="brandName"
+                            columnLabel="Brand"
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.brandName).filter(Boolean)))}
+                            activeFilters={new Set(jobLinkColumnFilters.brandName || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                brandName: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          <span>Floors</span>
+                          <ColumnFilterPopover
+                            columnKey="floors"
+                            columnLabel="Floors"
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.floors?.toString()).filter(Boolean))) as any[]}
+                            activeFilters={new Set(jobLinkColumnFilters.floors || [])}
+                            columnFormat="number"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                floors: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          <span>Weight</span>
+                          <ColumnFilterPopover
+                            columnKey="weight"
+                            columnLabel="Weight"
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.weight?.toString()).filter(Boolean))) as any[]}
+                            activeFilters={new Set(jobLinkColumnFilters.weight || [])}
+                            columnFormat="number"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                weight: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-center">
+                        <div className="flex items-center gap-2 justify-center">
+                          <span>FF</span>
+                          <ColumnFilterPopover
+                            columnKey="isFf"
+                            columnLabel="FF"
+                            values={['FF', 'No']}
+                            activeFilters={new Set(jobLinkColumnFilters.isFf || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                isFf: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-center">
+                        <div className="flex items-center gap-2 justify-center">
+                          <span>Active</span>
+                          <ColumnFilterPopover
+                            columnKey="isActive"
+                            columnLabel="Active"
+                            values={['Yes', 'No']}
+                            activeFilters={new Set(jobLinkColumnFilters.isActive || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                isActive: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-left">
+                        <div className="flex items-center gap-2">
+                          <span>Service State</span>
+                          <ColumnFilterPopover
+                            columnKey="serviceState"
+                            columnLabel="Service State"
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.serviceState || '-').filter(Boolean)))}
+                            activeFilters={new Set(jobLinkColumnFilters.serviceState || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                serviceState: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-center w-12">Edit</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredDialogJobs.length === 0 ? (
-                      <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No jobs match your search.</td></tr>
+                      <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No jobs match your search.</td></tr>
                     ) : (
                       filteredDialogJobs.map((job) => {
                         const checked = jobLinkDialog.linkedJobUuids.has(job.jobUuid);
+                        const uniqueRowKey = `${job.jobUuid}_${job.projectName}_${job.brandName}`;
                         return (
                           <tr
-                            key={job.jobUuid}
-                            className={`border-b hover:bg-gray-50 cursor-pointer ${checked ? 'bg-blue-50' : ''}`}
-                            onClick={() => toggleJobLink(job.jobUuid)}
+                            key={uniqueRowKey}
+                            className={`border-b hover:bg-gray-50 ${checked ? 'bg-blue-50' : ''}`}
                           >
                             <td className="px-4 py-2">
                               <Checkbox checked={checked} onCheckedChange={() => toggleJobLink(job.jobUuid)} />
                             </td>
-                            <td className="px-4 py-2 font-medium">{job.jobName}</td>
-                            <td className="px-4 py-2 text-gray-600">{job.projectName || '-'}</td>
-                            <td className="px-4 py-2 text-gray-600">{job.brandName || '-'}</td>
-                            <td className="px-4 py-2 text-right">{job.floors ?? '-'}</td>
-                            <td className="px-4 py-2 text-right">{job.weight ?? '-'}</td>
-                            <td className="px-4 py-2 text-center">{job.isFf ? 'FF' : ''}</td>
-                            <td className="px-4 py-2 text-center">{job.isActive ? 'Yes' : 'No'}</td>
+                            <td className="px-4 py-2 font-medium cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.jobName}</td>
+                            <td className="px-4 py-2 text-gray-600 cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.projectIndex || '-'}</td>
+                            <td className="px-4 py-2 text-gray-600 cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.brandName || '-'}</td>
+                            <td className="px-4 py-2 text-right cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.floors ?? '-'}</td>
+                            <td className="px-4 py-2 text-right cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.weight ?? '-'}</td>
+                            <td className="px-4 py-2 text-center cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.isFf ? 'FF' : ''}</td>
+                            <td className="px-4 py-2 text-center cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.isActive ? 'Yes' : 'No'}</td>
+                            <td className="px-4 py-2 text-left cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.serviceState || '-'}</td>
+                            <td className="px-4 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                onClick={() => openJobLinkEditDialog(job.jobUuid)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </td>
                           </tr>
                         );
                       })
@@ -1859,6 +2829,222 @@ export function ServicesReportTable() {
               </Button>
               <Button onClick={saveJobLinks} disabled={jobLinkDialog.saving || jobLinkDialog.loading}>
                 {jobLinkDialog.saving ? 'Saving...' : `Save (${jobLinkDialog.linkedJobUuids.size} jobs)`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Job Edit Dialog */}
+      {jobLinkEditDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b px-5 py-3 sticky top-0 bg-white">
+              <h2 className="text-base font-semibold">Edit Job</h2>
+              <button 
+                onClick={() => setJobLinkEditDialog((prev) => ({ ...prev, open: false, jobUuid: null }))} 
+                className="text-gray-400 hover:text-gray-600" 
+                disabled={jobLinkEditDialog.saving}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4 px-5 py-4">
+              {jobLinkEditDialog.loading ? (
+                <div className="text-sm text-gray-500 text-center py-8">Loading job details...</div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="job-name">Job Name *</Label>
+                    <Input
+                      id="job-name"
+                      value={jobLinkEditDialog.jobName}
+                      onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, jobName: e.target.value }))}
+                      placeholder="Enter job name"
+                      disabled={jobLinkEditDialog.saving}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="job-factory-no">Factory No</Label>
+                    <Input
+                      id="job-factory-no"
+                      value={jobLinkEditDialog.factoryNo}
+                      onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, factoryNo: e.target.value }))}
+                      placeholder="Enter factory number"
+                      disabled={jobLinkEditDialog.saving}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="job-brand">Brand *</Label>
+                    <Select
+                      value={jobLinkEditDialog.brandUuid}
+                      onValueChange={(value) => setJobLinkEditDialog((prev) => ({ ...prev, brandUuid: value }))}
+                      disabled={jobLinkEditDialog.saving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select brand..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {jobEditBrands.map((brand: any) => (
+                          <SelectItem key={brand.uuid || brand.id} value={brand.uuid || brand.id}>
+                            {brand.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="job-projects">Projects *</Label>
+                    <MultiCombobox
+                      options={paymentProjects
+                        .filter(p => p.project_uuid || p.projectUuid)
+                        .map(p => ({
+                          value: (p.project_uuid || p.projectUuid) as string,
+                          label: `${p.project_index || p.projectIndex} - ${p.project_name || p.projectName}`,
+                          keywords: `${p.project_index || p.projectIndex} ${p.project_name || p.projectName}`
+                        }))}
+                      value={jobLinkEditDialog.projectUuids || []}
+                      onValueChange={(values: string[]) => setJobLinkEditDialog((prev) => ({ ...prev, projectUuids: values }))}
+                      placeholder="Select one or more projects..."
+                      searchPlaceholder="Search projects..."
+                      emptyText="No project found."
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="job-floors">Floors *</Label>
+                      <Input
+                        id="job-floors"
+                        type="number"
+                        value={jobLinkEditDialog.floors}
+                        onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, floors: e.target.value }))}
+                        placeholder="Enter number of floors"
+                        disabled={jobLinkEditDialog.saving}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="job-weight">Weight (kg) *</Label>
+                      <Input
+                        id="job-weight"
+                        type="number"
+                        value={jobLinkEditDialog.weight}
+                        onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, weight: e.target.value }))}
+                        placeholder="Enter weight in kg"
+                        disabled={jobLinkEditDialog.saving}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="job-selling-price">Selling Price</Label>
+                      <Input
+                        id="job-selling-price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={jobLinkEditDialog.sellingPrice}
+                        onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, sellingPrice: e.target.value }))}
+                        placeholder="Enter selling price"
+                        disabled={jobLinkEditDialog.saving}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="job-service-state">Service State</Label>
+                      <Select
+                        value={jobLinkEditDialog.serviceState}
+                        onValueChange={(value) => setJobLinkEditDialog((prev) => ({ ...prev, serviceState: value }))}
+                        disabled={jobLinkEditDialog.saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select service state..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Active">Active</SelectItem>
+                          <SelectItem value="Conversion">Conversion</SelectItem>
+                          <SelectItem value="Free">Free</SelectItem>
+                          <SelectItem value="Others">Others</SelectItem>
+                          <SelectItem value="Recovery">Recovery</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="job-ff"
+                      checked={jobLinkEditDialog.isFf}
+                      onCheckedChange={(checked) => setJobLinkEditDialog((prev) => ({ ...prev, isFf: checked }))}
+                      disabled={jobLinkEditDialog.saving}
+                    />
+                    <Label htmlFor="job-ff">FF (firefighter)</Label>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t">
+              <Button 
+                variant="outline" 
+                onClick={() => setJobLinkEditDialog((prev) => ({ ...prev, open: false, jobUuid: null }))}
+                disabled={jobLinkEditDialog.saving}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleJobLinkEditSave}
+                disabled={jobLinkEditDialog.saving || jobLinkEditDialog.loading}
+              >
+                {jobLinkEditDialog.saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {jobLinkBulkBindDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <h2 className="text-base font-semibold">Bind Jobs to Projects</h2>
+              <button
+                onClick={() => setJobLinkBulkBindDialog((prev) => ({ ...prev, open: false, selectedProjectUuids: [] }))}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={jobLinkBulkBindDialog.saving}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div className="text-sm text-gray-600">
+                {jobLinkDialog.linkedJobUuids.size} job{jobLinkDialog.linkedJobUuids.size !== 1 ? 's' : ''} will be bound to project.
+              </div>
+              {jobLinkBulkBindDialog.selectedProjectUuids.length > 0 && (
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="text-sm font-medium text-gray-700">Target Project:</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {(() => {
+                      const targetProj = paymentProjects.find(
+                        (p) => (p.project_uuid || '') === jobLinkBulkBindDialog.selectedProjectUuids[0]
+                      );
+                      return targetProj
+                        ? `${targetProj.project_index} - ${targetProj.project_name}`
+                        : jobLinkBulkBindDialog.selectedProjectUuids[0];
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setJobLinkBulkBindDialog((prev) => ({ ...prev, open: false, selectedProjectUuids: [] }))}
+                disabled={jobLinkBulkBindDialog.saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleJobLinkBulkBind}
+                disabled={jobLinkBulkBindDialog.saving || jobLinkBulkBindDialog.selectedProjectUuids.length === 0}
+              >
+                {jobLinkBulkBindDialog.saving ? 'Binding...' : 'Bind Jobs'}
               </Button>
             </div>
           </div>
@@ -2044,6 +3230,302 @@ export function ServicesReportTable() {
           </div>
         </div>
       )}
+
+      {/* Add Ledger for Costs Dialog - Two-step flow */}
+      <Dialog open={addLedgerCostsDialogOpen} onOpenChange={setAddLedgerCostsDialogOpen}>
+        <DialogContent className="w-[80%] max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>
+              {addLedgerCostsStep === 'payment' ? 'Add Cost Payment' : 'Add Cost Ledger Entry'}
+            </DialogTitle>
+            <DialogDescription>
+              {addLedgerCostsStep === 'payment'
+                ? 'Create a cost payment first, or skip to add a ledger entry to an existing payment.'
+                : 'Add a new entry to the cost ledger.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {addLedgerCostsStep === 'payment' ? (
+              <>
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                  Create a cost payment first, or skip to add a ledger entry to an existing payment.
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Counteragent <span className="text-red-500">*</span></Label>
+                  <Combobox
+                    value={selectedCostCounteragentUuid}
+                    onValueChange={setSelectedCostCounteragentUuid}
+                    options={costCounterAgents
+                      .filter(ca => ca.name) // Filter out entries without names
+                      .map(ca => ({
+                        value: ca.uuid,
+                        label: ca.name as string
+                      }))}
+                    placeholder="Select counteragent..."
+                    searchPlaceholder="Search counteragents..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className={!selectedCostCounteragentUuid ? 'text-muted-foreground' : ''}>
+                    Cost Financial Code <span className="text-red-500">*</span>
+                  </Label>
+                  <Combobox
+                    value={selectedCostFinancialCodeUuid}
+                    onValueChange={setSelectedCostFinancialCodeUuid}
+                    options={costFinancialCodes
+                      .filter(fc => fc.validation || fc.code) // Filter out entries without label
+                      .map(fc => ({
+                      value: fc.uuid,
+                      label: (fc.validation || fc.code || 'Unknown') as string
+                    }))}
+                    placeholder="Select financial code..."
+                    searchPlaceholder="Search financial codes..."
+                    disabled={!selectedCostCounteragentUuid}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className={!selectedCostFinancialCodeUuid ? 'text-muted-foreground' : ''}>
+                    Currency <span className="text-red-500">*</span>
+                  </Label>
+                  <Combobox
+                    value={selectedCostCurrencyUuid}
+                    onValueChange={setSelectedCostCurrencyUuid}
+                    options={costCurrencies
+                      .filter(c => c.code) // Filter out entries without code
+                      .map(c => ({
+                      value: c.uuid,
+                      label: c.code as string
+                    }))}
+                    placeholder="Select currency..."
+                    searchPlaceholder="Search currencies..."
+                    disabled={!selectedCostFinancialCodeUuid}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className={!selectedCostCurrencyUuid ? 'text-muted-foreground' : ''}>Project</Label>
+                  <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                    <span className="font-bold" style={{ color: '#000' }}>{addLedgerCostsProjectName}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Label (Optional)</Label>
+                  <Input
+                    value={selectedCostLabel}
+                    onChange={(e) => setSelectedCostLabel(e.target.value)}
+                    placeholder="Payment label"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    onClick={handleCreateCostPayment}
+                    className="flex-1"
+                    disabled={isCreatingCostPayment || !selectedCostCounteragentUuid || !selectedCostFinancialCodeUuid || !selectedCostCurrencyUuid}
+                  >
+                    {isCreatingCostPayment ? 'Creating...' : 'Create Payment & Continue'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={handleSkipToCostLedger}
+                  >
+                    Skip - Use Existing Payment
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                {selectedCostPaymentDetails && preSelectedCostPaymentId ? (
+                  // Show payment details as read-only form fields
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3">Cost Payment Details</h3>
+                      
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Payment ID</Label>
+                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                            <span className="font-bold" style={{ color: '#000' }}>{selectedCostPaymentDetails.paymentId}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Currency</Label>
+                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                            <span className="font-bold" style={{ color: '#000' }}>{selectedCostPaymentDetails.currency}</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Type</Label>
+                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                            <span className="font-bold" style={{ color: '#000' }}>Cost</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-600">Counteragent</Label>
+                        <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                          <span className="font-bold" style={{ color: '#000' }}>{selectedCostPaymentDetails.counteragent}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-600">Project</Label>
+                        <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                          <span className="font-bold" style={{ color: '#000' }}>{selectedCostPaymentDetails.project}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-600">Financial Code</Label>
+                        <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                          <span className="font-bold" style={{ color: '#000' }}>{selectedCostPaymentDetails.financialCode}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Show payment selection dropdown
+                  <div className="space-y-2">
+                    <Label>Cost Payment</Label>
+                    {skipCostCounteragentFilter && (
+                      <div className="flex items-center gap-2 rounded-md bg-blue-50 border border-blue-200 px-3 py-1.5 text-sm text-blue-800">
+                        <span className="flex-1">Showing payments for: <strong>{skipCostCounteragentFilter.name}</strong></span>
+                        <button
+                          type="button"
+                          className="text-blue-500 hover:text-blue-700 font-bold leading-none"
+                          onClick={() => setSkipCostCounteragentFilter(null)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+                    <Combobox
+                      value={preSelectedCostPaymentId || ''}
+                      onValueChange={(value) => {
+                        setPreSelectedCostPaymentId(value);
+                        const payment = costPayments.find(p => p.paymentId === value);
+                        if (payment) {
+                          setSelectedCostPaymentDetails({
+                            paymentId: payment.paymentId,
+                            counteragent: payment.counteragentName || 'N/A',
+                            project: addLedgerCostsProjectName,
+                            financialCode: payment.financialCode || 'N/A',
+                            currency: payment.currencyCode || 'N/A'
+                          });
+                        }
+                      }}
+                      filter={(value, search) => {
+                        if (!search) return 1;
+                        try {
+                          const regex = new RegExp(search, 'i');
+                          return regex.test(value) ? 1 : 0;
+                        } catch {
+                          return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                        }
+                      }}
+                      options={costPayments
+                        .filter(p => !skipCostCounteragentFilter || p.counteragentUuid === skipCostCounteragentFilter.uuid)
+                        .map(p => {
+                          const parts: string[] = [p.paymentId];
+                          if (p.counteragentName) parts.push(p.counteragentName);
+                          if (p.financialCode) parts.push(p.financialCode);
+                          if (p.currencyCode) parts.push(p.currencyCode);
+                          
+                          const fullLabel = (parts.join(' | ') || p.paymentId) as string;
+                          
+                          return {
+                            value: p.paymentId,
+                            label: fullLabel,
+                            displayLabel: fullLabel,
+                            keywords: parts.filter(Boolean).join(' ')
+                          };
+                        })}
+                      placeholder="Select cost payment..."
+                      searchPlaceholder="Search by payment ID, counteragent, code..."
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Effective Date</Label>
+                  <div className="relative flex gap-2">
+                    <Input
+                      type="date"
+                      value={costEffectiveDate}
+                      onChange={(e) => setCostEffectiveDate(e.target.value)}
+                      placeholder="YYYY-MM-DD"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Accrual</Label>
+                    <Input
+                      type="number"
+                      value={costAccrual}
+                      onChange={(e) => setCostAccrual(e.target.value)}
+                      placeholder="0.00"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Order</Label>
+                    <Input
+                      type="number"
+                      value={costOrder}
+                      onChange={(e) => setCostOrder(e.target.value)}
+                      placeholder="0.00"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Comment (Optional)</Label>
+                  <Input
+                    value={costComment}
+                    onChange={(e) => setCostComment(e.target.value)}
+                    placeholder="Optional comment"
+                  />
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  At least one of Accrual or Order must be provided.
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                resetCostLedgerForm();
+                setAddLedgerCostsDialogOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            {addLedgerCostsStep === 'ledger' && (
+              <Button
+                onClick={handleSaveCostLedger}
+                disabled={isSubmittingCostLedger || !preSelectedCostPaymentId}
+              >
+                {isSubmittingCostLedger ? 'Adding...' : 'Add Entry'}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
      </div>
    );
  }

@@ -44,7 +44,8 @@ import {
 import { HandoverPaymentsGrid } from './handover-payments-grid';
 import { HandoverJobDistributionsGrid } from './handover-job-distributions-grid';
 import { ErrorBoundary } from './error-boundary';
-import { exportMultiSheetsToXlsx } from '@/lib/export-xlsx';
+import { exportMultiSheetsToXlsx, exportRowsToXlsx } from '@/lib/export-xlsx';
+import { toGenitiveCase } from '@/lib/georgian-genitive';
 
 type ColumnKey = keyof HandoverJob;
 
@@ -125,6 +126,25 @@ export function HandoversTable() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
+  
+  // ── Export data cache ────────────────────────────────────────────────────
+  const [exportCache, setExportCache] = useState<{
+    projectUuid: string | null;
+    projectData: any | null;
+    jobsData: any[] | null;
+    paymentsData: any[] | null;
+    distributionsData: any[] | null;
+    rateCache: Map<string, number | null>;
+    timestamp: number;
+  }>({
+    projectUuid: null,
+    projectData: null,
+    jobsData: null,
+    paymentsData: null,
+    distributionsData: null,
+    rateCache: new Map(),
+    timestamp: 0,
+  });
 
   // ── Attachment state ──────────────────────────────────────────────────────
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
@@ -187,6 +207,13 @@ export function HandoversTable() {
     [projects, selectedProjectUuid],
   );
 
+  // ── Computed: Is all data fully loaded? ──────────────────────────────────
+  const isTableFullyLoaded = useMemo(() => {
+    // Must have: projects loaded, project selected, jobs loaded, rates loaded
+    // Note: sortedJobs not available here yet, so checked separately in button disabled state
+    return !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== '';
+  }, [loadingProjects, loadingJobs, ratesLoading, selectedProjectUuid]);
+
   const formatMoney = (value: number) => Math.abs(value).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -198,41 +225,96 @@ export function HandoversTable() {
   const paymentsGridRef = useRef<any>(null);
   const distributionsGridRef = useRef<any>(null);
 
-  const lookupNbgRate = useCallback(async (date: string | null, currencyCode: string | null) => {
-    const normalizedCurrency = currencyCode ? currencyCode.toUpperCase() : null;
-    if (!date || !normalizedCurrency) return null;
-    if (normalizedCurrency === 'GEL') return 1;
+  // ── Retry logic for exchange rate fetches ──────────────────────────────────
+  const fetchWithRetry = useCallback(
+    async (url: string, maxRetries = 3): Promise<Response | null> => {
+      let lastError: Error | null = null;
 
-    // Extract just the date part (YYYY-MM-DD) from ISO date strings like "2026-05-27T00:00:00.000Z"
-    const dateOnly = date.split('T')[0];
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const res = await fetch(url, { credentials: 'include' });
 
-    const cacheKey = `${dateOnly}|${normalizedCurrency}`;
-    if (rateCacheRef.current.has(cacheKey)) {
-      return rateCacheRef.current.get(cacheKey) ?? null;
-    }
+          // Retry on 5xx errors; success on 2xx/3xx
+          if (res.ok || (res.status >= 400 && res.status < 500)) {
+            return res;
+          }
 
-    try {
-      const res = await fetch(
-        `/api/exchange-rates?date=${encodeURIComponent(dateOnly)}&currency=${encodeURIComponent(normalizedCurrency)}`,
-        { credentials: 'include' }
-      );
+          // 5xx error - log and retry
+          if (res.status >= 500) {
+            console.warn(
+              `[Handovers Rate] Attempt ${attempt + 1}/${maxRetries} failed with ${res.status}, retrying...`
+            );
+            // Exponential backoff: 200ms, 500ms, 1000ms
+            await new Promise((resolve) => setTimeout(resolve, 200 * Math.pow(1.5, attempt)));
+            continue;
+          }
 
-      if (!res.ok) {
+          return res;
+        } catch (error) {
+          lastError = error as Error;
+          console.warn(
+            `[Handovers Rate] Attempt ${attempt + 1}/${maxRetries} network error, retrying...`,
+            lastError.message
+          );
+          // Exponential backoff on network errors too
+          await new Promise((resolve) => setTimeout(resolve, 200 * Math.pow(1.5, attempt)));
+        }
+      }
+
+      // All retries exhausted
+      if (lastError) {
+        console.error(`[Handovers Rate] All ${maxRetries} retries failed:`, lastError);
+      }
+      return null;
+    },
+    []
+  );
+
+  const lookupNbgRate = useCallback(
+    async (date: string | null, currencyCode: string | null) => {
+      const normalizedCurrency = currencyCode ? currencyCode.toUpperCase() : null;
+      if (!date || !normalizedCurrency) return null;
+      if (normalizedCurrency === 'GEL') return 1;
+
+      // Extract just the date part (YYYY-MM-DD) from ISO date strings like "2026-05-27T00:00:00.000Z"
+      const dateOnly = date.split('T')[0];
+
+      const cacheKey = `${dateOnly}|${normalizedCurrency}`;
+      if (rateCacheRef.current.has(cacheKey)) {
+        return rateCacheRef.current.get(cacheKey) ?? null;
+      }
+
+      try {
+        const res = await fetchWithRetry(
+          `/api/exchange-rates?date=${encodeURIComponent(dateOnly)}&currency=${encodeURIComponent(normalizedCurrency)}`
+        );
+
+        if (!res) {
+          console.error(`[Handovers] Exchange rate fetch failed after retries: ${dateOnly} ${normalizedCurrency}`);
+          rateCacheRef.current.set(cacheKey, null);
+          return null;
+        }
+
+        if (!res.ok) {
+          console.error(`[Handovers] Exchange rate response not ok: ${res.status} ${res.statusText}`);
+          rateCacheRef.current.set(cacheKey, null);
+          return null;
+        }
+
+        const data = await res.json().catch(() => null);
+        const rate = Number(data?.rate);
+        const normalizedRate = Number.isFinite(rate) && rate > 0 ? rate : null;
+        rateCacheRef.current.set(cacheKey, normalizedRate);
+        console.log(`[Handovers] Rate ${dateOnly} ${normalizedCurrency}: ${normalizedRate}`);
+        return normalizedRate;
+      } catch (e) {
+        console.error(`[Handovers] Failed to fetch rate for ${dateOnly} ${normalizedCurrency}:`, e);
         rateCacheRef.current.set(cacheKey, null);
         return null;
       }
-
-      const data = await res.json().catch(() => null);
-      const rate = Number(data?.rate);
-      const normalizedRate = Number.isFinite(rate) && rate > 0 ? rate : null;
-      rateCacheRef.current.set(cacheKey, normalizedRate);
-      return normalizedRate;
-    } catch (e) {
-      console.error(`[Handovers] Failed to fetch rate for ${dateOnly} ${normalizedCurrency}:`, e);
-      rateCacheRef.current.set(cacheKey, null);
-      return null;
-    }
-  }, []);
+    },
+    [fetchWithRetry]
+  );
 
   // ── useTableFilters ───────────────────────────────────────────────────────
   const {
@@ -261,11 +343,6 @@ export function HandoversTable() {
     defaultSortDirection: 'asc',
     filtersStorageKey: 'handovers-table:filters',
   });
-
-  // ── Computed: Is all data fully loaded? ────────────────────────────────
-  const isTableFullyLoaded = useMemo(() => {
-    return !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== '';
-  }, [loadingProjects, loadingJobs, ratesLoading, selectedProjectUuid]);
 
   // ── Persist column config ─────────────────────────────────────────────────
   useEffect(() => {
@@ -302,30 +379,20 @@ export function HandoversTable() {
   useEffect(() => {
     (async () => {
       try {
-        console.log('[Handovers] Starting initial data fetch...');
         const [projRes, brandRes, insiderRes] = await Promise.all([
           fetch('/api/projects-v2', { credentials: 'include' }),
           fetch('/api/brands', { credentials: 'include' }),
           fetch('/api/insider-selection', { cache: 'no-store', credentials: 'include' }),
         ]);
         
-        console.log('[Handovers] API responses:', { 
-          projRes: { ok: projRes.ok, status: projRes.status },
-          brandRes: { ok: brandRes.ok, status: brandRes.status },
-          insiderRes: { ok: insiderRes.ok, status: insiderRes.status }
-        });
-        
         if (projRes.ok) {
           const data = await projRes.json();
-          console.log('[Handovers] Projects fetched:', { count: data?.length, firstProject: data?.[0] });
-          
+
           // Safely extract projects, with fallback if not an array
           const projectsArray = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
-          console.log('[Handovers] Projects array after fallback:', { count: projectsArray.length });
-          
+
           setProjects(
             projectsArray.map((p: any) => {
-              console.log('[Handovers] Mapping project:', { uuid: p.project_uuid, name: p.project_name });
               return {
                 projectUuid: p.project_uuid,
                 projectIndex: p.project_index,
@@ -346,7 +413,6 @@ export function HandoversTable() {
         
         if (insiderRes.ok) {
           const data = await insiderRes.json();
-          console.log('[Handovers] Insider data fetched:', data);
           const selectedUuids: string[] = Array.isArray(data?.selectedUuids) ? data.selectedUuids : [];
           const options: any[] = Array.isArray(data?.options) ? data.options : [];
           const selectedInsiders: any[] = Array.isArray(data?.selectedInsiders) ? data.selectedInsiders : [];
@@ -399,9 +465,10 @@ export function HandoversTable() {
         const liftCertMap: Record<string, { date: string | null; docNo: string | null }> = liftRes?.ok ? (await liftRes.json()).info ?? {} : {};
         console.log(`[Handovers] Lift cert info fetched:`, { liftCertOk: liftRes?.ok, mapSize: Object.keys(liftCertMap).length });
 
+        let paymentsData: any[] = [];
         const incomePaymentIds = new Set<string>();
         if (paymentsRes.ok) {
-          const paymentsData = await paymentsRes.json();
+          paymentsData = await paymentsRes.json();
           (Array.isArray(paymentsData) ? paymentsData : []).forEach((payment: any) => {
             if (payment?.financialCodeIsIncome && payment?.paymentId) {
               incomePaymentIds.add(String(payment.paymentId));
@@ -414,11 +481,13 @@ export function HandoversTable() {
         const paidGelByJob = new Map<string, number>();
 
         // Build distribution map for matching bank transactions to jobs
+        let distributionsData: any[] = [];
         const distributionsByBankTx = new Map<string, Array<{ jobUuid: string; amountAccount: number; amount: number }>>();
         const unmappedDistributions: Array<{ jobUuid: string; amountAccount: number; amount: number }> = [];
         
         if (distRes.ok) {
           const distData = await distRes.json();
+          distributionsData = Array.isArray(distData) ? distData : [];
           if (Array.isArray(distData)) {
             distData.forEach((dist: any) => {
               // Only include distributions for income payments
@@ -523,6 +592,22 @@ export function HandoversTable() {
         }
 
         setAttachmentCounts(countsMap);
+        
+        // ── Cache export data when jobs loaded ──────────────────────────────
+        setExportCache({
+          projectUuid,
+          projectData: {
+            projectName: projects.find(p => p.projectUuid === projectUuid)?.projectName ?? null,
+            currencyCode: projectCurrencyCode,
+            liftCertMap,
+          },
+          jobsData: data,
+          paymentsData,
+          distributionsData,
+          rateCache: new Map(rateCacheRef.current),
+          timestamp: Date.now(),
+        });
+        
         setJobs(
           data.map((job, idx) => ({
             id: Number(job.id ?? 0),
@@ -532,6 +617,7 @@ export function HandoversTable() {
             floors: job.floors ?? null,
             weight: job.weight ?? null,
             sellingPrice: job.sellingPrice != null ? Number(job.sellingPrice) : null,
+            serviceState: job.serviceState ?? 'Active',
             isFf: Boolean(job.isFf),
             brandUuid: job.brandUuid ?? null,
             brandName: String(job.brandName ?? ''),
@@ -577,6 +663,9 @@ export function HandoversTable() {
             _rowKey: String(job.jobUuid ?? idx),
           })),
         );
+      } else {
+        setJobs([]);
+        setAttachmentCounts({});
       }
     } catch (e) {
       console.error('Failed to fetch jobs:', e);
@@ -738,53 +827,12 @@ export function HandoversTable() {
 
   // ── Global XLSX Export ─────────────────────────────────────────────────────
   const handleGlobalExport = useCallback(async () => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const projectName = selectedProject?.projectIndex || 'Handovers';
-      const fileName = `handovers-${projectName}-${today}.xlsx`;
-
-      // Call API to generate template-based export (all data loaded from database)
-      const response = await fetch('/api/export/handover-template', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          fileName,
-          projectUuid: selectedProjectUuid,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('[Handovers Export] API error - Status:', response.status, 'Error:', errorData);
-        throw new Error(errorData.error || `Export failed with status ${response.status}`);
-      }
-
-      // Get the file from response
-      const blob = await response.blob();
-      console.log('[Handovers Export] Received blob, size:', blob.size, 'type:', blob.type);
-      
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      console.log(`[Handovers Export] Template export successful: ${fileName}`);
-    } catch (error) {
-      console.error('[Handovers Export] Template export failed:', error);
-      // Fallback to old export method if template fails
-      console.log('[Handovers Export] Falling back to programmatic export');
-      handleGlobalExportLegacy();
-    }
-  }, [sortedJobs, selectedProject, selectedProjectUuid]);
-
-  // ── Legacy Export (Fallback) ───────────────────────────────────────────────
-  const handleGlobalExportLegacy = useCallback(() => {
+    // Export 3 sheets: Jobs, Income Payments, Job Distributions (NO Placeholders for now)
     const sheets: any[] = [];
+
+    console.log('[Export] === Starting Global Export ===');
+    console.log('[Export] paymentsGridRef.current:', !!paymentsGridRef.current);
+    console.log('[Export] distributionsGridRef.current:', !!distributionsGridRef.current);
 
     // Sheet 1: Jobs Table
     const jobsSheetRows = sortedJobs.map(job => ({
@@ -825,34 +873,292 @@ export function HandoversTable() {
       ],
     });
 
+    console.log('[Export] Sheet 0 (Jobs):', sheets[0].name, sheets[0].rows.length, 'rows');
+
     // Sheet 2: Income Payments
     const paymentsData = paymentsGridRef.current?.getExportData?.();
-    if (paymentsData) {
+    console.log('[Export] paymentsData from ref:', {
+      exists: !!paymentsData,
+      sheetName: paymentsData?.sheetName,
+      rowCount: paymentsData?.rows?.length,
+      colCount: paymentsData?.columns?.length,
+      firstColKeys: paymentsData?.columns?.slice(0, 3).map((c: any) => c.key),
+    });
+
+    if (paymentsData && Array.isArray(paymentsData.rows) && paymentsData.rows.length > 0) {
       sheets.push({
-        name: paymentsData.sheetName || 'Income Payments',
+        name: 'Income Payments',
         rows: paymentsData.rows,
         columns: paymentsData.columns,
       });
+      console.log('[Export] Sheet 1 (Income Payments) added:', sheets[1].name);
+    } else {
+      console.warn('[Export] paymentsData missing, empty, or invalid');
     }
 
     // Sheet 3: Job Distributions
     const distributionsData = distributionsGridRef.current?.getExportData?.();
-    if (distributionsData) {
+    console.log('[Export] distributionsData from ref:', {
+      exists: !!distributionsData,
+      sheetName: distributionsData?.sheetName,
+      rowCount: distributionsData?.rows?.length,
+      colCount: distributionsData?.columns?.length,
+      firstColKeys: distributionsData?.columns?.slice(0, 3).map((c: any) => c.key),
+    });
+
+    if (distributionsData && Array.isArray(distributionsData.rows) && distributionsData.rows.length > 0) {
       sheets.push({
-        name: distributionsData.sheetName || 'Job Distributions',
+        name: 'Job Distributions',
         rows: distributionsData.rows,
         columns: distributionsData.columns,
       });
+      console.log('[Export] Sheet 2 (Job Distributions) added:', sheets[2].name);
+    } else {
+      console.warn('[Export] distributionsData missing, empty, or invalid');
     }
 
-    // Export to XLSX
+    // Add Placeholders sheet with placeholder names in column A and values from database in column B
+    const placeholderNames = [
+      'Project_Department',
+      'Handover_Date',
+      'Project_Counteragent_Entity_Type',
+      'Project_Counteragent_Name',
+      'Project_Counteragent_Director_Genitive',
+      'Project_Counteragent_Director',
+      'Project_Counteragent_Address_Line_1',
+      'Project_Counteragent_Address_Line_2',
+      'Project_Counteragent_ID',
+      'Project_Address',
+      'Project_Insider_Entity_Type',
+      'Project_Insider_Name',
+      'Project_Insider_ID',
+      'Project_Insider_Address_Line1',
+      'Project_Insider_Address_Line2',
+      'Project_Insider_Director_Genitive',
+      'Project_Insider_Director_Normative',
+      'Contract_Date',
+      'Project_Currency',
+    ];
+
+    let placeholderValues: (string | null | undefined)[] = placeholderNames.map(() => '');
+
+    // Fetch placeholder values from database if project is selected
+    if (selectedProjectUuid) {
+      try {
+        // Fetch project data (now includes counteragent and insider fields from API JOIN)
+        const projectRes = await fetch(`/api/projects?uuid=${encodeURIComponent(selectedProjectUuid)}`, {
+          credentials: 'include',
+        });
+        
+        console.log('[Placeholders] Project fetch status:', projectRes.status);
+        
+        if (projectRes.ok) {
+          const projects = await projectRes.json();
+          const project = Array.isArray(projects) ? projects[0] : projects;
+
+          console.log('[Placeholders] Project data received:', {
+            has_project: !!project,
+            department: project?.department,
+            address: project?.address,
+            date: project?.date,
+            counteragent_name: project?.name,
+            insider_name: project?.insider_name_field,
+          });
+
+          if (project) {
+            // Map values from project response
+            // API now returns counteragent and insider fields from LEFT JOINs
+            placeholderValues = [
+              project.department || '',
+              project.date ? new Date(project.date).toISOString().split('T')[0] : '',
+              project.entity_type || '', // Counteragent entity_type from JOIN
+              project.name || '', // Counteragent name from JOIN
+              toGenitiveCase(project.director) || '', // Counteragent director from JOIN (genitive form)
+              project.director || '', // Counteragent director from JOIN (normative)
+              project.address_line_1 || '', // Counteragent address from JOIN
+              project.address_line_2 || '', // Counteragent address from JOIN
+              project.identification_number || '', // Counteragent ID from JOIN
+              project.address || '', // Direct project field
+              project.insider_entity_type || '', // Insider entity_type from JOIN
+              project.insider_name_field || '', // Insider name from JOIN
+              project.insider_identification_number || '', // Insider ID from JOIN
+              project.insider_address_line_1 || '', // Insider address from JOIN
+              project.insider_address_line_2 || '', // Insider address from JOIN
+              toGenitiveCase(project.insider_director) || '', // Insider director from JOIN (genitive)
+              project.insider_director || '', // Insider director from JOIN (normative)
+              project.date ? new Date(project.date).toISOString().split('T')[0] : '', // Contract date
+              project.currency || '', // Currency code from JOIN
+            ];
+
+            console.log('[Placeholders] Values mapped:', placeholderValues.slice(0, 5));
+          }
+        } else {
+          console.warn('[Placeholders] Project API returned status:', projectRes.status);
+        }
+      } catch (error) {
+        console.error('[Placeholders] Error fetching project data:', error);
+      }
+    }
+
+    sheets.push({
+      name: 'Placeholders',
+      rows: placeholderNames.map((name, idx) => ({
+        placeholder_name: name,
+        placeholder_value: placeholderValues[idx] || '',
+        _format_placeholder_value: (idx === 1 || idx === 17) ? 'date' : undefined, // Handover_Date (idx 1) and Contract_Date (idx 17)
+      })),
+      columns: [
+        { key: 'placeholder_name', label: 'Placeholder Name', visible: true },
+        { key: 'placeholder_value', label: 'Value', visible: true },
+      ],
+    });
+    sheets.push({
+      name: 'Handover',
+      rows: [],
+      columns: [],
+    });
+
+    // Export to XLSX (5 sheets: Jobs, Income Payments, Job Distributions, Placeholders, Handover)
+    console.log('[Export] Final sheet count:', sheets.length);
+    console.log('[Export] Sheet names:', sheets.map(s => s.name));
+    
     if (sheets.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       const projectName = selectedProject?.projectIndex || 'Handovers';
       const fileName = `handovers-${projectName}-${today}.xlsx`;
+      console.log('[Export] Exporting XLSX with fileName:', fileName);
       exportMultiSheetsToXlsx({ sheets, fileName });
+    } else {
+      console.error('[Export] No sheets available for export!');
     }
-  }, [sortedJobs, selectedProject]);
+  }, [sortedJobs, selectedProject, selectedProjectUuid]);
+
+  // ── Full Template Export ───────────────────────────────────────────────────
+  const handleTemplateExport = useCallback(async () => {
+    if (!selectedProjectUuid || !selectedProject) {
+      console.error('[Template Export] No project selected');
+      return;
+    }
+
+    try {
+      console.log('[Template Export] Starting template export for project:', selectedProjectUuid);
+      
+      const today = new Date().toISOString().split('T')[0];
+      const projectName = selectedProject?.projectIndex || 'Handovers';
+      const fileName = `handover-template-${projectName}-${today}.xlsx`;
+      
+      // Call the template export API
+      const response = await fetch('/api/export/handover-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ projectUuid: selectedProjectUuid, fileName }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[Template Export] API error:', errorData);
+        alert(`Export failed: ${errorData.error || 'Unknown error'}`);
+        return;
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      console.log('[Template Export] Downloaded:', fileName);
+    } catch (error) {
+      console.error('[Template Export] Error:', error);
+      alert('Export failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }, [selectedProjectUuid, selectedProject]);
+
+  // ── Single-table exports ───────────────────────────────────────────────────
+  const handleExportJobsTable = useCallback(() => {
+    if (sortedJobs.length === 0) return;
+
+    const rows = sortedJobs.map(job => ({
+      jobName: job.jobName || '',
+      factoryNo: job.factoryNo || '',
+      brandName: job.brandName || '',
+      floors: job.floors ?? '',
+      weight: job.weight ?? '',
+      sellingPrice: job.sellingPrice ?? 0,
+      paidNominal: job.paidNominal ?? 0,
+      paidGel: job.paidGel ?? 0,
+      debitNominal: job.debitNominal ?? 0,
+      debitGel: job.debitGel ?? 0,
+      totalGel: job.totalGel ?? 0,
+      isFf: job.isFf ? 'FF' : 'NOT FF',
+      liftCertDate: job.liftCertDate ? job.liftCertDate.split('T')[0] : '',
+      liftCertDocNo: job.liftCertDocNo || '',
+    }));
+
+    const today = new Date().toISOString().split('T')[0];
+    const projectName = selectedProject?.projectIndex || 'Handovers';
+    const fileName = `handovers-${projectName}-jobs-${today}.xlsx`;
+
+    exportRowsToXlsx({
+      rows,
+      fileName,
+      sheetName: 'Jobs',
+      columns: [
+        { key: 'jobName', label: 'Job Name', visible: true },
+        { key: 'factoryNo', label: 'Factory No', visible: true },
+        { key: 'brandName', label: 'Brand Name', visible: true },
+        { key: 'floors', label: 'Floors', visible: true, format: 'number' },
+        { key: 'weight', label: 'Weight (kg)', visible: true, format: 'number' },
+        { key: 'sellingPrice', label: 'Selling Price', visible: true, format: 'currency' },
+        { key: 'paidNominal', label: 'Paid Nominal', visible: true, format: 'currency' },
+        { key: 'paidGel', label: 'Paid GEL', visible: true, format: 'currency' },
+        { key: 'debitNominal', label: 'Debit Nominal', visible: true, format: 'currency' },
+        { key: 'debitGel', label: 'Debit GEL', visible: true, format: 'currency' },
+        { key: 'totalGel', label: 'Total GEL', visible: true, format: 'currency' },
+        { key: 'isFf', label: 'Type', visible: true },
+        { key: 'liftCertDate', label: 'Lift Cert Date', visible: true, format: 'date' },
+        { key: 'liftCertDocNo', label: 'Lift Cert Doc No', visible: true },
+      ],
+    });
+  }, [selectedProject, sortedJobs]);
+
+  const handleExportIncomePaymentsTable = useCallback(() => {
+    const payload = paymentsGridRef.current?.getExportData?.();
+    if (!payload || !Array.isArray(payload.rows) || payload.rows.length === 0) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const projectName = selectedProject?.projectIndex || 'Handovers';
+    const fileName = `handovers-${projectName}-income-payments-${today}.xlsx`;
+
+    exportRowsToXlsx({
+      rows: payload.rows,
+      columns: payload.columns,
+      fileName,
+      sheetName: payload.sheetName || 'Income Payments',
+    });
+  }, [selectedProject]);
+
+  const handleExportJobDistributionsTable = useCallback(() => {
+    const payload = distributionsGridRef.current?.getExportData?.();
+    if (!payload || !Array.isArray(payload.rows) || payload.rows.length === 0) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const projectName = selectedProject?.projectIndex || 'Handovers';
+    const fileName = `handovers-${projectName}-job-distributions-${today}.xlsx`;
+
+    exportRowsToXlsx({
+      rows: payload.rows,
+      columns: payload.columns,
+      fileName,
+      sheetName: payload.sheetName || 'Job Distributions',
+    });
+  }, [selectedProject]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -954,16 +1260,85 @@ export function HandoversTable() {
               <RefreshCw className={`h-4 w-4 ${loadingJobs ? 'animate-spin' : ''}`} />
             </Button>
 
+            {/* Export All - Multi-sheet XLSX */}
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={handleGlobalExport}
-              title={!isTableFullyLoaded || sortedJobs.length === 0 ? "Loading all tables including rates..." : "Export all grids to XLSX"}
+              title={!isTableFullyLoaded || sortedJobs.length === 0 ? "Loading all tables including rates..." : "Export all 3 grids (Jobs, Income Payments, Distributions) to separate sheets in one XLSX file"}
               disabled={!isTableFullyLoaded || sortedJobs.length === 0}
+              className="font-semibold"
             >
               <Download className="h-4 w-4 mr-2" />
-              Export
+              Export All
             </Button>
+
+            {/* Individual exports */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Export individual grids"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  More Exports
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-3">
+                <div className="space-y-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleTemplateExport}
+                    title="Export using Handover template with formulas and formatting (Handover sheet + Placeholders + Jobs + Income Payments + Job Distributions)"
+                    disabled={!selectedProjectUuid || sortedJobs.length === 0}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Full Template Export
+                  </Button>
+
+                  <div className="h-px bg-gray-200" />
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExportJobsTable}
+                    title="Export Jobs table to XLSX"
+                    disabled={sortedJobs.length === 0}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Jobs Table
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExportIncomePaymentsTable}
+                    title="Export Income Payments table to XLSX"
+                    disabled={!selectedProjectUuid}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Income Payments
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExportJobDistributionsTable}
+                    title="Export Job Distributions table to XLSX"
+                    disabled={!selectedProjectUuid}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Job Distributions
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <span className="text-sm text-muted-foreground ml-auto">
               {loadingJobs

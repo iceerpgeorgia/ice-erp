@@ -131,18 +131,53 @@ export async function GET(request: NextRequest) {
           )
         GROUP BY rub.counteragent_uuid
       ),
+      project_currency_info AS (
+        SELECT
+          proj.project_uuid,
+          proj.currency_uuid,
+          c.code as project_currency_code
+        FROM projects proj
+        LEFT JOIN currencies c ON proj.currency_uuid = c.uuid
+      ),
       ledger_agg AS (
         SELECT
           pl.payment_id,
+          p.project_uuid,
+          p.currency_uuid,
+          c.code as payment_currency_code,
+          pci.project_currency_code,
           SUM(COALESCE(pl.accrual, 0)) as total_accrual,
           SUM(COALESCE(pl."order", 0)) as total_order,
           BOOL_AND(COALESCE(pl.confirmed, false)) as all_confirmed,
           COUNT(*) as entries_count,
-          MAX(pl.effective_date) as latest_ledger_date
+          MAX(pl.effective_date::date) as latest_ledger_date
         FROM payments_ledger pl
+        JOIN payments p ON pl.payment_id = p.payment_id
+        LEFT JOIN currencies c ON p.currency_uuid = c.uuid
+        LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
+        LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
         WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          AND p.financial_code_uuid IN (${financialCodePlaceholders})
+          ${insiderFilter}
           ${ledgerDateFilter}
-        GROUP BY pl.payment_id
+        GROUP BY pl.payment_id, p.project_uuid, p.currency_uuid, c.code, pci.project_currency_code
+      ),
+      nbg_rates_for_ledger AS (
+        SELECT DISTINCT
+          la.payment_id,
+          la.latest_ledger_date,
+          nbg.usd_rate,
+          nbg.eur_rate,
+          nbg.cny_rate,
+          nbg.gbp_rate
+        FROM ledger_agg la
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate, cny_rate, gbp_rate
+          FROM nbg_exchange_rates
+          WHERE date <= COALESCE(la.latest_ledger_date, CURRENT_DATE)
+          ORDER BY date DESC
+          LIMIT 1
+        ) nbg ON true
       ),
       latest_ledger_date_per_payment AS (
         SELECT
@@ -175,6 +210,39 @@ export async function GET(request: NextRequest) {
           AND pl.effective_date::date >= '${lastMonthStart}'::date
           AND pl.effective_date::date < '${monthStart}'::date
         GROUP BY pl.payment_id
+      ),
+      ledger_converted AS (
+        SELECT
+          la.payment_id,
+          la.project_uuid,
+          SUM(CASE 
+            WHEN la.payment_currency_code = la.project_currency_code OR la.payment_currency_code IS NULL THEN la.total_accrual
+            WHEN la.project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN la.payment_currency_code = 'USD' THEN la.total_accrual * COALESCE(nbg.usd_rate, 1)
+                WHEN la.payment_currency_code = 'EUR' THEN la.total_accrual * COALESCE(nbg.eur_rate, 1)
+                WHEN la.payment_currency_code = 'CNY' THEN la.total_accrual * COALESCE(nbg.cny_rate, 1)
+                WHEN la.payment_currency_code = 'GBP' THEN la.total_accrual * COALESCE(nbg.gbp_rate, 1)
+                ELSE la.total_accrual
+              END
+            ELSE la.total_accrual
+          END) as total_accrual_converted,
+          SUM(CASE 
+            WHEN la.payment_currency_code = la.project_currency_code OR la.payment_currency_code IS NULL THEN la.total_order
+            WHEN la.project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN la.payment_currency_code = 'USD' THEN la.total_order * COALESCE(nbg.usd_rate, 1)
+                WHEN la.payment_currency_code = 'EUR' THEN la.total_order * COALESCE(nbg.eur_rate, 1)
+                WHEN la.payment_currency_code = 'CNY' THEN la.total_order * COALESCE(nbg.cny_rate, 1)
+                WHEN la.payment_currency_code = 'GBP' THEN la.total_order * COALESCE(nbg.gbp_rate, 1)
+                ELSE la.total_order
+              END
+            ELSE la.total_order
+          END) as total_order_converted
+        FROM ledger_agg la
+        LEFT JOIN nbg_rates_for_ledger nrl ON la.payment_id = nrl.payment_id
+        LEFT JOIN nbg_exchange_rates nbg ON nbg.date = nrl.latest_ledger_date
+        GROUP BY la.payment_id, la.project_uuid
       ),
       bank_agg AS (
         SELECT
@@ -223,6 +291,123 @@ export async function GET(request: NextRequest) {
         FROM payment_adjustments
         WHERE (is_deleted = false OR is_deleted IS NULL)
         GROUP BY payment_id
+      ),
+      cost_items AS (
+        SELECT
+          p.project_uuid,
+          p.payment_id,
+          p.waybill_derived,
+          p.currency_uuid,
+          c.code as cost_currency_code,
+          pci.project_currency_code,
+          SUM(COALESCE(pl.accrual, 0)) as total_accrual,
+          SUM(COALESCE(pl."order", 0)) as total_order,
+          MAX(pl.effective_date::date) as latest_ledger_date
+        FROM payments p
+        JOIN payments_ledger pl ON pl.payment_id = p.payment_id
+        JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
+        LEFT JOIN currencies c ON p.currency_uuid = c.uuid
+        LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
+        WHERE p.is_active = true
+          AND fc.is_income = false
+          AND fc.applies_to_pl = true
+          AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          ${ledgerDateFilter}
+        GROUP BY p.project_uuid, p.payment_id, p.waybill_derived, p.currency_uuid, c.code, pci.project_currency_code
+      ),
+      nbg_rates_for_cost AS (
+        SELECT DISTINCT
+          ci.payment_id,
+          ci.latest_ledger_date,
+          nbg.usd_rate,
+          nbg.eur_rate,
+          nbg.cny_rate,
+          nbg.gbp_rate
+        FROM cost_items ci
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate, cny_rate, gbp_rate
+          FROM nbg_exchange_rates
+          WHERE date <= COALESCE(ci.latest_ledger_date, CURRENT_DATE)
+          ORDER BY date DESC
+          LIMIT 1
+        ) nbg ON true
+      ),
+      cost_agg AS (
+        SELECT
+          ci.project_uuid,
+          STRING_AGG(DISTINCT ci.payment_id, ',') FILTER (WHERE ci.payment_id IS NOT NULL) as cost_payment_ids_str,
+          MAX(ci.project_currency_code) as project_currency_code,
+          SUM(CASE 
+            WHEN ci.cost_currency_code = ci.project_currency_code OR ci.cost_currency_code IS NULL THEN ci.total_accrual
+            WHEN ci.project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN ci.cost_currency_code = 'USD' THEN ci.total_accrual * COALESCE(nbg.usd_rate, 1)
+                WHEN ci.cost_currency_code = 'EUR' THEN ci.total_accrual * COALESCE(nbg.eur_rate, 1)
+                WHEN ci.cost_currency_code = 'CNY' THEN ci.total_accrual * COALESCE(nbg.cny_rate, 1)
+                WHEN ci.cost_currency_code = 'GBP' THEN ci.total_accrual * COALESCE(nbg.gbp_rate, 1)
+                ELSE ci.total_accrual
+              END
+            ELSE ci.total_accrual
+          END * CASE WHEN ci.waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_accrual,
+          SUM(CASE 
+            WHEN ci.cost_currency_code = ci.project_currency_code OR ci.cost_currency_code IS NULL THEN ci.total_order
+            WHEN ci.project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN ci.cost_currency_code = 'USD' THEN ci.total_order * COALESCE(nbg.usd_rate, 1)
+                WHEN ci.cost_currency_code = 'EUR' THEN ci.total_order * COALESCE(nbg.eur_rate, 1)
+                WHEN ci.cost_currency_code = 'CNY' THEN ci.total_order * COALESCE(nbg.cny_rate, 1)
+                WHEN ci.cost_currency_code = 'GBP' THEN ci.total_order * COALESCE(nbg.gbp_rate, 1)
+                ELSE ci.total_order
+              END
+            ELSE ci.total_order
+          END * CASE WHEN ci.waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_order
+        FROM cost_items ci
+        LEFT JOIN nbg_rates_for_cost nrc ON ci.payment_id = nrc.payment_id
+        LEFT JOIN nbg_exchange_rates nbg ON nbg.date = nrc.latest_ledger_date
+        GROUP BY ci.project_uuid
+      ),
+      cost_bank_agg AS (
+        SELECT
+          p.project_uuid,
+          SUM(CASE 
+            WHEN c.code = pci.project_currency_code OR c.code IS NULL THEN COALESCE(ba.total_payment, 0)
+            WHEN pci.project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN c.code = 'USD' THEN COALESCE(ba.total_payment, 0) * COALESCE(nbg.usd_rate, 1)
+                WHEN c.code = 'EUR' THEN COALESCE(ba.total_payment, 0) * COALESCE(nbg.eur_rate, 1)
+                WHEN c.code = 'CNY' THEN COALESCE(ba.total_payment, 0) * COALESCE(nbg.cny_rate, 1)
+                WHEN c.code = 'GBP' THEN COALESCE(ba.total_payment, 0) * COALESCE(nbg.gbp_rate, 1)
+                ELSE COALESCE(ba.total_payment, 0)
+              END
+            ELSE COALESCE(ba.total_payment, 0)
+          END * CASE WHEN p.waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_payment
+        FROM payments p
+        JOIN bank_agg ba ON p.payment_id = ba.payment_id
+        JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
+        LEFT JOIN currencies c ON p.currency_uuid = c.uuid
+        LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate, cny_rate, gbp_rate
+          FROM nbg_exchange_rates
+          WHERE date <= ba.latest_bank_date
+          ORDER BY date DESC
+          LIMIT 1
+        ) nbg ON true
+        WHERE p.is_active = true
+          AND fc.is_income = false
+          AND fc.applies_to_pl = true
+        GROUP BY p.project_uuid
+      ),
+      cost_data AS (
+        SELECT
+          ca.project_uuid,
+          ca.cost_payment_ids_str,
+          COALESCE(MIN(pci.currency_uuid::text), NULL) as project_currency_uuid,
+          ca.project_currency_code
+        FROM cost_agg ca
+        LEFT JOIN project_currency_info pci ON ca.project_uuid = pci.project_uuid
+        WHERE ca.project_uuid IN (SELECT DISTINCT project_uuid FROM selected_payments)
+        GROUP BY ca.project_uuid, ca.cost_payment_ids_str, ca.project_currency_code
       )
       SELECT
         sp.financial_code_uuid,
@@ -245,16 +430,27 @@ export async function GET(request: NextRequest) {
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) as payment_ids,
         COUNT(DISTINCT sp.payment_id) as payment_count,
         (SELECT COUNT(*) FROM job_projects jp2 WHERE jp2.project_uuid = sp.project_uuid)::int as jobs_count,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND COALESCE(j2.service_state, 'Active') = 'Active')::int as jobs_active,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND j2.service_state = 'Conversion')::int as jobs_conversion,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND j2.service_state = 'Free')::int as jobs_free,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND j2.service_state = 'Others')::int as jobs_others,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND j2.service_state = 'Recovery')::int as jobs_recovery,
         (SELECT ARRAY_REMOVE(ARRAY_AGG(jn.job_name ORDER BY jn.job_name), NULL)
          FROM job_projects jp3 JOIN jobs jn ON jp3.job_uuid = jn.job_uuid
          WHERE jp3.project_uuid = sp.project_uuid AND jn.is_active = true) as job_names,
         BOOL_OR(COALESCE(uc.unbound_count, 0) > 0) as has_unbound_counteragent_transactions,
-        SUM(COALESCE(la.total_accrual, 0)) as accrual,
+        SUM(COALESCE(lc.total_accrual_converted, 0)) as accrual,
         SUM(COALESCE(ll.latest_accrual, 0)) as latest_accrual,
-        SUM(COALESCE(la.total_order, 0)) as "order",
+        SUM(COALESCE(lc.total_order_converted, 0)) as "order",
         SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) as last_month_order,
         SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) as payment,
+        COALESCE(SUM(ca.total_cost_accrual), 0) as cost_accrual,
+        COALESCE(SUM(ca.total_cost_order), 0) as cost_order,
+        COALESCE(SUM(cba.total_cost_payment), 0) as cost_payment,
+        COALESCE(MAX(cd.project_currency_uuid::text), NULL) as project_currency_uuid,
+        COALESCE(MAX(cd.project_currency_code), 'GEL') as project_currency_code,
+        ARRAY_REMOVE(STRING_TO_ARRAY(MAX(cd.cost_payment_ids_str), ','), '')::text[] as cost_payment_ids,
         BOOL_AND(
           CASE
             WHEN COALESCE(la.entries_count, 0) > 0 THEN COALESCE(la.all_confirmed, false)
@@ -264,11 +460,15 @@ export async function GET(request: NextRequest) {
         MAX(la.latest_ledger_date) as latest_date
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
+      LEFT JOIN ledger_converted lc ON sp.payment_id = lc.payment_id
       LEFT JOIN ledger_latest ll ON sp.payment_id = ll.payment_id
       LEFT JOIN ledger_last_month llm ON sp.payment_id = llm.payment_id
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
+      LEFT JOIN cost_agg ca ON sp.project_uuid = ca.project_uuid
+      LEFT JOIN cost_bank_agg cba ON sp.project_uuid = cba.project_uuid
+      LEFT JOIN cost_data cd ON sp.project_uuid = cd.project_uuid
       GROUP BY sp.financial_code_uuid, sp.project_uuid
       ORDER BY financial_code_validation ASC, status_name ASC, project_index ASC
     `;
@@ -282,6 +482,15 @@ export async function GET(request: NextRequest) {
       const payment = Number(row.payment || 0);
       const lastMonthAccrual = Number(row.last_month_accrual || 0);
       const lastMonthOrder = Number(row.last_month_order || 0);
+      const costAccrual = Number(row.cost_accrual || 0);
+      const costOrder = Number(row.cost_order || 0);
+      const costPayment = Number(row.cost_payment || 0);
+      
+      // Calculate profit: (income accrual / 1.18) - cost_accrual
+      // Note: cost_accrual already includes VAT adjustment during calculation (waybill costs are divided by 1.18)
+      const incomeVatCorrected = accrual / 1.18;
+      const profit = Number((incomeVatCorrected - costAccrual).toFixed(2));
+      
       const due = Number((order - Math.abs(payment)).toFixed(2));
       const balance = Number((accrual - Math.abs(payment)).toFixed(2));
       return {
@@ -304,6 +513,18 @@ export async function GET(request: NextRequest) {
         currency: row.currency_code,
         paymentCount: Number(row.payment_count || 0),
         jobsCount: Number(row.jobs_count || 0),
+        jobsByState: {
+          active: Number(row.jobs_active || 0),
+          conversion: Number(row.jobs_conversion || 0),
+          free: Number(row.jobs_free || 0),
+          others: Number(row.jobs_others || 0),
+          recovery: Number(row.jobs_recovery || 0),
+        },
+        projectCurrencyUuid: row.project_currency_uuid || null,
+        projectCurrencyCode: row.project_currency_code || 'GEL',
+        costPaymentIds: Array.isArray(row.cost_payment_ids)
+          ? row.cost_payment_ids.flat().filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
+          : [],
         jobNames: Array.isArray(row.job_names)
           ? row.job_names.filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
           : [],
@@ -314,6 +535,10 @@ export async function GET(request: NextRequest) {
         lastMonthAccrual,
         lastMonthOrder,
         payment,
+        costAccrual,
+        costOrder,
+        costPayment,
+        profit,
         due,
         balance,
         confirmed: Boolean(row.confirmed),
@@ -329,6 +554,10 @@ export async function GET(request: NextRequest) {
       accrual: number;
       order: number;
       payment: number;
+      costAccrual: number;
+      costOrder: number;
+      costPayment: number;
+      profit: number;
       due: number;
       balance: number;
     }>();
@@ -343,6 +572,10 @@ export async function GET(request: NextRequest) {
         accrual: 0,
         order: 0,
         payment: 0,
+        costAccrual: 0,
+        costOrder: 0,
+        costPayment: 0,
+        profit: 0,
         due: 0,
         balance: 0,
       };
@@ -354,6 +587,10 @@ export async function GET(request: NextRequest) {
         accrual: prev.accrual + row.accrual,
         order: prev.order + row.order,
         payment: prev.payment + row.payment,
+        costAccrual: Number((prev.costAccrual + row.costAccrual).toFixed(2)),
+        costOrder: Number((prev.costOrder + row.costOrder).toFixed(2)),
+        costPayment: Number((prev.costPayment + row.costPayment).toFixed(2)),
+        profit: Number((prev.profit + row.profit).toFixed(2)),
         due: Number((prev.due + row.due).toFixed(2)),
         balance: Number((prev.balance + row.balance).toFixed(2)),
       });
@@ -369,6 +606,10 @@ export async function GET(request: NextRequest) {
         accrual: acc.accrual + row.accrual,
         order: acc.order + row.order,
         payment: acc.payment + row.payment,
+        costAccrual: Number((acc.costAccrual + row.costAccrual).toFixed(2)),
+        costOrder: Number((acc.costOrder + row.costOrder).toFixed(2)),
+        costPayment: Number((acc.costPayment + row.costPayment).toFixed(2)),
+        profit: Number((acc.profit + row.profit).toFixed(2)),
         due: Number((acc.due + row.due).toFixed(2)),
         balance: Number((acc.balance + row.balance).toFixed(2)),
       }),
@@ -379,6 +620,10 @@ export async function GET(request: NextRequest) {
         accrual: 0,
         order: 0,
         payment: 0,
+        costAccrual: 0,
+        costOrder: 0,
+        costPayment: 0,
+        profit: 0,
         due: 0,
         balance: 0,
       }

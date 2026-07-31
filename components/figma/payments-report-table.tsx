@@ -2,6 +2,38 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+
+const MAX_DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+const formatBytes = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const parseApiResponse = async (response: Response): Promise<{
+  data: Record<string, any> | null;
+  text: string;
+  contentType: string;
+}> => {
+  const contentType = response.headers.get('content-type') || '';
+  const text = await response.text();
+
+  if (!text) {
+    return { data: null, text: '', contentType };
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') {
+      return { data: parsed as Record<string, any>, text, contentType };
+    }
+  } catch {
+    // Non-JSON response bodies happen on gateway/proxy failures.
+  }
+
+  return { data: null, text, contentType };
+};
 import { 
   Search, 
   Filter, 
@@ -154,7 +186,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'latestDate', label: 'Latest Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
 ];
 
-export function PaymentsReportTable() {
+export function PaymentsReportTable({ preFilterPaymentIds, preFilterIsIncome }: { preFilterPaymentIds?: string | null; preFilterIsIncome?: boolean }) {
   const filtersStorageKey = 'paymentsReportFiltersV2';
   const [data, setData] = useState<PaymentReport[]>([]);
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
@@ -189,6 +221,7 @@ export function PaymentsReportTable() {
   const [isDeconfirming, setIsDeconfirming] = useState(false);
   const [deconfirmError, setDeconfirmError] = useState<string | null>(null);
   const ledgerUploadInputRef = useRef<HTMLInputElement>(null);
+  const xmlUploadInputRef = useRef<HTMLInputElement>(null);
   const [isLedgerUploadOpen, setIsLedgerUploadOpen] = useState(false);
   const [ledgerUploadFileName, setLedgerUploadFileName] = useState('');
   const [ledgerUploadError, setLedgerUploadError] = useState<string | null>(null);
@@ -198,6 +231,7 @@ export function PaymentsReportTable() {
   const [uploadLogOpen, setUploadLogOpen] = useState(false);
   const [uploadLogTitle, setUploadLogTitle] = useState('');
   const [uploadLogText, setUploadLogText] = useState('');
+  const [isXmlUploading, setIsXmlUploading] = useState(false);
   const [isBundleDialogOpen, setIsBundleDialogOpen] = useState(false);
   const [bundleLabel, setBundleLabel] = useState('');
   const [isBundleCreating, setIsBundleCreating] = useState(false);
@@ -215,6 +249,165 @@ export function PaymentsReportTable() {
   } | null>(null);
   const [bundleDistributionLoading, setBundleDistributionLoading] = useState(false);
   const [bundleDistributionSaving, setBundleDistributionSaving] = useState(false);
+
+  // XML upload handler
+  const handleXmlFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsXmlUploading(true);
+    let logWindow: Window | null = null;
+    let logBuffer = '';
+    let useDialogFallback = false;
+
+    const writeLog = (message: string) => {
+      logBuffer += `${message}\n`;
+      if (logWindow) {
+        logWindow.document.body.innerHTML = `
+          <h2 class="info">Processing...</h2>
+          <pre>${logBuffer.replace(/</g, '&lt;')}</pre>
+        `;
+      } else if (useDialogFallback) {
+        setUploadLogText(logBuffer);
+      }
+    };
+
+    try {
+      // Open log window immediately to avoid popup blockers
+      logWindow = window.open('', 'Processing Logs', 'width=800,height=600');
+      if (logWindow) {
+        logWindow.document.write(`
+          <html>
+            <head>
+              <title>Processing Logs</title>
+              <style>
+                body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+                pre { white-space: pre-wrap; word-wrap: break-word; }
+                h2 { color: #4ec9b0; }
+                .info { color: #9cdcfe; }
+                .success { color: #4ec9b0; }
+                .error { color: #f48771; }
+              </style>
+            </head>
+            <body>
+              <h2 class="info">Preparing upload...</h2>
+              <pre>Initializing...</pre>
+            </body>
+          </html>
+        `);
+        logWindow.document.close();
+      } else {
+        useDialogFallback = true;
+        setUploadLogOpen(true);
+        setUploadLogTitle('Preparing upload...');
+        setUploadLogText('Popup blocked. Showing logs here...');
+      }
+
+      writeLog(`Uploading ${files.length} file(s) directly to import API...`);
+
+      const selectedFiles = Array.from(files);
+      const oversizedFiles = selectedFiles.filter(file => file.size > MAX_DIRECT_UPLOAD_BYTES);
+
+      if (oversizedFiles.length > 0) {
+        const fileNames = oversizedFiles.map(file => file.name).join(', ');
+        const maxSizeLabel = formatBytes(MAX_DIRECT_UPLOAD_BYTES);
+        const sizeError = `File too large for direct upload (${maxSizeLabel} limit): ${fileNames}. Use smaller files or split the XML export.`;
+        writeLog(`✗ ${sizeError}`);
+        throw new Error(sizeError);
+      }
+
+      const formData = new FormData();
+      selectedFiles.forEach((file) => {
+        writeLog(`↑ Attaching ${file.name} (${file.size.toLocaleString()} bytes)`);
+        formData.append('file', file, file.name);
+      });
+
+      const response = await fetch('/api/bank-transactions/upload', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+        },
+        body: formData,
+      });
+
+      const { data: result, text: rawTextResponse, contentType } = await parseApiResponse(response);
+
+      if (response.ok) {
+        const successMessage = result?.message || 'Import completed';
+        const successLogs =
+          typeof result?.logs === 'string'
+            ? result.logs
+            : result?.logs
+              ? JSON.stringify(result.logs, null, 2)
+              : logBuffer || 'No logs available';
+
+        if (logWindow) {
+          logWindow.document.write(`
+            <html>
+              <head>
+                <title>Processing Logs</title>
+                <style>
+                  body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+                  pre { white-space: pre-wrap; word-wrap: break-word; }
+                  h2 { color: #4ec9b0; }
+                  .success { color: #4ec9b0; }
+                  .error { color: #f48771; }
+                </style>
+              </head>
+              <body>
+                <h2 class="success">${successMessage}</h2>
+                <pre>${successLogs}</pre>
+                <p><button onclick="window.close(); opener.location.reload();">Close and Reload Page</button></p>
+              </body>
+            </html>
+          `);
+          logWindow.document.close();
+        } else if (useDialogFallback) {
+          setUploadLogTitle(successMessage || 'Upload complete');
+          setUploadLogText(successLogs);
+        } else {
+          alert(`Success! ${successMessage}\n\nPage will reload.`);
+          window.location.reload();
+        }
+      } else {
+        const statusLine = `HTTP ${response.status} ${response.statusText}`.trim();
+        const errorMessage = result?.error || 'Upload request failed';
+        let details =
+          result?.details ||
+          (rawTextResponse
+            ? rawTextResponse.slice(0, 500)
+            : `Unexpected empty response (content-type: ${contentType || 'unknown'})`);
+
+        if (/request entity too large|payload too large|\b413\b/i.test(details)) {
+          details = `${details}\nThe upload request exceeded server limits. Split the XML into smaller files.`;
+        }
+
+        writeLog(`✗ Import API error: ${errorMessage}`);
+        writeLog(`↳ ${statusLine}`);
+        if (details) {
+          writeLog(`↳ ${details}`);
+        }
+
+        if (useDialogFallback) {
+          setUploadLogTitle('Upload failed');
+        } else {
+          alert(`Error: ${errorMessage}\n${statusLine}${details ? `\n\n${details}` : ''}`);
+        }
+      }
+    } catch (error: any) {
+      writeLog(`✗ Upload failed: ${error.message}`);
+      if (useDialogFallback) {
+        setUploadLogTitle('Upload failed');
+      } else {
+        alert(`Upload failed: ${error.message}`);
+      }
+    } finally {
+      setIsXmlUploading(false);
+      if (xmlUploadInputRef.current) {
+        xmlUploadInputRef.current.value = '';
+      }
+    }
+  };
   
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
@@ -1373,9 +1566,13 @@ export function PaymentsReportTable() {
     const financialCodeUuidParam = urlParams.get('financialCodeUuid');
     const hasUrlQuickFilter = Boolean(counteragentUuidParam || projectUuidParam || jobUuidParam || financialCodeUuidParam);
 
-    if (hasUrlQuickFilter) {
+    // Handle pre-filter props from Services Report cost filter
+    const hasPropFilter = Boolean(preFilterPaymentIds || preFilterIsIncome !== undefined);
+
+    if (hasUrlQuickFilter || hasPropFilter) {
       clearFilters();
       setSearchTerm('');
+      
       if (counteragentUuidParam) {
         handleFilterChange('counteragentUuid' as ColumnKey, { mode: 'facet', values: new Set([counteragentUuidParam]) });
       }
@@ -1388,11 +1585,25 @@ export function PaymentsReportTable() {
       if (financialCodeUuidParam) {
         handleFilterChange('financialCodeUuid' as ColumnKey, { mode: 'facet', values: new Set([financialCodeUuidParam]) });
       }
+      
+      // Apply pre-filters from props (cost payment ID filtering)
+      if (preFilterPaymentIds) {
+        const paymentIds = preFilterPaymentIds.split(',').map(id => id.trim()).filter(id => id.length > 0);
+        if (paymentIds.length > 0) {
+          handleFilterChange('paymentId' as ColumnKey, { mode: 'facet', values: new Set(paymentIds) });
+        }
+      }
+      if (preFilterIsIncome !== undefined) {
+        handleFilterChange('financialCodeIsIncome' as ColumnKey, { mode: 'facet', values: new Set([preFilterIsIncome.toString()]) });
+      }
+      
       // Remove query params from URL so they don't re-apply on next mount
-      window.history.replaceState({}, '', window.location.pathname);
+      if (hasUrlQuickFilter) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [preFilterPaymentIds, preFilterIsIncome]);
 
   // Wrap getColumnValues to split user emails for the 'users' facet
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
@@ -2600,6 +2811,22 @@ export function PaymentsReportTable() {
                 handleLedgerUploadSelect(file);
               }}
             />
+            <input
+              ref={xmlUploadInputRef}
+              type="file"
+              accept=".xml"
+              multiple
+              onChange={handleXmlFileUpload}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              onClick={() => xmlUploadInputRef.current?.click()}
+              disabled={isXmlUploading}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {isXmlUploading ? 'Processing...' : 'Upload XML'}
+            </Button>
             <Button
               variant="outline"
               onClick={() => ledgerUploadInputRef.current?.click()}

@@ -352,6 +352,7 @@ export default function BankTransactionsTestTableFigma() {
           counteragentAccountNumber: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
           description: row.description || null,
           comment: row.comment ?? null,
+          document: row.document ?? null,
           processingCase: row.processing_case || null,
           appliedRuleId: row.applied_rule_id || null,
           parsingLock: row.parsing_lock ?? false,

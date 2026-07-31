@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
+import { normalizeToIsoDate } from '@/lib/date-normalization';
 
 export const revalidate = 0;
 
@@ -184,25 +185,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert date format from dd.mm.yyyy to yyyy-mm-dd if provided
-    let finalEffectiveDate;
-    if (effectiveDate) {
-      // Check if it's in dd.mm.yyyy format
-      const ddmmyyyyPattern = /^(\d{2})\.(\d{2})\.(\d{4})$/;
-      const match = effectiveDate.match(ddmmyyyyPattern);
-      
-      if (match) {
-        // Convert dd.mm.yyyy to yyyy-mm-dd
-        const [, day, month, year] = match;
-        finalEffectiveDate = `${year}-${month}-${day}`;
-      } else {
-        // Already in ISO format or other format
-        finalEffectiveDate = effectiveDate;
-      }
-    } else {
-      // Use current date in yyyy-mm-dd format
-      const now = new Date();
-      finalEffectiveDate = now.toISOString().split('T')[0];
+    const finalEffectiveDate = effectiveDate
+      ? normalizeToIsoDate(effectiveDate)
+      : normalizeToIsoDate(new Date());
+
+    if (!finalEffectiveDate) {
+      return NextResponse.json(
+        { error: 'Invalid effective date. Use dd.mm.yyyy or yyyy-mm-dd format.' },
+        { status: 400 }
+      );
     }
 
     const totals = await prisma.$queryRawUnsafe<Array<{ accrual_total: any; order_total: any }>>(

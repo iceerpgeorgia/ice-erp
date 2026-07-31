@@ -1,5 +1,52 @@
 # Deployment Log
 
+## 2026-06-21 Deployment #353 (Critical Fix: SQL Type Mismatch - Payment Adjustments Not Aggregating)
+- Commit: 39ee992
+- Production: https://ice-42hybjvj6-iceerp.vercel.app
+- Summary: CRITICAL FIX - Payment adjustments were not being aggregated due to SQL type mismatch in UNION ALL clause.
+- Root Cause: PostgreSQL UNION type mismatch error - raw_record_uuid was cast as NULL::text in adjustments SELECT but the bank transaction tables have raw_record_uuid as UUID type. This caused the UNION ALL to fail silently, preventing adjustments from being included in payment aggregation.
+- Verification: Tested query directly - project 2496a0e0-1118-49dc-8a82-539003dc1b23 with 53454.00 adjustment was not being included. After fix, adjustment correctly aggregates.
+- Changes:
+  - app/api/projects-v2/route.ts: Changed `NULL::text as raw_record_uuid` to `NULL::uuid as raw_record_uuid` in payment_adjustments SELECT
+  - app/api/projects/route.ts: Changed both occurrences of `NULL::text as raw_record_uuid` to `NULL::uuid as raw_record_uuid` in payment_adjustments UNION SELECT (two locations for single and bulk queries)
+- Type Consistency: All three UNION ALL sources (bank transactions, batch partitions, adjustments) now have consistent column types:
+  - payment_id: text
+  - nominal_amount: numeric
+  - raw_record_uuid: uuid (not text)
+  - account_currency_amount: numeric
+- Impact: Payment adjustments now properly aggregate and display in project balances. Project 2496a0e0-1118-49dc-8a82-539003dc1b23 should now show balance = 0 (53454 - 53454 adjustment).
+
+## 2026-06-21 Deployment #352 (Fix: SQL Column Mismatch in Projects Balance)
+- Commit: 0d9e88d
+- Production: https://ice-1r67w4rjo-iceerp.vercel.app
+- Summary: Fix SQL column mismatch in UNION ALL clauses preventing payment adjustments aggregation.
+- Root Cause: Payment_adjustments SELECT in UNION ALL had 2 columns (payment_id, nominal_amount) but other SELECT statements had 4 columns (payment_id, nominal_amount, raw_record_uuid, account_currency_amount), causing column count mismatch and preventing proper aggregation.
+- Changes:
+  - app/api/projects/route.ts: Fixed second UNION ALL clause for payment_adjustments by adding `NULL::text as raw_record_uuid` and `NULL::numeric as account_currency_amount` to match the 4-column structure of bank_agg subquery. This was the remaining unfixed location from Deployment #351.
+  - Both occurrences (single project lookup and main GET all projects query) now have consistent column structures across all three UNION ALL sources
+- Type Safety: TypeScript compilation verified (pnpm build completed without errors)
+- Build Status: Production build successful
+- Impact: Payment adjustments now properly aggregate in project balance calculations; project UUID 2496a0e0-1118-49dc-8a82-539003dc1b23 adjustments should now display correctly
+
+## 2026-06-21 Deployment #351 (Projects Balance: Include Payment Adjustments)
+- Commit: 830d4d5
+- Production: https://ice-j286szcws-iceerp.vercel.app
+- Summary: Factor payment adjustments into project balance calculations so adjustments appear in the Projects table.
+- Changes:
+  - app/api/projects-v2/route.ts: Updated main GET query and fallback query to include payment_adjustments in the total_payment aggregation
+  - app/api/projects/route.ts: Updated single project lookup (projectUuid param) and main GET all projects query to include payment_adjustments
+  - Added UNION ALL clause to aggregate bank transactions, batches, and adjustments in the bank_agg subquery
+  - Filter applied: `WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)` to exclude deleted adjustments
+  - Uses `COALESCE(pa.nominal_amount, pa.amount)` to support both currency conversion mode (nominal_amount) and legacy direct mode (amount)
+  - Balance formula updated: `balance = project.value - (bank_transactions + batches + adjustments)`
+  - Adjustments now visible in Projects table balance column alongside bank transactions
+- Feature Impact: Payment adjustments now contribute to project balance calculations, providing complete project financial visibility including:
+  - Direct amount adjustments
+  - Face currency conversions with NBG rate lookups
+  - Proper handling of deleted adjustments
+- Type Safety: TypeScript compilation verified (pnpm exec tsc --noEmit with no errors)
+- Build Status: Production build successful (pnpm build completed)
+
 ## 2026-06-11 Deployment #350 (Diagnostic: Jobs Export Logging)
 - Commit: 0e2ff64
 - Production: https://ice-4qspf5eec-iceerp.vercel.app

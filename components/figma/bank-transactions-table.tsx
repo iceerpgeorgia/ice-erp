@@ -70,6 +70,7 @@ export type BankTransaction = {
   counteragentAccountNumber: string | null;
   description: string | null;
   comment: string | null;
+  document?: string | null; // Document type from raw data
   processingCase: string | null;
   appliedRuleId: number | null;
   parsingLock?: boolean;
@@ -131,6 +132,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'batchId', label: 'Batch ID', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'description', label: 'Description', width: 300, visible: true, sortable: true, filterable: true },
   { key: 'comment', label: 'Comment', width: 260, visible: true, sortable: true, filterable: true },
+  { key: 'document', label: 'Document', width: 150, visible: false, sortable: true, filterable: true },
   { key: 'nominalAmount', label: 'Nominal Amt', width: 120, visible: false, sortable: true, filterable: true, format: 'currency' },
   { key: 'usdGelRate', label: 'USD/GEL', width: 120, visible: true, sortable: true, filterable: true, format: 'number' },
   { key: 'correctionDate', label: 'Correction Date', width: 120, visible: false, sortable: true, filterable: true, format: 'date' },
@@ -541,7 +543,7 @@ export function BankTransactionsTable({
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
       const savedVersion = localStorage.getItem('bank-transactions-table-version');
-      const currentVersion = '11'; // Increment this when defaultColumns structure changes
+      const currentVersion = '12'; // Increment this when defaultColumns structure changes
       
       if (savedColumns && savedVersion === currentVersion) {
         try {

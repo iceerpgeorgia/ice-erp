@@ -37,6 +37,19 @@ export async function GET(req: NextRequest) {
       const project = await withRetry(() => prisma.$queryRawUnsafe(
         `SELECT 
           p.*,
+          ca.name,
+          ca.entity_type,
+          ca.director,
+          ca.address_line_1,
+          ca.address_line_2,
+          ca.identification_number,
+          insider_ca.name as insider_name_field,
+          insider_ca.entity_type as insider_entity_type,
+          insider_ca.director as insider_director,
+          insider_ca.address_line_1 as insider_address_line_1,
+          insider_ca.address_line_2 as insider_address_line_2,
+          insider_ca.identification_number as insider_identification_number,
+          cur.code as currency,
           COALESCE(insider_ca.insider, false) as is_insider,
           COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, p.insider_uuid::text) as insider_name,
           p.insider_uuid as effective_insider_uuid,
@@ -45,6 +58,7 @@ export async function GET(req: NextRequest) {
         FROM projects p
         LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
         LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
+        LEFT JOIN currencies cur ON p.currency_uuid = cur.uuid
         LEFT JOIN (
           SELECT
             p.project_uuid,
@@ -72,7 +86,7 @@ export async function GET(req: NextRequest) {
               UNION ALL
 
               SELECT
-                btb.payment_id,
+                btb.payment_id::text as payment_id,
                 (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
                 cba.raw_record_uuid,
                 cba.account_currency_amount
@@ -81,6 +95,16 @@ export async function GET(req: NextRequest) {
               ) cba
               JOIN bank_transaction_batches btb
                 ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+
+              UNION ALL
+
+              SELECT
+                pa.payment_id::text as payment_id,
+                COALESCE(pa.nominal_amount, pa.amount) as nominal_amount,
+                NULL::text as raw_record_uuid,
+                NULL::numeric as account_currency_amount
+              FROM payment_adjustments pa
+              WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
             ) combined
             WHERE payment_id IS NOT NULL
             GROUP BY payment_id
@@ -113,6 +137,19 @@ export async function GET(req: NextRequest) {
     const projects = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         p.*,
+        ca.name,
+        ca.entity_type,
+        ca.director,
+        ca.address_line_1,
+        ca.address_line_2,
+        ca.identification_number,
+        insider_ca.name as insider_name_field,
+        insider_ca.entity_type as insider_entity_type,
+        insider_ca.director as insider_director,
+        insider_ca.address_line_1 as insider_address_line_1,
+        insider_ca.address_line_2 as insider_address_line_2,
+        insider_ca.identification_number as insider_identification_number,
+        cur.code as currency,
         MAX(COALESCE(insider_ca.insider, false)::int)::boolean as is_insider,
         MAX(COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, p.insider_uuid::text)) as insider_name,
         MAX(p.insider_uuid::text) as effective_insider_uuid,
@@ -127,6 +164,7 @@ export async function GET(req: NextRequest) {
       FROM projects p
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
       LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
+      LEFT JOIN currencies cur ON p.currency_uuid = cur.uuid
       LEFT JOIN project_employees pe ON p.project_uuid = pe.project_uuid
       LEFT JOIN counteragents c ON pe.employee_uuid = c.counteragent_uuid
       LEFT JOIN (
@@ -156,7 +194,7 @@ export async function GET(req: NextRequest) {
             UNION ALL
 
             SELECT
-              btb.payment_id,
+              btb.payment_id::text as payment_id,
               (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
               cba.raw_record_uuid,
               cba.account_currency_amount
@@ -165,6 +203,16 @@ export async function GET(req: NextRequest) {
             ) cba
             JOIN bank_transaction_batches btb
               ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+
+            UNION ALL
+
+            SELECT
+              pa.payment_id::text as payment_id,
+              COALESCE(pa.nominal_amount, pa.amount) as nominal_amount,
+              NULL::text as raw_record_uuid,
+              NULL::numeric as account_currency_amount
+            FROM payment_adjustments pa
+            WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
           ) combined
           WHERE payment_id IS NOT NULL
           GROUP BY payment_id
@@ -173,7 +221,7 @@ export async function GET(req: NextRequest) {
         GROUP BY p.project_uuid, p.counteragent_uuid
       ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
       WHERE p.insider_uuid IN (${insiderUuidListSql})
-      GROUP BY p.id
+      GROUP BY p.id, p.created_at, p.updated_at, p.ts, p.project_uuid, p.counteragent_uuid, p.project_name, p.financial_code_uuid, p.date, p.value, p.currency_uuid, p.state_uuid, p.oris_1630, p.contract_no, p.project_index, p.financial_code, p.currency, p.state, p.counteragent, p.department, p.service_state, p.insider_uuid, p.address, ca.name, ca.entity_type, ca.director, ca.address_line_1, ca.address_line_2, ca.identification_number, insider_ca.name, insider_ca.entity_type, insider_ca.director, insider_ca.address_line_1, insider_ca.address_line_2, insider_ca.identification_number, insider_ca.insider, insider_ca.insider_name, insider_ca.counteragent, cur.code, pp.total_payment
       ORDER BY p.created_at DESC
     `));
 

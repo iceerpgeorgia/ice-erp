@@ -21,13 +21,14 @@ export type DefaultItem = {
 };
 
 export const DEFAULT_FOLDERS: DefaultFolder[] = [
-  { name: 'Payments',               sortOrder: 0 },
-  { name: 'Dictionaries',           sortOrder: 1 },
-  { name: 'Financial Dictionaries', sortOrder: 2 },
-  { name: 'RS.GE',                  sortOrder: 3 },
-  { name: 'Salaries',               sortOrder: 4 },
-  { name: 'Projects and Services',  sortOrder: 5 },
-  { name: 'Admin',                  sortOrder: 6 },
+  { name: 'Payments',                sortOrder: 0 },
+  { name: 'Dictionaries',            sortOrder: 1 },
+  { name: 'Financial Dictionaries',  sortOrder: 2 },
+  { name: 'RS.GE',                   sortOrder: 3 },
+  { name: 'Salaries',                sortOrder: 4 },
+  { name: 'Projects and Services',   sortOrder: 5 },
+  { name: 'Calculation Templates',   sortOrder: 6 },
+  { name: 'Admin',                   sortOrder: 7 },
 ];
 
 export const DEFAULT_ITEMS: DefaultItem[] = [
@@ -51,7 +52,8 @@ export const DEFAULT_ITEMS: DefaultItem[] = [
   { routeKey: '/admin/document-types',       folderIndex: 1, sortOrder: 6, icon: null },
   { routeKey: '/dictionaries/inventories',   folderIndex: 1, sortOrder: 7, icon: null },
   { routeKey: '/dictionaries/dimensions',    folderIndex: 1, sortOrder: 8, icon: null },
-  { routeKey: '/admin/attachments',          folderIndex: 1, sortOrder: 9, icon: null },
+  { routeKey: '/admin/templates',            folderIndex: 1, sortOrder: 9, icon: null },
+  { routeKey: '/admin/attachments',          folderIndex: 1, sortOrder: 10, icon: null },
 
   // Financial Dictionaries (2)
   { routeKey: '/admin/financial-codes',        folderIndex: 2, sortOrder: 0, icon: null },
@@ -70,7 +72,10 @@ export const DEFAULT_ITEMS: DefaultItem[] = [
   { routeKey: '/dictionaries/projects-report', folderIndex: 5, sortOrder: 0, icon: null },
   { routeKey: '/dictionaries/services-report', folderIndex: 5, sortOrder: 1, icon: null },
 
-  // Admin (6)
-  { routeKey: '/admin/users',       folderIndex: 6, sortOrder: 0, icon: null },
-  { routeKey: '/admin/permissions', folderIndex: 6, sortOrder: 1, icon: null },
+  // Calculations (6)
+  { routeKey: '/calculations', folderIndex: 6, sortOrder: 0, icon: null },
+
+  // Admin (7)
+  { routeKey: '/admin/users',       folderIndex: 7, sortOrder: 0, icon: null },
+  { routeKey: '/admin/permissions', folderIndex: 7, sortOrder: 1, icon: null },
 ];
