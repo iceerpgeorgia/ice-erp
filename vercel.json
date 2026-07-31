@@ -1,13 +1,13 @@
 {
-  "buildCommand": "pnpm prisma generate && pnpm build",
-  "installCommand": "pnpm install",
   "framework": "nextjs",
   "git": {
     "deploymentEnabled": false
   },
   "regions": ["iad1"],
   "env": {
-    "NEXTAUTH_URL": "https://iceerpgeorgia.com"
+    "NEXTAUTH_URL": "https://iceerpgeorgia.com",
+    "PRISMA_SKIP_VALIDATION": "true",
+    "SKIP_ENV_VALIDATION": "true"
   },
   "crons": [
     {

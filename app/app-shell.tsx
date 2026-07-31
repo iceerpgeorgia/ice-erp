@@ -92,6 +92,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <main className="flex-1 min-h-0">
             {children}
           </main>
+          {/* Floating AI Button - DISABLED TEMPORARILY FOR DEBUG */}
+          {/* <FloatingAIButton pageContext={getPageContext()} /> */}
         </div>
         {/* FloatingAIButton wrapped in error boundary */}
         <WithErrorBoundary

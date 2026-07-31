@@ -17,5 +17,7 @@ export function useIsMobile() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  return !!isMobile;
+  // Return the current value or false if undefined (during initial hydration)
+  // The useEffect will immediately set the correct value after mount
+  return isMobile ?? false;
 }

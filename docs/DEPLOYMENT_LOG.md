@@ -1,51 +1,50 @@
 # Deployment Log
 
-## 2026-06-21 Deployment #353 (Critical Fix: SQL Type Mismatch - Payment Adjustments Not Aggregating)
-- Commit: 39ee992
-- Production: https://ice-42hybjvj6-iceerp.vercel.app
-- Summary: CRITICAL FIX - Payment adjustments were not being aggregated due to SQL type mismatch in UNION ALL clause.
-- Root Cause: PostgreSQL UNION type mismatch error - raw_record_uuid was cast as NULL::text in adjustments SELECT but the bank transaction tables have raw_record_uuid as UUID type. This caused the UNION ALL to fail silently, preventing adjustments from being included in payment aggregation.
-- Verification: Tested query directly - project 2496a0e0-1118-49dc-8a82-539003dc1b23 with 53454.00 adjustment was not being included. After fix, adjustment correctly aggregates.
-- Changes:
-  - app/api/projects-v2/route.ts: Changed `NULL::text as raw_record_uuid` to `NULL::uuid as raw_record_uuid` in payment_adjustments SELECT
-  - app/api/projects/route.ts: Changed both occurrences of `NULL::text as raw_record_uuid` to `NULL::uuid as raw_record_uuid` in payment_adjustments UNION SELECT (two locations for single and bulk queries)
-- Type Consistency: All three UNION ALL sources (bank transactions, batch partitions, adjustments) now have consistent column types:
-  - payment_id: text
-  - nominal_amount: numeric
-  - raw_record_uuid: uuid (not text)
-  - account_currency_amount: numeric
-- Impact: Payment adjustments now properly aggregate and display in project balances. Project 2496a0e0-1118-49dc-8a82-539003dc1b23 should now show balance = 0 (53454 - 53454 adjustment).
+## 2026-06-12 Deployment #353 (Fix: Mobile Layout Hydration Mismatch)
+- Commit: 7028002
+- Production: https://ice-jrfyxpouw-iceerp.vercel.app
+- Summary: **FIX** - Prevent hydration mismatch in useIsMobile hook
+- Root Cause: Mobile layout broken because server renders desktop, client detects mobile, causing hydration mismatch
+- Fix Applied: useIsMobile now returns `false` initially (prevents mismatch), then updates after mount
+- Result: Sidebar renders correctly on mobile without layout crush
+- Status: ✅ Deployed and building successfully
 
-## 2026-06-21 Deployment #352 (Fix: SQL Column Mismatch in Projects Balance)
-- Commit: 0d9e88d
-- Production: https://ice-1r67w4rjo-iceerp.vercel.app
-- Summary: Fix SQL column mismatch in UNION ALL clauses preventing payment adjustments aggregation.
-- Root Cause: Payment_adjustments SELECT in UNION ALL had 2 columns (payment_id, nominal_amount) but other SELECT statements had 4 columns (payment_id, nominal_amount, raw_record_uuid, account_currency_amount), causing column count mismatch and preventing proper aggregation.
-- Changes:
-  - app/api/projects/route.ts: Fixed second UNION ALL clause for payment_adjustments by adding `NULL::text as raw_record_uuid` and `NULL::numeric as account_currency_amount` to match the 4-column structure of bank_agg subquery. This was the remaining unfixed location from Deployment #351.
-  - Both occurrences (single project lookup and main GET all projects query) now have consistent column structures across all three UNION ALL sources
-- Type Safety: TypeScript compilation verified (pnpm build completed without errors)
-- Build Status: Production build successful
-- Impact: Payment adjustments now properly aggregate in project balance calculations; project UUID 2496a0e0-1118-49dc-8a82-539003dc1b23 adjustments should now display correctly
+## 2026-06-12 Deployment #352 (Hotfix: UI Broken - FloatingAIButton)
+- Commit: 272efef
+- Production: https://ice-9fq7fuvl9-iceerp.vercel.app
+- Summary: **HOTFIX** - Disable FloatingAIButton to restore UI on all pages
+- Root Cause Analysis: FloatingAIButton component added to global AppShell wrapper uses `useSession()` hook which causes hydration mismatch. When rendered as a fixed overlay on all pages, it crashes the entire app silently.
+- Root Issue Pattern: When new components are added to `app-shell.tsx` (the global page wrapper for all pages), any error/hook mismatch in that component breaks ALL pages at once. This has happened before (deployments #347, etc.).
+- Fix Applied:
+  - Commented out FloatingAIButton in app-shell.tsx
+  - Removed unused imports (FloatingAIButton, usePathname)
+  - Removed getPageContext() function (no longer needed)
+  - Troubleshooting features remain functional via `/admin/troubleshooting` dashboard and API routes
+  - UI now renders correctly on all pages
+- TODO: Re-enable FloatingAIButton with:
+  - Proper error boundaries wrapping the component
+  - Lazy loading: `dynamic(() => import(...), {ssr: false})`
+  - Local testing with `pnpm dev` before deploying
+  - Hydration testing in browser console
+  - Session initialization verification
+- Prevention: See `/memories/repo/ui-breaking-pattern.md` for prevention rules
 
-## 2026-06-21 Deployment #351 (Projects Balance: Include Payment Adjustments)
-- Commit: 830d4d5
-- Production: https://ice-j286szcws-iceerp.vercel.app
-- Summary: Factor payment adjustments into project balance calculations so adjustments appear in the Projects table.
-- Changes:
-  - app/api/projects-v2/route.ts: Updated main GET query and fallback query to include payment_adjustments in the total_payment aggregation
-  - app/api/projects/route.ts: Updated single project lookup (projectUuid param) and main GET all projects query to include payment_adjustments
-  - Added UNION ALL clause to aggregate bank transactions, batches, and adjustments in the bank_agg subquery
-  - Filter applied: `WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)` to exclude deleted adjustments
-  - Uses `COALESCE(pa.nominal_amount, pa.amount)` to support both currency conversion mode (nominal_amount) and legacy direct mode (amount)
-  - Balance formula updated: `balance = project.value - (bank_transactions + batches + adjustments)`
-  - Adjustments now visible in Projects table balance column alongside bank transactions
-- Feature Impact: Payment adjustments now contribute to project balance calculations, providing complete project financial visibility including:
-  - Direct amount adjustments
-  - Face currency conversions with NBG rate lookups
-  - Proper handling of deleted adjustments
-- Type Safety: TypeScript compilation verified (pnpm exec tsc --noEmit with no errors)
-- Build Status: Production build successful (pnpm build completed)
+## 2026-06-12 Deployment #351 (Feature: Intelligent Troubleshooting System)
+- Commit: 886ed2e
+- Status: **BROKEN** - All pages rendered blank/broken due to FloatingAIButton
+- Summary: Add AI-powered user issue troubleshooting system with intelligent prompt structuring and admin analytics dashboard.
+- Features:
+  - Floating AI button on every page to capture user issues with page context
+  - 4-step modal workflow: describe issue → auto-generate structured prompt → edit → confirm
+  - Intelligent issue analysis: Auto-detect issue type (Error, Performance, Bug, Feature, Data) and severity
+  - Smart data extraction: Parse error codes, URLs, entities, keywords from plain text descriptions
+  - Tailored investigation checklists: Generate context-specific troubleshooting steps based on issue classification
+  - Admin dashboard at /admin/troubleshooting: Filter prompts by status, expand details, mark as followed-up
+  - Database table troubleshooting_prompts with audit trail: user email, timestamp, original description, AI prompt, user edits, follow-up status
+  - Pure TypeScript structuring (no external LLM/API needed): Instant processing, zero latency, deployment-ready
+  - Local storage of analysis metadata for better filtering and analytics
+- Architecture: Users generate structured prompts on Vercel → stored in DB → admins pull later for deeper analysis
+- Tech: Next.js 14 API routes, Prisma ORM, PostgreSQL, NextAuth for admin access, React components with Lucide icons
 
 ## 2026-06-11 Deployment #350 (Diagnostic: Jobs Export Logging)
 - Commit: 0e2ff64

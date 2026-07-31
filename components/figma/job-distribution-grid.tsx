@@ -29,8 +29,6 @@ export type JobDistributionRow = {
   percentage: number | string;
   amount: number | string;
   amountAccountCurr: number | string;
-  emissionUuid?: string | null;
-  emissionDate?: string | null;
   weight?: number;
 };
 
@@ -52,7 +50,6 @@ type JobDistributionGridProps = {
   value: JobDistributionRow[];
   onChange: (distribution: JobDistributionRow[]) => void;
   disabled?: boolean;
-  readOnly?: boolean;
   onSave?: () => void;
 };
 
@@ -69,7 +66,6 @@ export function JobDistributionGrid({
   value,
   onChange,
   disabled = false,
-  readOnly = false,
   onSave,
 }: JobDistributionGridProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -82,6 +78,7 @@ export function JobDistributionGrid({
   const [loading, setLoading] = useState(false);
   const [fillDataLoading, setFillDataLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [localValue, setLocalValue] = useState<JobDistributionRow[]>([]);
   const [distributionMode, setDistributionMode] = useState<'all' | 'manual'>('all');
   const [bundlePercent, setBundlePercent] = useState<number | null>(null);
@@ -394,6 +391,8 @@ export function JobDistributionGrid({
   // Save distributions
   const handleSave = async (dataToSave = adjustedLocalValue) => {
     setSaving(true);
+    setSaveError(null);
+
     try {
       // Filter out rows with no amount
       const distributions = dataToSave
@@ -431,17 +430,28 @@ export function JobDistributionGrid({
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to save');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save');
+      }
 
       console.log('[Job Dist Save] Save successful');
+      
+      // Update parent state before closing dialog
       onChange(dataToSave);
-      setSaving(false);
+      
+      // Close dialog and cleanup
       setIsOpen(false);
-      if (onSave) onSave();
-      if (onSave) onSave();
+      setSaving(false);
+      setSaveError(null);
+      
+      // Call onSave callback after state updates
+      if (onSave) {
+        onSave();
+      }
     } catch (error: any) {
-      console.error('Save error:', error);
-      alert(error.message || 'Failed to save job distribution');
+      console.error('[Job Dist Save] Error:', error);
+      const errorMsg = error.message || 'Failed to save job distribution';
+      setSaveError(errorMsg);
       setSaving(false);
     }
   };
@@ -486,7 +496,6 @@ export function JobDistributionGrid({
   };
 
   const distributionCount = value.filter(v => toNumber(v.amount) > 0).length;
-  const isReadOnly = readOnly;
 
   return (
     <>
@@ -506,7 +515,10 @@ export function JobDistributionGrid({
         )}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        setIsOpen(open);
+        if (!open) setSaveError(null);  // Clear error when dialog closes
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Distribute Payment to Jobs</DialogTitle>
@@ -521,6 +533,17 @@ export function JobDistributionGrid({
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Error Alert */}
+              {saveError && (
+                <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-900">Error</p>
+                    <p className="text-sm text-red-800">{saveError}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Distribution Mode Selector */}
               <div className="flex items-center gap-4">
                 <Label>Distribution Mode:</Label>
@@ -528,7 +551,6 @@ export function JobDistributionGrid({
                   value={distributionMode}
                   onValueChange={(val: 'all' | 'manual') => {
                     setDistributionMode(val);
-                    if (isReadOnly) return;
                     if (val === 'all') {
                       handleAutoDistribute();
                     } else if (val === 'manual') {
@@ -561,16 +583,12 @@ export function JobDistributionGrid({
                   <Button
                     type="button"
                     onClick={() => handleAutoDistribute()}
-                    disabled={isReadOnly || loading || !projectUuid}
+                    disabled={loading || !projectUuid}
                     className="gap-2"
                   >
                     <TrendingUp className="h-4 w-4" />
                     Recalculate
                   </Button>
-                )}
-
-                {isReadOnly && (
-                  <Badge variant="secondary">Emitted (Read-Only)</Badge>
                 )}
               </div>
 
@@ -607,7 +625,7 @@ export function JobDistributionGrid({
                             value={row.percentage}
                             onChange={(e) => handlePercentageChange(index, e.target.value)}
                             className="text-right"
-                            disabled={isReadOnly || distributionMode === 'all'}
+                            disabled={distributionMode === 'all'}
                           />
                         </td>
                         <td className="p-2">
@@ -617,7 +635,7 @@ export function JobDistributionGrid({
                             value={row.amount}
                             onChange={(e) => handleAmountChange(index, e.target.value)}
                             className="text-right"
-                            disabled={isReadOnly || distributionMode === 'all'}
+                            disabled={distributionMode === 'all'}
                           />
                         </td>
                         <td className="p-2 text-center">
@@ -627,7 +645,6 @@ export function JobDistributionGrid({
                             size="sm"
                             onClick={() => handleFillRow(index)}
                             disabled={
-                              isReadOnly ||
                               distributionMode !== 'manual' ||
                               fillDataLoading ||
                               !bundlePercent ||
@@ -689,7 +706,7 @@ export function JobDistributionGrid({
                   type="button"
                   variant="destructive"
                   onClick={handleClear}
-                  disabled={isReadOnly || saving || distributionCount === 0}
+                  disabled={saving || distributionCount === 0}
                 >
                   Clear All
                 </Button>
@@ -705,7 +722,7 @@ export function JobDistributionGrid({
                   <Button
                     type="button"
                     onClick={() => handleSave()}
-                    disabled={isReadOnly || saving || (distributionMode === 'manual' && !totals.amountValid)}
+                    disabled={saving || (distributionMode === 'manual' && !totals.amountValid)}
                   >
                     {saving ? (
                       <>

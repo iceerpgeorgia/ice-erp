@@ -21,7 +21,6 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Combobox } from '../ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
-import { toDisplayDate } from '@/lib/date-normalization';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import type { ColumnFormat } from './shared/table-filters';
 import { useTableFilters } from './shared/use-table-filters';
@@ -346,7 +345,13 @@ export function PaymentsLedgerTable() {
     if (value === null || value === undefined) return '';
     
     if (key === 'effectiveDate' || key === 'createdAt' || key === 'updatedAt') {
-      return toDisplayDate(value);
+      const date = new Date(value);
+      // Check if date is valid before accessing date methods
+      if (isNaN(date.getTime())) return String(value);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
     }
     
     if (key === 'accrual' || key === 'order') {
@@ -465,11 +470,6 @@ export function PaymentsLedgerTable() {
                   />
                   <input
                     type="date"
-                    value={(() => {
-                      if (!effectiveDate) return '';
-                      const match = effectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-                      return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
-                    })()}
                     onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setEffectiveDate(`${d}.${m}.${y}`); } }}
                     className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
                     title="Pick date from calendar"
