@@ -1,5 +1,11 @@
 # Deployment Log
 
+## 2026-08-03 Deployment #410 (Fix: Restore UI - Deploy from clean branch)
+- Commit: 789c212 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-du39aj5oe-iceerp.vercel.app
+- Summary: UI was broken by a merge from main that introduced type errors (`emissionUuid`/`readOnly` on `JobDistributionRow`). Reverted to the clean `deploy/2026-06-16-emission-insider` branch and re-deployed. Also fixed Vercel production env vars (DATABASE_URL, DIRECT_DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BOG_CREDENTIALS_MAP) that had been emptied, restored BOG cron, added indexes on `GE78BG0000000893486000_BOG_GEL` table, and ran 50-day backfill.
+- Status: ✅ UI restored, cron running
+
 ## 2026-06-21 Deployment #353 (Critical Fix: SQL Type Mismatch - Payment Adjustments Not Aggregating)
 - Commit: 39ee992
 - Production: https://ice-42hybjvj6-iceerp.vercel.app
