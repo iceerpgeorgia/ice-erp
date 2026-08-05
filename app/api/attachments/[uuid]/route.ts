@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
-const supabase = createClient(
+// Defer client creation to runtime to avoid build-time errors
+const getSupabaseClient = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
@@ -83,6 +84,7 @@ export async function DELETE(
     await prisma.attachment_links.deleteMany({ where: { attachment_uuid: uuid } });
 
     if (attachment.storage_provider === 'supabase') {
+      const supabase = getSupabaseClient();
       const bucket = attachment.storage_bucket || 'payment-attachments';
       const { error: storageError } = await supabase.storage
         .from(bucket)

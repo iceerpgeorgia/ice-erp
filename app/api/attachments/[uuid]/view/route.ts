@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
+// Defer client creation to runtime to avoid build-time errors
+const getSupabaseClient = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
@@ -18,6 +19,7 @@ export async function GET(
   { params }: { params: { uuid: string } }
 ) {
   try {
+    const supabase = getSupabaseClient();
     const { uuid } = params;
 
     const attachment = await prisma.attachments.findUnique({
