@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-08-06 Deployment #411 (Fix: Future-dated Transaction Imports + Build Errors)
+- Commit: f6bfdbb (deploy/2026-06-16-emission-insider)
+- Production: https://ice-r3a615yym-iceerp.vercel.app
+- Summary: Fixed "Invalid range" error when manually uploading XML with future-dated transactions. Root cause was PostgreSQL trigger attempting to recompute balances from future date to present day. Also fixed Supabase client initialization in attachment routes causing build-time errors. Updated BOG import cron schedule to 4 AM Tbilisi time (0 0 * * *).
+- Changes:
+  - Added migration 20260806000000_fix_future_date_balance_recompute to skip balance recomputation when transaction_date > CURRENT_DATE
+  - Deferred Supabase client creation to runtime in attachment API routes (download, view, metadata)
+  - Updated vercel.json: BOG import cron schedule from 0 3 * * * (7 AM) to 0 0 * * * (4 AM Tbilisi time)
+- Testing: ✅ Build succeeded, future-dated XML imports verified locally
+- Status: ✅ Future transaction imports now work, cron schedule corrected
+
 ## 2026-08-03 Deployment #410 (Fix: Restore UI - Deploy from clean branch)
 - Commit: 789c212 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-du39aj5oe-iceerp.vercel.app
