@@ -639,7 +639,7 @@ export function BankTransactionsTable({
   useEffect(() => {
     const fetchAllPayments = async () => {
       try {
-        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
+        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12');
         if (!response.ok) throw new Error('Failed to fetch payments');
         const paymentsData = await response.json();
         const normalizedPayments = Array.isArray(paymentsData)
@@ -1078,8 +1078,10 @@ export function BankTransactionsTable({
     
     try {
       const effectiveDate = initialFormData.correction_date || transactionDateInput;
+      const t0 = Date.now();
 
       // Run all fetches in parallel. Exchange rates are cached by date.
+      // Reduced projectionMonths to 12 (1 year) for dialog performance - full 36 months is expensive
       const needsRates = !exchangeRateCacheRef.current[effectiveDate];
       const needsPayments = allPayments.length === 0;
       const needsProjects = projectOptions.length === 0;
@@ -1087,14 +1089,19 @@ export function BankTransactionsTable({
       const needsCurrencies = currencyOptions.length === 0;
       const needsJobs = Boolean(transaction.projectUuid);
 
+      console.log(`[startEdit] Fetch needs: rates=${needsRates}, payments=${needsPayments}, projects=${needsProjects}, codes=${needsCodes}, currencies=${needsCurrencies}, jobs=${needsJobs}`);
+
       const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
-        needsRates ? fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.json()) : null,
-        needsPayments ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36').then(r => r.ok ? r.json() : []) : null,
-        needsProjects ? fetch('/api/projects').then(r => r.json()) : null,
-        needsCodes ? fetch('/api/financial-codes').then(r => r.json()) : null,
-        needsCurrencies ? fetch('/api/currencies').then(r => r.json()) : null,
-        needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()) : null,
+        needsRates ? fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.json()).catch(e => { console.error('[startEdit] Exchange rates error:', e); return null; }) : null,
+        needsPayments ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12').then(r => r.ok ? r.json() : []).catch(e => { console.error('[startEdit] Payments error:', e); return []; }) : null,
+        needsProjects ? fetch('/api/projects').then(r => r.json()).catch(e => { console.error('[startEdit] Projects error:', e); return []; }) : null,
+        needsCodes ? fetch('/api/financial-codes').then(r => r.json()).catch(e => { console.error('[startEdit] Codes error:', e); return []; }) : null,
+        needsCurrencies ? fetch('/api/currencies').then(r => r.json()).catch(e => { console.error('[startEdit] Currencies error:', e); return []; }) : null,
+        needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()).catch(e => { console.error('[startEdit] Jobs error:', e); return []; }) : null,
       ]);
+
+      const duration = Date.now() - t0;
+      console.log(`[startEdit] All fetches completed in ${duration}ms`);
 
       // Exchange rates
       if (needsRates) {
