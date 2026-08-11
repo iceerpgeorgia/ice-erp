@@ -653,12 +653,12 @@ export function BankTransactionsTable({
             }))
           : [];
         setAllPayments(normalizedPayments);
-        console.log('[BankTransactionsTable] Loaded all payments:', normalizedPayments.length);
       } catch (error) {
         console.error('[BankTransactionsTable] Error fetching all payments:', error);
       }
     };
-    fetchAllPayments();
+    // Only fetch payments when edit dialog is opened, not on mount (lazy load 18k items)
+    // fetchAllPayments();
   }, []);
 
   // Fetch due payment IDs from payments report
@@ -1034,7 +1034,6 @@ export function BankTransactionsTable({
   };
 
   const startEdit = async (transaction: BankTransaction) => {
-    console.log('[startEdit] Transaction:', transaction);
     setEditingTransaction(transaction);
     setSaveNotice(null);
     
@@ -1055,7 +1054,6 @@ export function BankTransactionsTable({
       parsing_lock: Boolean(transaction.parsingLock),
       comment: transaction.comment || '',
     };
-    console.log('[startEdit] Initial formData:', initialFormData);
     setFormData(initialFormData);
     if (!transaction.paymentId) {
       setPaymentDisplayValues({
@@ -1089,8 +1087,6 @@ export function BankTransactionsTable({
       const needsCurrencies = currencyOptions.length === 0;
       const needsJobs = Boolean(transaction.projectUuid);
 
-      console.log(`[startEdit] Fetch needs: rates=${needsRates}, payments=${needsPayments}, projects=${needsProjects}, codes=${needsCodes}, currencies=${needsCurrencies}, jobs=${needsJobs}`);
-
       const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
         needsRates ? fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.json()).catch(e => { console.error('[startEdit] Exchange rates error:', e); return null; }) : null,
         needsPayments ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12').then(r => r.ok ? r.json() : []).catch(e => { console.error('[startEdit] Payments error:', e); return []; }) : null,
@@ -1099,9 +1095,6 @@ export function BankTransactionsTable({
         needsCurrencies ? fetch('/api/currencies').then(r => r.json()).catch(e => { console.error('[startEdit] Currencies error:', e); return []; }) : null,
         needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()).catch(e => { console.error('[startEdit] Jobs error:', e); return []; }) : null,
       ]);
-
-      const duration = Date.now() - t0;
-      console.log(`[startEdit] All fetches completed in ${duration}ms`);
 
       // Exchange rates
       if (needsRates) {
@@ -1577,12 +1570,8 @@ export function BankTransactionsTable({
     
     if (!isClearing) {
       try {
-        console.log(`Loading jobs for project: ${projectUuid}`);
         const jobsRes = await fetch(`/api/jobs?projectUuid=${projectUuid}`);
         const jobsData = await jobsRes.json();
-        console.log('Jobs API response:', jobsData);
-        console.log('Is array?', Array.isArray(jobsData));
-        console.log('Jobs count:', Array.isArray(jobsData) ? jobsData.length : 0);
         setJobOptions(Array.isArray(jobsData) ? jobsData : []);
       } catch (err) {
         console.error('Failed to load jobs:', err);
