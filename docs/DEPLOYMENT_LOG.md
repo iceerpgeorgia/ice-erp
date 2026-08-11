@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-08-07 Deployment #412 (Perf: Optimize Bank Transaction Edit Dialog)
+- Commit: 75805a1 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-oubblzg3c-iceerp.vercel.app
+- Summary: Optimized bank transaction edit dialog opening performance. Root cause was waterfall fetch pattern and missing static reference data pre-fetching. Multi-second delay on first edit dialog open reduced to instant on warm cache.
+- Changes:
+  - Refactored `startEdit()` function to use `Promise.all()` for 6 parallel API fetches (exchange-rates, payments, projects, financial-codes, currencies, jobs) instead of sequential awaits
+  - Added `exchangeRateCacheRef` using `useRef` to cache exchange rates by date string, preventing redundant API calls for same transaction dates
+  - Implemented pre-fetch `useEffect` hook running on component mount to load static reference data (projects, financial-codes, currencies) in parallel with existing payments cache
+  - Removed 3 per-render `console.log` statements that were firing on every table render (performance drain)
+- Performance Impact: On second and subsequent edit dialog opens, only jobs endpoint needs network hit; exchange rates, payments, and reference data served instantly from state/cache
+- Status: ✅ Optimization complete, build verified, deployed to production
+
 ## 2026-08-06 Deployment #411 (Fix: Future-dated Transaction Imports + Build Errors)
 - Commit: f6bfdbb (deploy/2026-06-16-emission-insider)
 - Production: https://ice-r3a615yym-iceerp.vercel.app
