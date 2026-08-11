@@ -614,7 +614,7 @@ export function BankTransactionsTable({
     const prefetchRefData = async () => {
       try {
         const [projectsRaw, codesRaw, currenciesRaw] = await Promise.all([
-          fetch('/api/projects').then(r => r.json()),
+          fetch('/api/projects?dropdown=true').then(r => r.json()),
           fetch('/api/financial-codes').then(r => r.json()),
           fetch('/api/currencies').then(r => r.json()),
         ]);
@@ -1094,7 +1094,7 @@ export function BankTransactionsTable({
       const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
         needsRates ? fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.json()).catch(e => { console.error('[startEdit] Exchange rates error:', e); return null; }) : null,
         needsPayments ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12').then(r => r.ok ? r.json() : []).catch(e => { console.error('[startEdit] Payments error:', e); return []; }) : null,
-        needsProjects ? fetch('/api/projects').then(r => r.json()).catch(e => { console.error('[startEdit] Projects error:', e); return []; }) : null,
+        needsProjects ? fetch('/api/projects?dropdown=true').then(r => r.json()).catch(e => { console.error('[startEdit] Projects error:', e); return []; }) : null,
         needsCodes ? fetch('/api/financial-codes').then(r => r.json()).catch(e => { console.error('[startEdit] Codes error:', e); return []; }) : null,
         needsCurrencies ? fetch('/api/currencies').then(r => r.json()).catch(e => { console.error('[startEdit] Currencies error:', e); return []; }) : null,
         needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()).catch(e => { console.error('[startEdit] Jobs error:', e); return []; }) : null,

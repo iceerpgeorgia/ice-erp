@@ -38,10 +38,11 @@ const updatePaymentIdForMonth = (paymentId: string, date: Date) => {
 // Persistent, tag-invalidatable cache. Shared across all Lambda instances on a
 // single Vercel deployment. Refreshed on demand when payments / salary_accruals
 // change (see revalidateTag(PAYMENT_OPTIONS_TAG) calls in mutation routes).
+// Cache key is stable regardless of projectionMonths so all callers share the same entry.
 const getCachedPaymentOptions = unstable_cache(
   async (includeSalary: boolean, projectionMonths: number) =>
     buildPaymentOptions(includeSalary, projectionMonths),
-  ['payment-id-options-v1'],
+  ['payment-id-options-v2'],
   { tags: [PAYMENT_OPTIONS_TAG], revalidate: 300 },
 );
 
@@ -127,7 +128,7 @@ async function buildPaymentOptions(
     }
 
     const salaryRows = await withRetry(() => prisma.$queryRawUnsafe(`
-      SELECT 
+      SELECT DISTINCT ON (sa.counteragent_uuid, sa.payment_id)
         sa.payment_id,
         sa.counteragent_uuid,
         sa.financial_code_uuid,
@@ -142,7 +143,7 @@ async function buildPaymentOptions(
       LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
       LEFT JOIN currencies curr ON sa.nominal_currency_uuid = curr.uuid
       WHERE sa.payment_id IS NOT NULL AND sa.payment_id <> ''
-      ORDER BY sa.salary_month DESC, sa.created_at DESC
+      ORDER BY sa.counteragent_uuid, sa.payment_id, sa.salary_month DESC
     `)) as any[];
 
     const salaryOptionsById = new Map<string, PaymentOption>();

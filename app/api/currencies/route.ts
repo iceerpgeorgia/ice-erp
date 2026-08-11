@@ -64,7 +64,9 @@ export async function GET() {
       updatedAt: formatDate(row.updated_at),
     }));
 
-    return NextResponse.json({ data: camelRows });
+    return NextResponse.json({ data: camelRows }, {
+      headers: { 'Cache-Control': 'private, max-age=120, stale-while-revalidate=600' },
+    });
   } catch (error: any) {
     console.error("[currencies] GET error", error);
     return NextResponse.json(

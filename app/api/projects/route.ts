@@ -30,8 +30,23 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const projectUuid = searchParams.get('uuid');
+    const dropdown = searchParams.get('dropdown') === 'true';
     const selection = await resolveInsiderSelection(req);
     const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
+
+    // Lightweight query for dropdown/select UI — no balance calculation
+    if (dropdown) {
+      const projects = await withRetry(() => prisma.$queryRawUnsafe(`
+        SELECT p.project_uuid, p.project_index, p.project_name
+        FROM projects p
+        WHERE p.insider_uuid IN (${insiderUuidListSql})
+          AND p.is_active = true
+        ORDER BY p.project_index ASC
+      `));
+      return NextResponse.json(projects, {
+        headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' },
+      });
+    }
 
     if (projectUuid) {
       const project = await withRetry(() => prisma.$queryRawUnsafe(

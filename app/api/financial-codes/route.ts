@@ -128,7 +128,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(finalCodes.map(serializeFinancialCode));
+    return NextResponse.json(finalCodes.map(serializeFinancialCode), {
+      headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=300' },
+    });
   } catch (error: any) {
     console.error('Error fetching financial codes:', error);
     return NextResponse.json(
