@@ -273,9 +273,6 @@ export function BankTransactionsTable({
   const resolvedListBasePath = listBasePath ?? apiBasePath;
   const showFullTable = renderMode !== 'dialog-only';
   
-  console.log('[BankTransactionsTable] currencySummaries:', currencySummaries);
-  console.log('[BankTransactionsTable] currencySummaries[0]:', currencySummaries?.[0]);
-  console.log('[BankTransactionsTable] opening_balance:', currencySummaries?.[0]?.opening_balance);
   
   // Horizontal scroll synchronization
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -428,8 +425,9 @@ export function BankTransactionsTable({
   const [jobSearch, setJobSearch] = useState('');
   const [financialCodeSearch, setFinancialCodeSearch] = useState('');
   const [currencySearch, setCurrencySearch] = useState('');
-  const [exchangeRates, setExchangeRates] = useState<any>(null); // Store exchange rates for transaction date
+  const [exchangeRates, setExchangeRates] = useState<any>(null);
   const [exchangeRateDate, setExchangeRateDate] = useState<string>('');
+  const exchangeRateCacheRef = useRef<Record<string, any>>({});
   const [formData, setFormData] = useState<{
     payment_uuid: string;
     project_uuid: string;
@@ -610,6 +608,32 @@ export function BankTransactionsTable({
   useEffect(() => {
     if (data) setTransactions(data);
   }, [data]);
+
+  // Pre-fetch static reference data on mount so the edit dialog opens instantly
+  useEffect(() => {
+    const prefetchRefData = async () => {
+      try {
+        const [projectsRaw, codesRaw, currenciesRaw] = await Promise.all([
+          fetch('/api/projects').then(r => r.json()),
+          fetch('/api/financial-codes').then(r => r.json()),
+          fetch('/api/currencies').then(r => r.json()),
+        ]);
+        const projectsData = Array.isArray(projectsRaw) ? projectsRaw : [];
+        setProjectOptions(projectsData.map((p: any) => ({
+          uuid: p.project_uuid,
+          projectIndex: p.project_index,
+          projectName: p.project_name,
+        })));
+        const codesData = Array.isArray(codesRaw) ? codesRaw : (codesRaw?.codes || []);
+        setFinancialCodeOptions(codesData);
+        const currenciesData = Array.isArray(currenciesRaw) ? currenciesRaw : (currenciesRaw?.currencies || []);
+        setCurrencyOptions(currenciesData);
+      } catch (error) {
+        console.error('[BankTransactionsTable] Error pre-fetching reference data:', error);
+      }
+    };
+    prefetchRefData();
+  }, []);
 
   // Fetch all payments on mount
   useEffect(() => {
@@ -1053,64 +1077,60 @@ export function BankTransactionsTable({
     setCurrencySearch('');
     
     try {
-      // Fetch exchange rates for the transaction date upfront
       const effectiveDate = initialFormData.correction_date || transactionDateInput;
-      const ratesResponse = await fetch(`/api/exchange-rates?date=${effectiveDate}`);
-      const ratesData = await ratesResponse.json();
-      const rates = ratesData && ratesData.length > 0 ? ratesData[0] : null;
-      setExchangeRates(rates);
-      setExchangeRateDate(effectiveDate);
-      
-      // Prefer cached payment options; only refresh if we do not have them yet.
-      let freshPayments = allPayments;
-      if (freshPayments.length === 0) {
-        try {
-          const paymentsRes = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
-          if (paymentsRes.ok) {
-            const paymentsData = await paymentsRes.json();
-            freshPayments = Array.isArray(paymentsData)
-              ? paymentsData.map((payment: any) => ({
-                  ...payment,
-                  counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
-                  projectUuid: payment.projectUuid || payment.project_uuid || null,
-                  financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
-                  currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
-                  paymentId: payment.paymentId || payment.payment_id || null,
-                }))
-              : [];
-            setAllPayments(freshPayments);
-          }
-        } catch (err) {
-          console.warn('[startEdit] Failed to refresh payments, using cached:', err);
-        }
-      }
 
-      updatePaymentOptions(transaction, freshPayments);
-      
-      // Fetch reference data in parallel, using cache when available.
+      // Run all fetches in parallel. Exchange rates are cached by date.
+      const needsRates = !exchangeRateCacheRef.current[effectiveDate];
+      const needsPayments = allPayments.length === 0;
       const needsProjects = projectOptions.length === 0;
       const needsCodes = financialCodeOptions.length === 0;
       const needsCurrencies = currencyOptions.length === 0;
       const needsJobs = Boolean(transaction.projectUuid);
 
-      const [projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
+      const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
+        needsRates ? fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.json()) : null,
+        needsPayments ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36').then(r => r.ok ? r.json() : []) : null,
         needsProjects ? fetch('/api/projects').then(r => r.json()) : null,
         needsCodes ? fetch('/api/financial-codes').then(r => r.json()) : null,
         needsCurrencies ? fetch('/api/currencies').then(r => r.json()) : null,
         needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()) : null,
       ]);
 
-      // Projects
-      if (needsProjects) {
-        const projectsData = projectsRaw ?? [];
-        const mappedProjects = Array.isArray(projectsData)
-          ? projectsData.map((p: any) => ({
-              uuid: p.project_uuid,
-              projectIndex: p.project_index,
-              projectName: p.project_name,
+      // Exchange rates
+      if (needsRates) {
+        const rates = ratesRaw && ratesRaw.length > 0 ? ratesRaw[0] : null;
+        exchangeRateCacheRef.current[effectiveDate] = rates;
+        setExchangeRates(rates);
+      } else {
+        setExchangeRates(exchangeRateCacheRef.current[effectiveDate]);
+      }
+      setExchangeRateDate(effectiveDate);
+
+      // Payments
+      let freshPayments = allPayments;
+      if (needsPayments && paymentsRaw) {
+        freshPayments = Array.isArray(paymentsRaw)
+          ? paymentsRaw.map((payment: any) => ({
+              ...payment,
+              counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+              projectUuid: payment.projectUuid || payment.project_uuid || null,
+              financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+              currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+              paymentId: payment.paymentId || payment.payment_id || null,
             }))
           : [];
-        setProjectOptions(mappedProjects);
+        setAllPayments(freshPayments);
+      }
+      updatePaymentOptions(transaction, freshPayments);
+
+      // Projects
+      if (needsProjects) {
+        const projectsData = Array.isArray(projectsRaw) ? projectsRaw : [];
+        setProjectOptions(projectsData.map((p: any) => ({
+          uuid: p.project_uuid,
+          projectIndex: p.project_index,
+          projectName: p.project_name,
+        })));
       }
 
       // Financial codes
