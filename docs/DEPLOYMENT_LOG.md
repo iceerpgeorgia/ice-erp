@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-08-11 Deployment #413 (Perf: Fix 1-minute bank transaction edit dialog delay)
+- Commit: 94bf077 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-alpekxzl4-iceerp.vercel.app
+- Summary: Root cause of 1-minute delay identified: `/api/projects` GET was running a massive SQL query (UNION ALL over raw bank tables + balance calculations for all projects) just to populate a 3-field dropdown. Fixed by adding `?dropdown=true` lightweight path. Also added HTTP caching to reference data endpoints and optimized salary_accruals deduplication.
+- Changes:
+  - `app/api/projects/route.ts`: Added `?dropdown=true` param — returns only `project_uuid, project_index, project_name` with a simple indexed SELECT, no balance calculation subquery. Response cached 30s.
+  - `app/api/financial-codes/route.ts`: Added `Cache-Control: private, max-age=60, stale-while-revalidate=300` to GET response
+  - `app/api/currencies/route.ts`: Added `Cache-Control: private, max-age=120, stale-while-revalidate=600` to GET response
+  - `app/api/payment-id-options/route.ts`: Changed salary_accruals query to `DISTINCT ON (counteragent_uuid, payment_id)` to deduplicate at DB level; bumped cache key to `v2`; kept projectionMonths at 12
+  - `components/figma/bank-transactions-table.tsx`: Updated all `/api/projects` fetches to use `?dropdown=true`; added per-endpoint error logging; reduced projection months to 12
+- Status: ✅ Deployed (CLI connection dropped during polling but deployment was accepted by Vercel)
+
 ## 2026-08-07 Deployment #412 (Perf: Optimize Bank Transaction Edit Dialog)
 - Commit: 75805a1 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-oubblzg3c-iceerp.vercel.app
