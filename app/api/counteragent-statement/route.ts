@@ -444,7 +444,7 @@ export async function GET(request: NextRequest) {
           financialCode: info?.financialCode || null,
           job: info?.job || null,
           incomeTax: info?.incomeTax ?? null,
-          currency: info?.currency || null,
+          currency: info?.currency || nominalCurrencyCode || accountCurrencyCode || null,
         };
       }),
       adjustments: adjustments.map((adj) => {

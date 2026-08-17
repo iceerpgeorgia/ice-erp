@@ -37,54 +37,6 @@ The workspace is a single Next.js 14 application (App Router) with co-located AP
 
 - Jobs CRUD now includes `selling_price` support in the Prisma schema, API handlers, and the Jobs table/form UI.
 
-## Project Balance Calculation
-
-### Overview
-Project balance is calculated as: `balance = project.value - total_payments`
-
-Where `total_payments` aggregates all financial activity:
-1. **Bank Transactions**: Amounts from raw bank account tables (GE65TB..., GE78BG...)
-2. **Batch Partitions**: Partitioned amounts from bank_transaction_batches when applicable
-3. **Payment Adjustments**: Manual adjustments from payment_adjustments table (NEW: Deployment #351)
-
-### Implementation
-Calculated in two API routes using identical UNION ALL patterns:
-- **GET /api/projects-v2**: Main endpoint for projects list (preferred)
-- **GET /api/projects**: Legacy endpoint, supports single project by uuid param and main list
-
-### Query Structure
-Both routes aggregate in a LEFT JOIN with a complex subquery:
-```sql
-LEFT JOIN (
-  SELECT payment_id, SUM(nominal_amount) as total_payment
-  FROM (
-    -- Bank transactions (not in batches)
-    SELECT cba.payment_id, cba.nominal_amount ...
-    UNION ALL
-    -- Batch partitions
-    SELECT btb.payment_id, (COALESCE(...) * sign) ...
-    UNION ALL
-    -- Payment adjustments (Deployment #351)
-    SELECT pa.payment_id, COALESCE(pa.nominal_amount, pa.amount) ...
-    WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
-  ) combined
-  WHERE payment_id IS NOT NULL
-  GROUP BY payment_id
-) bank_agg ON p.payment_id = bank_agg.payment_id
-```
-
-### Payment Adjustments Integration
-- **nominal_amount**: Used for face currency conversions (primary amount in payment currency)
-- **amount**: Fallback for legacy direct-mode adjustments
-- **is_deleted filter**: Non-deleted adjustments only (consistent with payment statements)
-- **Deployment #351**: Added UNION ALL clause to include payment_adjustments table
-
-### Design Decisions
-- Adjustments use `nominal_amount` column which is always in payment's currency (already converted)
-- Falls back to `amount` field for legacy adjustments created before currency conversion mode
-- Filter ensures deleted adjustments don't artificially inflate project balances
-- Uses ABS() wrapper to normalize sign (both negative and positive flows supported)
-
 ## BOG GEL Bank Statement Processing - Three-Stage Approach
 
 ### Consolidated Processing Architecture
@@ -297,6 +249,12 @@ All RS.ge credentials are stored in `RS_CREDENTIALS_MAP` (JSON array in `.env.lo
 ```
 Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/integrations/rsge/client.ts`. Both cron routes and the manual sync endpoint read exclusively from this map — there are no separate `RS_API_SU`/`RS_API_SP` fallback vars.
 
+### Insider Selection Persistence
+- Selected insiders are persisted per user in `User.selected_insider_uuids` (`uuid[]`) and mirrored to the `insider-view-selection` cookie.
+- Resolution precedence in `resolveInsiderSelection`: DB-persisted selection first, then cookie selection, then all available insiders as fallback.
+- `POST /api/insider-selection` validates UUIDs against current insider options, stores the effective list in DB (when authenticated), and refreshes the cookie.
+- This keeps insider-driven views (including Conversions and other insider-filtered APIs) stable across deployments even if browser cookie/domain context changes.
+
 ### VAT Lock Rule
 `vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:
 - **CREATE**: `vat` is stored from the live API response.
@@ -388,8 +346,144 @@ When waybill items are bound to different projects, item-level binding should ta
 - Backfill script `scripts/backfill-payments-jobs-account-curr.js` recalculates historical `payments_jobs.amount_account_curr` using consolidated/raw bank amounts (prefers consolidated when present).
 - The grid now provides an XLSX export action that flattens each payment into one row per job allocation so the exported amount and nominal amount reflect the distribution split.
 - Export rows resolve distributions using the same composite key logic as the grid (batch partition or raw record UUID) so per-transaction allocations populate in Excel.
+## Templates Management System
+
+### Architecture Overview
+The system now uses a dedicated `templates` table for managing XLSX templates for different operations (handover, invoice, certificate, etc.). Each operation must have exactly one active template.
+
+**Key Features:**
+- **Operation-based organization**: Templates are categorized by operation_type (handover, invoice, etc.)
+- **One active per operation**: Database trigger enforces only one active template per operation_type
+- **Archive on update**: When a new template is uploaded and activated, the old one is automatically archived
+- **Supabase storage**: All templates stored in Supabase bucket `templates/`
+- **Graceful fallback**: If database template unavailable, falls back to file system
+
+### Database Schema
+**Table: `templates`**
+- `uuid`: Unique identifier for template
+- `operation_type`: "handover", "invoice", "certificate", etc.
+- `file_name`: Original filename (e.g., "Handover Tamplate New.xlsx")
+- `storage_provider`: Always "supabase"
+- `storage_bucket`: Defaults to "templates"
+- `storage_path`: Path in Supabase bucket (e.g., `templates/handover/1719235200000-Handover.xlsx`)
+- `file_size_bytes`: File size for UI display
+- `file_hash_sha256`: Optional hash for integrity checking
+- `is_active`: Boolean flag - only one TRUE per operation_type (enforced by DB trigger)
+- `archived_at`: Timestamp when archived/deactivated
+- `created_by_user_id`: User email who uploaded
+- `created_at / updated_at`: Audit timestamps
+
+**Indexes:**
+- `(operation_type)` - List templates by operation
+- `(is_active)` - Find active templates
+- `(operation_type, is_active)` - Combined lookup for export routes
+- `(created_at DESC)` - Timeline queries
+
+**Database Trigger:**
+```plpgsql
+enforce_one_active_template_per_operation()
+```
+When `is_active = true` is set on any template, automatically deactivates all other templates for the same operation_type.
+
+### Admin Interface
+**Location:** `/admin/templates`
+
+**Features:**
+1. **Upload Form**
+   - Select operation type (dropdown: handover, invoice, certificate)
+   - Upload XLSX file
+   - Checkbox: "Set as active" (optional - defaults to true)
+   - Submit triggers immediate upload and activation if checked
+
+2. **Templates List (grouped by operation)**
+   - Shows all templates per operation
+   - Indicates which is currently active (green badge)
+   - Shows inactive (blue) and archived (gray) states
+   - File size and upload timestamp
+   - Action buttons: Activate (if inactive), Archive (if not archived)
+
+3. **Status Indicators**
+   - ✓ Active: Used by export routes
+   - ⚠ No active: Cannot export (red warning)
+   - Archived: Not used, kept for audit trail
+
+### API Endpoints
+
+**GET /api/templates?operationType=handover**
+- List all templates, optionally filtered by operation_type
+- Returns: `[{ uuid, operation_type, file_name, file_size_bytes, is_active, archived_at, created_at, created_by_user_id }]`
+
+**POST /api/templates**
+- Upload new template
+- Body (multipart/form-data):
+  - `operationType`: string (required)
+  - `file`: File object (required)
+  - `activate`: "true"|"false" (optional, defaults to true)
+- Side effect: If `activate=true`, automatically archives existing active template for that operation
+- Returns: `{ uuid, operation_type, file_name, file_size_bytes, is_active, created_at }`
+
+**PATCH /api/templates/:uuid**
+- Activate or deactivate template
+- Body: `{ is_active: boolean }`
+- If activating: Archives all other active templates for the same operation_type
+- Returns: Updated template object
+
+**DELETE /api/templates/:uuid**
+- Archive a template (soft delete)
+- Returns 400 if trying to delete the only active template for an operation
+- Sets `is_active=false` and `archived_at=NOW()`
+- Returns: `{ message, template: { uuid, operation_type } }`
+
+### Export Route Integration
+
+**File:** `app/api/export/handover-template/route.ts`
+
+**Template Loading Priority:**
+1. Query `templates` table for `operation_type = 'handover'` AND `is_active = true`
+2. Fetch from Supabase storage using `storage_path`
+3. If failed, fallback to file system `Handover Tamplate New.xlsx` from project root
+
+**Logging:**
+```
+✓ Template loaded from templates table (Supabase), size: XXXXX
+✓ Template loaded from file system, size: XXXXX
+```
+
+**Error Handling:**
+- If no active template and file system fallback unavailable → HTTP 500
+- Error message directs user: "Please upload a template via Admin > Templates..."
+
+### Handover Template Sheet Structure
+The handover template must contain these sheets:
+1. **sheet1.xml (Handover sheet)** - Main document with Georgian form, 63 VLOOKUP formulas, 10 merged ranges, borders
+2. **sheet2.xml (Placeholders sheet)** - Lookup table:
+   - Column A (A1-A19): Label keys: "Project_Department", "Handover_Date", etc.
+   - Column B (B1-B19): Values populated from database during export
+3. **sheet3.xml (Jobs sheet)** - Template for job data table (populated during export)
+4. Optional: Income Payments, Job Distributions sheets
+
+### Placeholder Mapping (A1:B19)
+Export populates B1-B19 with project data:
+- A1: "Project_Department" → B1: project.department
+- A2: "Handover_Date" → B2: project.date (Excel serial)
+- A3-A19: Counteragent, insider, and project fields
+
+### VLOOKUP Formula Pattern
+Handover sheet formulas reference:
+```excel
+=VLOOKUP("Project_Department",Placeholders!A:B,2,FALSE)
+```
+Both columns A (labels) and B (values) must be populated for formulas to resolve.
+
+### Handovers toolbar now supports both export modes: full template export (placeholders + all grids) and separate XLSX exports per table (Jobs, Income Payments, Job Distributions).
 - The dialog resolves `payment_uuid` via `/api/payments-report` and preloads existing allocations from `/api/payments-jobs`.
 - **Debugging**: Console logs track payment_uuid resolution (`[Job Dist]` prefix) including payment mapping, distribution loading, row payment lookup, and save operations. This helps diagnose cases where distributions might incorrectly appear across multiple payments.
+- Runtime resilience guards for Handovers dependencies:
+  - `GET /api/jobs?projectUuid=...` bypasses insider-selection resolution and returns project-bound jobs directly, so Handovers job loading is not blocked by insider-selection state.
+  - In that project-scoped `/api/jobs` path, response mapping must not reference insider selection variables; use row fields directly (`insider_uuid`) to avoid runtime 500s from pre-declaration access.
+  - `GET /api/brands` no longer selects optional/non-critical columns for Handovers bootstrap; this reduces schema-drift 500s on environments with lagging migrations.
+  - `GET /api/payments-report` now falls back to a ledger-only query if the primary cross-table bank-union query fails, returning income rows instead of HTTP 500.
+  - Handovers initial-load project mapping debug spam (`[Handovers] Mapping project`) was removed from the client component to keep production console noise low.
 
 ### Handover Emission Feature
 When a user emits a handover, all current (non-emitted) job distributions are locked and marked with an `emission_uuid`, creating an immutable audit trail. Multiple emissions are supported, with the latest emission taking priority for display:
@@ -397,6 +491,9 @@ When a user emits a handover, all current (non-emitted) job distributions are lo
 - **Multiple Emissions**: Same project can emit multiple times; each emission gets a unique UUID. After an emission, new distributions can be added and emitted again. All emissions are permanently recorded.
 - **Display Priority**: UI shows emission status based on the most recent `emission_date` for the project. Historical emissions remain in the audit trail for reference.
 - **Immutability**: Database triggers prevent UPDATE and DELETE on records with `emission_uuid IS NOT NULL`. Projects and jobs with emitted distributions cannot be deleted.
+- **Live vs emitted rows**: emitted `payments_jobs` rows are immutable historical snapshots. Later distribution changes must operate only on live rows where `emission_uuid IS NULL`, allowing new non-emitted distributions to coexist with emitted snapshots for the same payment/job/scope.
+- **API guard**: single-row delete/update attempts against an emitted distribution must fail, while replace/delete/auto-distribute/recalculate flows must only touch non-emitted rows (`emission_uuid IS NULL`) and leave emitted snapshots intact.
+- **UI lock state**: the Job Distribution dialog opens in read-only mode (no save/clear/edit/fill/recalculate actions) when a transaction scope has only emitted snapshot rows and no live rows.
 - **Schema**: New table `handover_emissions` (uuid, created_at, created_by, description). New columns on `payments_jobs`: `emission_uuid` (FK), `emission_date`.
 - **API**: `POST /api/handovers/emit` accepts `{ projectUuid }`, returns emission UUID, timestamp, count, and list of emitted records. Only targets non-emitted distributions.
 - **Audit Trail**: `emission_uuid` groups all records in a single emission; `created_by` records user email; `handover_emissions.created_at` records timestamp.
@@ -414,6 +511,16 @@ When a payment is created or updated with both `jobUuid` and `projectUuid`, the 
 
 ### Rationale
 Previously, payments could reference a `jobUuid` and `projectUuid` combination without the job being bound to that project in `job_projects`. This caused jobs to not render in Handovers even though they were allocated there. Now, the binding is automatically maintained whenever a payment references both.
+
+## Global Date Normalization Rules (Ledger/Statement)
+
+To prevent `NaN.NaN.NaN` date regressions across statements and ledger editing flows:
+
+- **Canonical storage format**: `yyyy-mm-dd` (ISO date-only) for all `effective_date` payloads sent to API routes.
+- **Display format**: `dd.mm.yyyy` only in UI text fields and rendered table cells.
+- **Single normalization utility**: use `lib/date-normalization.ts` (`normalizeToIsoDate`, `toDisplayDate`, `toDateInputValue`, `toDateSortTimestamp`) instead of ad-hoc `new Date(...)` conversions.
+- **API boundary validation**: `/api/payments-ledger`, `/api/payments-ledger/[id]`, and `/api/adjustments` must normalize inbound dates and return HTTP 400 on invalid date strings.
+- **Local optimistic updates**: when updating in-memory ledger rows after edit, persist `effectiveDate` in ISO format (not `dd.mm.yyyy`) so downstream date formatters and sorters remain stable.
 
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.
