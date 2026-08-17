@@ -16,6 +16,29 @@ import {
   extractPaymentID,
   ensureNBGRatesExist,
 } from './db-utils';
+
+/** Pre-loaded dictionaries that can be shared across multiple `processBOGGELDeconsolidated` calls. */
+export type PreloadedDictionaries = {
+  counteragentsMap: Awaited<ReturnType<typeof loadCounteragents>>;
+  parsingRules: Awaited<ReturnType<typeof loadParsingRules>>;
+  paymentsBundle: Awaited<ReturnType<typeof loadPayments>>;
+  nbgRatesMap: Awaited<ReturnType<typeof loadNBGRates>>;
+  currencyCache: Awaited<ReturnType<typeof loadCurrencyCache>>;
+};
+
+/** Load all shared dictionaries once; pass the result to processBOGGELDeconsolidated to skip per-call reloads. */
+export async function loadSharedDictionaries(): Promise<PreloadedDictionaries> {
+  const supabase = getSupabaseClient();
+  const [counteragentsMap, parsingRules, paymentsBundle, nbgRatesMap, currencyCache] =
+    await Promise.all([
+      loadCounteragents(supabase),
+      loadParsingRules(supabase),
+      loadPayments(supabase),
+      loadNBGRates(supabase),
+      loadCurrencyCache(supabase),
+    ]);
+  return { counteragentsMap, parsingRules, paymentsBundle, nbgRatesMap, currencyCache };
+}
 import { evaluateCondition } from '../formula-compiler';
 import type {
   CounteragentData,
@@ -529,7 +552,8 @@ export async function processBOGGELDeconsolidated(
   accountUuid: string,
   accountNumber: string,
   currencyCode: string,
-  importBatchId: string
+  importBatchId: string,
+  preloaded?: PreloadedDictionaries
 ): Promise<void> {
   console.log('\n' + '='.repeat(80));
   console.log('🚀 BOG GEL DECONSOLIDATED PROCESSING');
@@ -617,14 +641,25 @@ export async function processBOGGELDeconsolidated(
   console.log('🔄 STEP 1: LOADING DICTIONARIES');
   console.log('='.repeat(80) + '\n');
 
-  const [counteragentsMap, parsingRules, paymentsBundle, nbgRatesMap, currencyCache] =
-    await Promise.all([
-      loadCounteragents(supabase),
-      loadParsingRules(supabase),
-      loadPayments(supabase),
-      loadNBGRates(supabase),
-      loadCurrencyCache(supabase),
-    ]);
+  let counteragentsMap: Awaited<ReturnType<typeof loadCounteragents>>;
+  let parsingRules: Awaited<ReturnType<typeof loadParsingRules>>;
+  let paymentsBundle: Awaited<ReturnType<typeof loadPayments>>;
+  let nbgRatesMap: Awaited<ReturnType<typeof loadNBGRates>>;
+  let currencyCache: Awaited<ReturnType<typeof loadCurrencyCache>>;
+
+  if (preloaded) {
+    ({ counteragentsMap, parsingRules, paymentsBundle, nbgRatesMap, currencyCache } = preloaded);
+    console.log('  ✅ Using pre-loaded dictionaries (skipping individual loads)');
+  } else {
+    [counteragentsMap, parsingRules, paymentsBundle, nbgRatesMap, currencyCache] =
+      await Promise.all([
+        loadCounteragents(supabase),
+        loadParsingRules(supabase),
+        loadPayments(supabase),
+        loadNBGRates(supabase),
+        loadCurrencyCache(supabase),
+      ]);
+  }
 
   const { data: bankAccountsData, error: bankAccountsError } = await supabase
     .from('bank_accounts')

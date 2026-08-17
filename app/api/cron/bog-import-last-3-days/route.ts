@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { bogApiRequest, getBogConfigStatus } from '@/lib/integrations/bog/client';
 import { mapBogStatementPayloadToXml } from '@/lib/integrations/bog/statement-mapper';
-import { processBOGGELDeconsolidated } from '@/lib/bank-import/import_bank_xml_data_deconsolidated';
+import { processBOGGELDeconsolidated, loadSharedDictionaries } from '@/lib/bank-import/import_bank_xml_data_deconsolidated';
 import { getSupabaseClient } from '@/lib/bank-import/db-utils';
 
 export const dynamic = 'force-dynamic';
@@ -227,6 +227,16 @@ export async function GET(req: NextRequest) {
 
       const insiderUuid = account.insider_uuid || defaultInsiderUuid || undefined;
       console.log(`[CRON] 📅 ${accountNumber} ${currencyCode}: querying days ${startYmd} → ${endYmd}`);
+
+      // Load dictionaries once per account (not per day) to avoid 9s reload overhead per iteration.
+      let sharedDicts;
+      try {
+        sharedDicts = await loadSharedDictionaries();
+      } catch (e: any) {
+        failures.push({ accountUuid: account.uuid, accountNumber, reason: `Failed to load shared dictionaries: ${e?.message}` });
+        continue;
+      }
+
       for (const day of iterateDays(startYmd, endYmd)) {
         const path = `/statement/${accountNumber}/${currencyCode}/${day}/${day}`;
 
@@ -274,7 +284,8 @@ export async function GET(req: NextRequest) {
             account.uuid,
             accountNumber,
             currencyCode,
-            uuidv4()
+            uuidv4(),
+            sharedDicts
           );
 
           successes.push({

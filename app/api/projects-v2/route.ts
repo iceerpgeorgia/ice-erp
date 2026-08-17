@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
             SUM(nominal_amount) as total_payment
           FROM (
             SELECT
-              cba.payment_id,
+              cba.payment_id::text as payment_id,
               cba.nominal_amount,
               cba.raw_record_uuid,
               cba.account_currency_amount
