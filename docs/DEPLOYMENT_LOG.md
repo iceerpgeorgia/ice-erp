@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-08-18 Deployment #415 (Fix: Currency rule in counteragent statement)
+- Commit: ccaad39 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-h02zhf3ty-iceerp.vercel.app
+- Summary: Fixed currency column logic in counteragent statement. Rule: payment assigned → nominal currency; no payment → account currency. Applied in both API response and client-side inline update handler.
+- Changes:
+  - app/api/counteragent-statement/route.ts: `currency: tx.payment_id ? (nominalCurrencyCode || accountCurrencyCode) : (accountCurrencyCode || null)`
+  - app/counteragent-statement/[counteragentUuid]/page.tsx: Same rule in `handleBankTransactionUpdated`
+- Status: ✅ Live
+
 ## 2026-08-17 Deployment #414 (Fix: Missing currency in counteragent statement)
 - Commit: 2cedb06 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-fis7snpuk-iceerp.vercel.app
