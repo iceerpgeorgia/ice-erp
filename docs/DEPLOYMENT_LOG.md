@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-08-17 Deployment #414 (Fix: Missing currency in counteragent statement)
+- Commit: 2cedb06 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-fis7snpuk-iceerp.vercel.app
+- Summary: Fixed currency column showing blank for some bank transactions in counteragent statement. Transactions with no payment_id or unlinked payment now fall back to the transaction's own nominal/account currency code from the SQL join.
+- Changes:
+  - app/api/counteragent-statement/route.ts: `currency: info?.currency || nominalCurrencyCode || accountCurrencyCode || null`
+- Status: ✅ Live
+
 ## 2026-08-11 Deployment #413 (Perf: Fix 1-minute bank transaction edit dialog delay)
 - Commit: 94bf077 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-alpekxzl4-iceerp.vercel.app
