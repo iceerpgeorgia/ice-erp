@@ -310,7 +310,9 @@ export default function CounteragentStatementPage() {
           const financialCode = transaction.financialCode || info.financialCode || tx.financialCode || null;
           const job = info.job || tx.job || null;
           const incomeTax = info.incomeTax ?? tx.incomeTax ?? null;
-          const currency = info.currency || tx.currency || null;
+          const currency = resolvedPaymentId
+            ? (transaction.nominalCurrencyCode || tx.nominalCurrencyCode || transaction.accountCurrencyCode || tx.accountCurrencyCode || null)
+            : (transaction.accountCurrencyCode || tx.accountCurrencyCode || null);
           return {
             ...tx,
             paymentId: resolvedPaymentId,

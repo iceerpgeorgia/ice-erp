@@ -444,7 +444,9 @@ export async function GET(request: NextRequest) {
           financialCode: info?.financialCode || null,
           job: info?.job || null,
           incomeTax: info?.incomeTax ?? null,
-          currency: info?.currency || nominalCurrencyCode || accountCurrencyCode || null,
+          currency: tx.payment_id
+            ? (nominalCurrencyCode || accountCurrencyCode || null)
+            : (accountCurrencyCode || null),
         };
       }),
       adjustments: adjustments.map((adj) => {
