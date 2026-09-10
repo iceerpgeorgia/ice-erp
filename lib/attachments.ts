@@ -660,14 +660,21 @@ export async function getJobCertificateDates(jobUuids: string[]): Promise<Record
   return out;
 }
 
-/** Bulk fetch: date + doc_no of the earliest "ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტები)" attachment per jobUuid. */
+/** Bulk fetch: date + doc_no of the earliest lift-related attachment per jobUuid.
+ * Searches for both:
+ * - ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტი) (operational acceptance certificate)
+ * - შემოწმების შუალედური აქტი (ლიფტი) (inspection interim report)
+ * Returns the earliest date among both types.
+ */
 export async function getJobLiftCertInfo(
   jobUuids: string[],
 ): Promise<Record<string, { date: string | null; docNo: string | null }>> {
   const unique = Array.from(new Set(jobUuids.filter((v) => typeof v === 'string' && v.length > 0)));
   if (unique.length === 0) return {};
   const placeholders = unique.map((_, i) => `$${i + 1}::uuid`).join(', ');
+  // Both operational certificate and inspection interim report
   const LIFT_CERT_DOC_TYPE_UUID = '77e8c811-3b1c-409d-a1e4-7cc40e1b0132'; // ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტი)
+  const INSPECTION_INTERIM_UUID = '5eee6b9e-97b2-4a78-b442-355af1e9920c'; // შემოწმების შუალედური აქტი (ლიფტი)
   const rows = await withRetry(() =>
     prisma.$queryRawUnsafe<Array<{ owner_uuid: string; document_date: string | null; document_no: string | null }>>(
       `SELECT DISTINCT ON (al.owner_uuid)
@@ -679,10 +686,11 @@ export async function getJobLiftCertInfo(
        WHERE al.owner_table = 'jobs'
          AND a.is_active = true
          AND al.owner_uuid IN (${placeholders})
-         AND a.document_type_uuid = $${unique.length + 1}::uuid
+         AND a.document_type_uuid IN ($${unique.length + 1}::uuid, $${unique.length + 2}::uuid)
        ORDER BY al.owner_uuid, a.document_date ASC NULLS LAST`,
       ...unique,
       LIFT_CERT_DOC_TYPE_UUID,
+      INSPECTION_INTERIM_UUID,
     ),
   );
   const out: Record<string, { date: string | null; docNo: string | null }> = {};
