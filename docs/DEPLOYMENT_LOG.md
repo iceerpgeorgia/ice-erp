@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-09-10 Deployment #416 (Feature: Inspection Interim Report as Lift Cert Alternative)
+- Commit: 1dd49fc (deploy/2026-06-16-emission-insider)
+- Production: https://ice-pdc1lkcgi-iceerp.vercel.app
+- Summary: Handovers liftCertDate now considers both "ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტი)" (operational acceptance certificate) and "შემოწმების შუალედური აქტი (ლიფტი)" (inspection interim report) documents. Uses the earliest date among both types for Debit GEL and Total GEL calculations. Previously only operational certificate was considered.
+- Changes:
+  - `lib/attachments.ts`: Modified `getJobLiftCertInfo()` to query both document types (UUIDs: `77e8c811-3b1c-409d-a1e4-7cc40e1b0132` for certificate, `5eee6b9e-97b2-4a78-b442-355af1e9920c` for inspection report) and return the earliest document_date. Updated SQL WHERE clause to use IN with both UUIDs instead of single document_type_uuid match.
+  - `AGENTS.md`: Updated documentation to clarify that `liftCertDate` is determined by earliest date among both document types
+- Impact: Jobs now correctly use inspection interim report date if uploaded before operational acceptance certificate, improving Debit GEL calculations accuracy
+- Status: ✅ Live
+
 ## 2026-08-18 Deployment #415 (Fix: Currency rule in counteragent statement)
 - Commit: ccaad39 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-h02zhf3ty-iceerp.vercel.app
