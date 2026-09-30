@@ -512,6 +512,12 @@ When a payment is created or updated with both `jobUuid` and `projectUuid`, the 
 ### Rationale
 Previously, payments could reference a `jobUuid` and `projectUuid` combination without the job being bound to that project in `job_projects`. This caused jobs to not render in Handovers even though they were allocated there. Now, the binding is automatically maintained whenever a payment references both.
 
+## Module/Feature Seeding Activation Rule
+
+- `GET /api/modules?activeOnly=true` is used by Admin user feature dialogs and returns only active modules/features.
+- Seeding must be **self-healing**: both seed paths (`scripts/seed-modules-and-features.ts` and `POST /api/admin/seed-modules`) must set `isActive=true` on update as well as create.
+- Rationale: if modules/features were previously deactivated, reseeding must reactivate them so Admin feature checkboxes do not disappear with "No modules/features available".
+
 ## Global Date Normalization Rules (Ledger/Statement)
 
 To prevent `NaN.NaN.NaN` date regressions across statements and ledger editing flows:

@@ -177,6 +177,7 @@ async function main() {
           icon: moduleData.icon,
           route: moduleData.route,
           displayOrder: moduleData.displayOrder,
+          isActive: true,
         },
       });
       modulesUpdated++;
@@ -215,6 +216,7 @@ async function main() {
             name: featureData.name,
             description: featureData.description,
             featureType: featureData.featureType,
+            isActive: true,
           },
         });
         featuresUpdated++;

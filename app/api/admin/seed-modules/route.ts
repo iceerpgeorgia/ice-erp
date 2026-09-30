@@ -161,6 +161,7 @@ export async function POST() {
           icon: moduleData.icon,
           route: moduleData.route,
           displayOrder: moduleData.displayOrder,
+          isActive: true,
         },
       });
 
@@ -199,6 +200,7 @@ export async function POST() {
             name: featureData.name,
             description: featureData.description,
             featureType: featureData.featureType,
+            isActive: true,
           },
         });
 
