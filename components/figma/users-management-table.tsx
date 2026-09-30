@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { Download, Shield, Bell, BellOff, Settings } from 'lucide-react';
+import { Download, Shield, Bell, BellOff, Settings, Edit2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Checkbox } from '../ui/checkbox';
 import { Button } from '../ui/button';
@@ -25,6 +25,7 @@ import {
   TableRow,
 } from '../ui/table';
 import { Badge } from '../ui/badge';
+import { Combobox } from '../ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 
 type User = {
@@ -59,6 +60,16 @@ type Module = {
   key: string;
   isActive: boolean;
   ModuleFeature: ModuleFeature[];
+};
+
+type UserPermission = {
+  uuid: string;
+  moduleFeature: {
+    uuid: string;
+    name: string;
+    key: string;
+    moduleUuid: string;
+  };
 };
 
 type UserColKey = 'email' | 'name' | 'counteragent' | 'role' | 'isAuthorized' | 'paymentNotifications' | 'authorizedBy' | 'authorizedAt';
@@ -120,6 +131,12 @@ export default function UsersManagementTable() {
   const [modules, setModules] = useState<Module[]>([]);
   const [selectedModules, setSelectedModules] = useState<Set<string>>(new Set());
   const [savingModules, setSavingModules] = useState(false);
+
+  // Edit user dialog state
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -430,25 +447,25 @@ export default function UsersManagementTable() {
       const permissionsResponse = await fetch(`/api/permissions/users?userId=${user.id}`);
       if (permissionsResponse.ok) {
         const permissions = await permissionsResponse.json();
-        // Extract module UUIDs from permissions
-        const moduleUuids = new Set<string>(
+        // Extract feature UUIDs from permissions
+        const featureUuids = new Set<string>(
           permissions
-            .map((p: any) => p.moduleFeature?.moduleUuid)
+            .map((p: UserPermission) => p.moduleFeature?.uuid)
             .filter((uuid: any): uuid is string => Boolean(uuid))
         );
-        setSelectedModules(moduleUuids);
+        setSelectedModules(featureUuids);
       }
     } catch (error) {
       console.error('Failed to load module data:', error);
     }
   };
 
-  const handleToggleModule = (moduleUuid: string) => {
+  const handleToggleModule = (featureUuid: string) => {
     const newSelected = new Set(selectedModules);
-    if (newSelected.has(moduleUuid)) {
-      newSelected.delete(moduleUuid);
+    if (newSelected.has(featureUuid)) {
+      newSelected.delete(featureUuid);
     } else {
-      newSelected.add(moduleUuid);
+      newSelected.add(featureUuid);
     }
     setSelectedModules(newSelected);
   };
@@ -458,23 +475,36 @@ export default function UsersManagementTable() {
     
     setSavingModules(true);
     try {
-      // Grant access to selected modules (this will grant all features of each module)
-      const grantPromises = Array.from(selectedModules).map(moduleUuid =>
-        fetch('/api/permissions/modules', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: selectedUser.id,
-            moduleUuid,
-          }),
-        })
+      // Fetch current permissions to get permission UUIDs for deletion
+      const permissionsResponse = await fetch(`/api/permissions/users?userId=${selectedUser.id}`);
+      const currentPermissions = permissionsResponse.ok ? await permissionsResponse.json() : [];
+      const permissionsByFeatureUuid = new Map<string, string>(
+        currentPermissions
+          .map((p: UserPermission) => [p.moduleFeature?.uuid, p.uuid] as const)
+          .filter((entry: readonly [unknown, unknown]): entry is [string, string] => Boolean(entry[0] && entry[1]))
       );
 
-      // Revoke access to unselected modules
-      const revokePromises = modules
-        .filter(m => !selectedModules.has(m.uuid))
-        .map(m =>
-          fetch(`/api/permissions/modules?userId=${selectedUser.id}&moduleUuid=${m.uuid}`, {
+      // Grant access to selected features
+      const grantPromises = Array.from(selectedModules).map(featureUuid => {
+        // Only grant if not already granted
+        if (!permissionsByFeatureUuid.has(featureUuid)) {
+          return fetch('/api/permissions/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: selectedUser.id,
+              moduleFeatureUuid: featureUuid,
+            }),
+          });
+        }
+        return Promise.resolve(new Response(null, { status: 200 }));
+      });
+
+      // Revoke access to unselected features
+      const revokePromises = Array.from(permissionsByFeatureUuid.entries())
+        .filter(([featureUuid]) => !selectedModules.has(featureUuid))
+        .map(([, permissionUuid]) =>
+          fetch(`/api/permissions/users?uuid=${String(permissionUuid)}`, {
             method: 'DELETE',
           })
         );
@@ -482,12 +512,54 @@ export default function UsersManagementTable() {
       await Promise.all([...grantPromises, ...revokePromises]);
       
       setShowModulesDialog(false);
-      alert('Module access updated successfully!');
+      alert('Feature access updated successfully!');
     } catch (error) {
-      console.error('Failed to update module access:', error);
-      alert('Failed to update module access');
+      console.error('Failed to update feature access:', error);
+      alert('Failed to update feature access');
     } finally {
       setSavingModules(false);
+    }
+  };
+
+  const handleOpenEditDialog = (user: User) => {
+    setEditingUser(user);
+    setEditForm({ name: user.name || '', email: user.email || '' });
+    setShowEditDialog(true);
+  };
+
+  const handleSaveUserEdit = async () => {
+    if (!editingUser) return;
+    
+    if (!editForm.email.trim()) {
+      alert('Email is required');
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const response = await fetch(`/api/users?id=${editingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          email: editForm.email.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        setUsers(users.map(u => u.id === editingUser.id ? updatedUser : u));
+        setShowEditDialog(false);
+        alert('User updated successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to update user');
+      }
+    } catch (error) {
+      console.error('Failed to update user:', error);
+      alert('Failed to update user');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -669,25 +741,25 @@ export default function UsersManagementTable() {
                   case 'counteragent':
                     return (
                       <TableCell key={key} style={{ width: userColumns.find(c=>c.key===key)?.width }}>
-                        <Select
-                          value={user.counteragentUuid ?? '__none__'}
+                        <Combobox
+                          value={user.counteragentUuid ?? ''}
                           onValueChange={(value) =>
-                            handleCounterAgentChange(user.id, value === '__none__' ? null : value)
+                            handleCounterAgentChange(user.id, value || null)
                           }
+                          options={[
+                            { value: '', label: '— none —' },
+                            ...counteragents.map((ca) => ({
+                              value: ca.counteragent_uuid,
+                              label: ca.counteragent || ca.name || ca.counteragent_uuid,
+                              keywords: `${ca.counteragent} ${ca.name}`.toLowerCase()
+                            }))
+                          ]}
+                          placeholder="Select counteragent..."
+                          searchPlaceholder="Search counteragents..."
                           disabled={updatingCounterAgentIds.has(user.id)}
-                        >
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="— none —" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">— none —</SelectItem>
-                            {counteragents.map((ca) => (
-                              <SelectItem key={ca.counteragent_uuid} value={ca.counteragent_uuid}>
-                                {ca.counteragent || ca.name || ca.counteragent_uuid}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          className="w-[200px]"
+                          triggerClassName="w-[200px]"
+                        />
                       </TableCell>
                     );
                   case 'role':
@@ -787,11 +859,21 @@ export default function UsersManagementTable() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => handleOpenEditDialog(user)}
+                      disabled={session?.user?.email === user.email}
+                      title="Edit user name and email"
+                    >
+                      <Edit2 className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleOpenModulesDialog(user)}
                       disabled={!user.isAuthorized}
                     >
                       <Shield className="h-3 w-3 mr-1" />
-                      Modules
+                      Features
                     </Button>
                     {session?.user?.email === user.email ? (
                       <span className="text-xs text-muted-foreground">(You)</span>
@@ -821,59 +903,49 @@ export default function UsersManagementTable() {
       {/* Module Access Dialog */}
       {showModulesDialog && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold">Module Access</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Select which modules <strong>{selectedUser.name || selectedUser.email}</strong> can access
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold">Feature Access Control</h2>
+              <p className="text-sm text-muted-foreground mt-2">
+                Select which features <strong>{selectedUser.name || selectedUser.email}</strong> can use
               </p>
             </div>
 
-            <div className="space-y-3">
-              {modules.map((module) => (
-                <div
-                  key={module.uuid}
-                  className="border rounded-lg p-4 hover:bg-gray-50 transition"
-                >
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedModules.has(module.uuid)}
-                      onChange={() => handleToggleModule(module.uuid)}
-                      className="mt-1 h-4 w-4 rounded border-gray-300"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{module.name}</span>
-                        <span className="text-xs text-gray-500">({module.key})</span>
-                      </div>
-                      {module.ModuleFeature.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {module.ModuleFeature.map((feature) => (
-                            <span
-                              key={feature.uuid}
-                              className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded"
-                            >
-                              {feature.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+            {modules.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No modules/features available. Create modules first in the Module Management page.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {modules.map((module) => (
+                  <div key={module.uuid} className="border rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 mb-4">{module.name}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {module.ModuleFeature.map((feature) => (
+                        <label
+                          key={feature.uuid}
+                          className="flex items-start gap-3 p-3 rounded border border-gray-200 hover:bg-gray-50 cursor-pointer transition"
+                        >
+                          <Checkbox
+                            checked={selectedModules.has(feature.uuid)}
+                            onCheckedChange={() => handleToggleModule(feature.uuid)}
+                            className="mt-1"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm text-gray-900">{feature.name}</div>
+                            <div className="text-xs text-gray-500 mt-1">{feature.key}</div>
+                          </div>
+                        </label>
+                      ))}
                     </div>
-                  </label>
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
+            )}
 
-              {modules.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  No modules available. Create modules first in the Module Management page.
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+            <div className="flex justify-between items-center mt-8 pt-6 border-t">
               <div className="text-sm text-gray-600">
-                {selectedModules.size} module(s) selected
+                {selectedModules.size} feature(s) enabled
               </div>
               <div className="flex gap-2">
                 <Button
@@ -887,9 +959,62 @@ export default function UsersManagementTable() {
                   onClick={handleSaveModuleAccess}
                   disabled={savingModules}
                 >
-                  {savingModules ? 'Saving...' : 'Save Access'}
+                  {savingModules ? 'Saving...' : 'Save'}
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Dialog */}
+      {showEditDialog && editingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold">Edit User</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Update user parameters
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Name</Label>
+                <Input
+                  id="edit-name"
+                  type="text"
+                  placeholder="User name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email *</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setShowEditDialog(false)}
+                disabled={savingEdit}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveUserEdit}
+                disabled={savingEdit}
+              >
+                {savingEdit ? 'Saving...' : 'Save Changes'}
+              </Button>
             </div>
           </div>
         </div>

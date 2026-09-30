@@ -48,6 +48,7 @@ const modulesData = [
       { name: 'Delete Payment', key: 'delete', description: 'Remove payments', featureType: 'action' },
       { name: 'Manage Attachments', key: 'attachments', description: 'Upload and manage payment attachments', featureType: 'action' },
       { name: 'Confirm Attachments', key: 'confirm', description: 'Confirm payment attachments', featureType: 'action' },
+      { name: 'Confirm Ledger Entries', key: 'confirm_ledger_entries', description: 'Confirm/deconfirm payments ledger entries', featureType: 'action' },
     ],
   },
   {

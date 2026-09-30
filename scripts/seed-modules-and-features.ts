@@ -74,6 +74,7 @@ const modulesData: ModuleSeed[] = [
       { name: 'Delete Payment', key: 'delete', description: 'Delete payments', featureType: 'action' },
       { name: 'Manage Attachments', key: 'manage_attachments', description: 'Upload and manage payment attachments', featureType: 'action' },
       { name: 'Confirm Attachments', key: 'confirm_attachments', description: 'Confirm attachment processing', featureType: 'action' },
+      { name: 'Confirm Ledger Entries', key: 'confirm_ledger_entries', description: 'Confirm/deconfirm payments ledger entries', featureType: 'action' },
     ],
   },
   {
