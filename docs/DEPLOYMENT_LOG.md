@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-09-10 Deployment #417 (Feature: Admin Page User Management Enhancements)
+- Commit: 9ed6a22 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-ockt00f9w-iceerp.vercel.app
+- Summary: Enhanced Admin user management page with dynamic counteragent search, user edit capability, and feature-level permission system. Counteragent selector replaced with searchbox similar to ledger binding. Added Edit button for modifying user name and email. Converted modules button to grid of feature-level checkboxes organized by module. Added Payment Ledger Confirmation feature to Payments module as the first capability checkbox.
+- Changes:
+  - `components/figma/users-management-table.tsx`: Complete refactor of user management grid:
+    - Replace counteragent `<Select>` with `<Combobox>` for dynamic search with regex filtering
+    - Add Edit button (disabled for current user) with edit dialog for name and email
+    - Convert modules dialog from module-level toggles to feature-level checkboxes in grid layout
+    - Implement permission UUID mapping with Map<string, string> for proper type safety
+    - Add loading states and error handling for all operations
+  - `scripts/seed-modules-and-features.ts`: Add "Confirm Ledger Entries" feature to Payments module with key `confirm_ledger_entries`
+  - `app/api/admin/seed-modules/route.ts`: Add same feature to API seed endpoint for Vercel deployment compatibility
+  - Fixed TypeScript type issues with Map value handling and const assertions for proper type narrowing
+- Status: ✅ Live
+
 ## 2026-09-10 Deployment #416 (Feature: Inspection Interim Report as Lift Cert Alternative)
 - Commit: 1dd49fc (deploy/2026-06-16-emission-insider)
 - Production: https://ice-pdc1lkcgi-iceerp.vercel.app
