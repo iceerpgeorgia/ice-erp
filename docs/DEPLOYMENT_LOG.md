@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-09-30 Deployment #418 (Fix: Feature Dialog Empty State Resilience)
+- Commit: c29a14d (deploy/2026-06-16-emission-insider)
+- Production: https://ice-6nkfuebw7-iceerp.vercel.app
+- Summary: Prevented Admin Users -> Features dialog from showing an empty module list after reseeding when records were previously deactivated. Seed flows are now self-healing and always reactivate modules/features.
+- Changes:
+  - [app/api/admin/seed-modules/route.ts](app/api/admin/seed-modules/route.ts): Upsert update path now sets `isActive: true` for `Module` and `ModuleFeature` rows.
+  - [scripts/seed-modules-and-features.ts](scripts/seed-modules-and-features.ts): Update path now sets `isActive: true` for modules and features.
+  - [AGENTS.md](AGENTS.md): Added "Module/Feature Seeding Activation Rule" documenting the invariant for `activeOnly=true` consumers.
+- Data remediation run: production records reactivated (`modulesUpdated=8`, `featuresUpdated=40`) before deploy so the checkbox list is visible immediately.
+- Status: ✅ Live
+
 ## 2026-09-10 Deployment #417 (Feature: Admin Page User Management Enhancements)
 - Commit: 9ed6a22 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-ockt00f9w-iceerp.vercel.app
