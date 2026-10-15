@@ -21,6 +21,22 @@ const parseNullableNumber = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const parseAccrualIds = (value: unknown): bigint[] => {
+  if (!Array.isArray(value)) return [];
+
+  const ids: bigint[] = [];
+  const seen = new Set<string>();
+  for (const rawId of value) {
+    const normalized = String(rawId ?? '').trim();
+    if (!/^\d+$/.test(normalized)) continue;
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    ids.push(BigInt(normalized));
+  }
+
+  return ids;
+};
+
 const normalizeInsuranceValues = (
   surplusInsurance: number | null,
   deductedInsurance: number | null,
@@ -185,6 +201,7 @@ export async function GET(request: NextRequest) {
           sa.created_at,
           sa.updated_at,
           c.name as counteragent_name,
+          COALESCE(i.insider_name, i.counteragent, i.name) as insider_name,
           c.identification_number,
           c.entity_type,
           c.sex,
@@ -196,6 +213,7 @@ export async function GET(request: NextRequest) {
           cur.code as currency_code
         FROM salary_accruals sa
         LEFT JOIN counteragents c ON sa.counteragent_uuid = c.counteragent_uuid
+        LEFT JOIN counteragents i ON sa.insider_uuid = i.counteragent_uuid
         LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
         LEFT JOIN currencies cur ON sa.nominal_currency_uuid = cur.uuid
         WHERE sa.insider_uuid IN (${insiderUuidListSql})
@@ -395,6 +413,7 @@ export async function GET(request: NextRequest) {
         id: accrual.id.toString(),
         net_sum: accrual.net_sum.toString(),
         insider_uuid: accrual.insider_uuid ?? null,
+        insiderName: accrual.insider_name || null,
         ...serializeInsuranceValues({
           surplus_insurance: accrual.surplus_insurance,
           deducted_insurance: accrual.deducted_insurance,
@@ -417,6 +436,41 @@ export async function POST(request: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(request);
     const body = await request.json();
+
+    if (body?.action === 'assign-insider') {
+      const ids = parseAccrualIds(body?.ids);
+      if (ids.length === 0) {
+        return NextResponse.json({ error: 'No valid salary accrual IDs provided' }, { status: 400 });
+      }
+
+      const requestedInsiderUuid = String(body?.insiderUuid ?? body?.insider_uuid ?? '').trim();
+      if (!requestedInsiderUuid) {
+        return NextResponse.json({ error: 'Missing insider UUID' }, { status: 400 });
+      }
+
+      const insiderOptions = await getInsiderOptions();
+      const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+      if (!insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+        return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+      }
+
+      const updatedBy = String(body?.updated_by || body?.updatedBy || 'user');
+      const updated = await prisma.salary_accruals.updateMany({
+        where: {
+          id: { in: ids },
+          insider_uuid: { in: selection.selectedUuids },
+        },
+        data: {
+          insider_uuid: requestedInsiderUuid,
+          updated_by: updatedBy,
+          updated_at: new Date(),
+        },
+      });
+
+      revalidateTag(PAYMENT_OPTIONS_TAG);
+      return NextResponse.json({ updated: updated.count });
+    }
+
     if (body?.action === 'copy-latest') {
       const { base_month, target_month, created_by } = body;
       console.log('[copy-latest] Received:', { base_month, target_month, created_by });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import { getRequiredInsider } from '@/lib/required-insider';
+import { getInsiderOptions } from '@/lib/insider-selection';
 
 const prisma = new PrismaClient();
 
@@ -48,6 +49,22 @@ const parseMonth = (value: string) => {
   }
   const parsed = new Date(trimmed);
   return parsed;
+};
+
+const resolveUploadInsiderUuid = async (rawValue: unknown): Promise<string> => {
+  const requestedInsiderUuid = String(rawValue ?? '').trim();
+  if (!requestedInsiderUuid) {
+    const insider = await getRequiredInsider();
+    return insider.insiderUuid;
+  }
+
+  const options = await getInsiderOptions();
+  const optionSet = new Set(options.map((option) => option.insiderUuid.toLowerCase()));
+  if (!optionSet.has(requestedInsiderUuid.toLowerCase())) {
+    throw new Error('Invalid insider selection');
+  }
+
+  return requestedInsiderUuid;
 };
 
 function generatePaymentId(counteragentUuid: string, financialCodeUuid: string, salaryMonth: Date): string {
@@ -117,10 +134,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const insider = await getRequiredInsider();
     const formData = await request.formData();
     const month = formData.get('month');
     const file = formData.get('file');
+    const insiderUuid = await resolveUploadInsiderUuid(formData.get('insider_uuid') ?? formData.get('insiderUuid'));
     const updatedBy = String(formData.get('updated_by') || 'user');
 
     if (typeof month !== 'string' || !month.trim()) {
@@ -337,6 +354,7 @@ export async function POST(request: NextRequest) {
       const updateResult = await prisma.salary_accruals.updateMany({
         where: {
           salary_month: { gte: monthStart, lt: monthEnd },
+          insider_uuid: insiderUuid,
           counteragent_uuid: row.counteragentUuid,
           financial_code_uuid: row.financialCodeUuid,
           nominal_currency_uuid: row.currencyUuid,
@@ -359,7 +377,7 @@ export async function POST(request: NextRequest) {
 
       await prisma.salary_accruals.create({
         data: {
-          insider_uuid: insider.insiderUuid,
+          insider_uuid: insiderUuid,
           counteragent_uuid: row.counteragentUuid,
           financial_code_uuid: row.financialCodeUuid,
           nominal_currency_uuid: row.currencyUuid,
@@ -387,6 +405,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error uploading salary accruals period XLSX:', error);
+    if (error?.message === 'Invalid insider selection') {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json({ error: error.message || 'Failed to upload salary accruals XLSX' }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import * as XLSX from 'xlsx';
+import { getInsiderOptions } from '@/lib/insider-selection';
 
 const prisma = new PrismaClient();
 
@@ -46,12 +47,26 @@ const parseMonth = (value: string) => {
   return parsed;
 };
 
+const resolveOptionalInsiderUuid = async (rawValue: unknown): Promise<string | null> => {
+  const requestedInsiderUuid = String(rawValue ?? '').trim();
+  if (!requestedInsiderUuid) return null;
+
+  const options = await getInsiderOptions();
+  const optionSet = new Set(options.map((option) => option.insiderUuid.toLowerCase()));
+  if (!optionSet.has(requestedInsiderUuid.toLowerCase())) {
+    throw new Error('Invalid insider selection');
+  }
+
+  return requestedInsiderUuid;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
     const month = formData.get('month');
     const action = formData.get('action');
+    const insiderUuid = await resolveOptionalInsiderUuid(formData.get('insider_uuid') ?? formData.get('insiderUuid'));
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'Missing XLSX file' }, { status: 400 });
@@ -181,6 +196,7 @@ export async function POST(request: NextRequest) {
       where: {
         salary_month: { gte: monthStart, lt: monthEnd },
         counteragent_uuid: { in: matchedUuids },
+        ...(insiderUuid ? { insider_uuid: insiderUuid } : {}),
       },
       select: {
         id: true,
@@ -275,6 +291,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error uploading TBC insurance:', error);
+    if (error?.message === 'Invalid insider selection') {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

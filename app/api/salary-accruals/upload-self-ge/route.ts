@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import { getRequiredInsider } from '@/lib/required-insider';
+import { getInsiderOptions } from '@/lib/insider-selection';
 
 const prisma = new PrismaClient();
 
@@ -42,6 +43,19 @@ const parseMonth = (value: string) => {
     return new Date(`${trimmed}T00:00:00`);
   }
   return new Date(trimmed);
+};
+
+const resolveOptionalInsiderUuid = async (rawValue: unknown): Promise<string | null> => {
+  const requestedInsiderUuid = String(rawValue ?? '').trim();
+  if (!requestedInsiderUuid) return null;
+
+  const options = await getInsiderOptions();
+  const optionSet = new Set(options.map((option) => option.insiderUuid.toLowerCase()));
+  if (!optionSet.has(requestedInsiderUuid.toLowerCase())) {
+    throw new Error('Invalid insider selection');
+  }
+
+  return requestedInsiderUuid;
 };
 
 type ParsedSelfGeEmployee = {
@@ -168,6 +182,7 @@ const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 1
 const handlePreview = async (formData: FormData) => {
   const file = formData.get('file');
   const month = formData.get('month');
+  const insiderUuid = await resolveOptionalInsiderUuid(formData.get('insider_uuid') ?? formData.get('insiderUuid'));
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'Missing XLS/XLSX file' }, { status: 400 });
@@ -223,6 +238,10 @@ const handlePreview = async (formData: FormData) => {
     });
   }
 
+  const insiderFilterSql = insiderUuid
+    ? Prisma.sql` AND sa.insider_uuid = ${insiderUuid}::uuid`
+    : Prisma.empty;
+
   const salaryRows = await prisma.$queryRaw<any[]>`
     SELECT
       sa.id,
@@ -235,6 +254,7 @@ const handlePreview = async (formData: FormData) => {
     FROM salary_accruals sa
     LEFT JOIN counteragents c ON sa.counteragent_uuid = c.counteragent_uuid
     WHERE sa.salary_month >= ${monthStart} AND sa.salary_month < ${monthEnd}
+    ${insiderFilterSql}
   `;
 
   const salaryById = new Map<string, {
@@ -461,7 +481,8 @@ const handleCreateSingleCounteragent = async (body: any) => {
 };
 
 const handleAddToSalary = async (body: any) => {
-  const insider = await getRequiredInsider();
+  const requestedInsiderUuid = await resolveOptionalInsiderUuid(body?.insider_uuid ?? body?.insiderUuid);
+  const insiderUuid = requestedInsiderUuid || (await getRequiredInsider()).insiderUuid;
   const counteragentUuid = body?.counteragent_uuid;
   const financialCodeUuid = body?.financial_code_uuid;
   const month = body?.month;
@@ -506,7 +527,7 @@ const handleAddToSalary = async (body: any) => {
 
   const accrual = await prisma.salary_accruals.create({
     data: {
-      insider_uuid: insider.insiderUuid,
+      insider_uuid: insiderUuid,
       counteragent_uuid: counteragentUuid,
       financial_code_uuid: financialCodeUuid,
       nominal_currency_uuid: currencyUuid,
@@ -590,6 +611,9 @@ export async function POST(request: NextRequest) {
     return handlePreview(formData);
   } catch (error: any) {
     console.error('Error in upload-self-ge:', error);
+    if (error?.message === 'Invalid insider selection') {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }

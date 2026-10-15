@@ -31,7 +31,6 @@ import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
-import { useRequiredInsiderName } from './shared/use-required-insider';
 import type { ColumnFormat } from './shared/table-filters';
 import { useTableFilters } from './shared/use-table-filters';
 import {
@@ -178,7 +177,7 @@ type SelfGeCompareResult = {
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent_name', label: 'Employee', visible: true, sortable: true, filterable: true, width: 200 },
-  { key: 'insiderName', label: 'Insider', visible: true, sortable: false, filterable: false, width: 180 },
+  { key: 'insiderName', label: 'Insider', visible: true, sortable: false, filterable: true, width: 180 },
   { key: 'department', label: 'Department', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'job_title', label: 'Job Title', visible: true, sortable: true, filterable: true, width: 160 },
   { key: 'sex', label: 'Sex', visible: true, sortable: true, filterable: true, width: 90 },
@@ -201,7 +200,6 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export function SalaryAccrualsTable() {
-  const requiredInsiderName = useRequiredInsiderName();
   const [data, setData] = useState<SalaryAccrual[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -264,6 +262,7 @@ export function SalaryAccrualsTable() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadMonth, setUploadMonth] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadInsiderUuid, setUploadInsiderUuid] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSalaryUploadDialogOpen, setIsSalaryUploadDialogOpen] = useState(false);
   const [salaryUploadMonth, setSalaryUploadMonth] = useState('');
@@ -288,6 +287,10 @@ export function SalaryAccrualsTable() {
   const [uploadSummary, setUploadSummary] = useState<any | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isAssignInsiderOpen, setIsAssignInsiderOpen] = useState(false);
+  const [isAssigningInsider, setIsAssigningInsider] = useState(false);
+  const [assignInsiderError, setAssignInsiderError] = useState<string | null>(null);
+  const [bulkInsiderUuid, setBulkInsiderUuid] = useState('');
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [copySourceAccrual, setCopySourceAccrual] = useState<SalaryAccrual | null>(null);
   const [copySelectedMonths, setCopySelectedMonths] = useState<Set<string>>(new Set());
@@ -311,12 +314,19 @@ export function SalaryAccrualsTable() {
   const [insidersList, setInsidersList] = useState<Array<{ value: string; label: string }>>([]);
   const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
 
-  const isInsiderFixed = selectedInsiderUuids.length === 1;
+  const isInsiderFixed = insidersList.length === 1;
   const fixedInsider = useMemo(() => {
     if (!isInsiderFixed) return null;
-    const fixedUuid = selectedInsiderUuids[0];
-    return insidersList.find((insider) => insider.value === fixedUuid) ?? null;
-  }, [isInsiderFixed, insidersList, selectedInsiderUuids]);
+    return insidersList[0] ?? null;
+  }, [isInsiderFixed, insidersList]);
+  const insiderNameByUuid = useMemo(() => {
+    const map = new Map<string, string>();
+    insidersList.forEach((insider) => {
+      if (!insider.value) return;
+      map.set(insider.value, insider.label);
+    });
+    return map;
+  }, [insidersList]);
 
 
 
@@ -333,9 +343,10 @@ export function SalaryAccrualsTable() {
         const updatedSavedColumns = validSavedColumns.map(savedCol => {
           const defaultCol = defaultColumnsMap.get(savedCol.key);
           if (defaultCol) {
+            const isInsiderColumn = savedCol.key === 'insiderName';
             return {
               ...defaultCol,
-              visible: savedCol.visible,
+              visible: isInsiderColumn ? true : savedCol.visible,
               width: savedCol.width
             };
           }
@@ -382,6 +393,8 @@ export function SalaryAccrualsTable() {
   useEffect(() => {
     if (!isInsiderFixed || !fixedInsider?.value) return;
     setSelectedInsiderUuid(fixedInsider.value);
+    setBulkInsiderUuid(fixedInsider.value);
+    setUploadInsiderUuid(fixedInsider.value);
   }, [isInsiderFixed, fixedInsider?.value]);
 
   useEffect(() => {
@@ -511,8 +524,8 @@ export function SalaryAccrualsTable() {
   };
 
   const handleUploadTbcInsurance = async (action: 'preview' | 'apply') => {
-    if (!uploadMonth || !uploadFile) {
-      alert('Please select a month and choose an XLSX file.');
+    if (!uploadMonth || !uploadFile || !uploadInsiderUuid) {
+      alert('Please select insider, month, and choose an XLSX file.');
       return;
     }
 
@@ -522,6 +535,7 @@ export function SalaryAccrualsTable() {
       formData.append('month', uploadMonth);
       formData.append('action', action);
       formData.append('file', uploadFile);
+      formData.append('insider_uuid', uploadInsiderUuid);
 
       const response = await fetch('/api/salary-accruals/upload-tbc-insurance', {
         method: 'POST',
@@ -580,8 +594,8 @@ export function SalaryAccrualsTable() {
   };
 
   const handleSalaryPeriodUpload = async () => {
-    if (!salaryUploadMonth || !salaryUploadFile) {
-      alert('Please select a period and choose an XLSX file.');
+    if (!salaryUploadMonth || !salaryUploadFile || !uploadInsiderUuid) {
+      alert('Please select insider, period, and choose an XLSX file.');
       return;
     }
 
@@ -590,6 +604,7 @@ export function SalaryAccrualsTable() {
       const formData = new FormData();
       formData.append('month', salaryUploadMonth);
       formData.append('file', salaryUploadFile);
+      formData.append('insider_uuid', uploadInsiderUuid);
       formData.append('updated_by', 'user');
 
       const response = await fetch('/api/salary-accruals/upload-period', {
@@ -618,8 +633,8 @@ export function SalaryAccrualsTable() {
   };
 
   const handleSelfGePreview = async () => {
-    if (!selfGeMonth || !selfGeFile) {
-      alert('Please select a period and choose a Self.ge XLS/XLSX file.');
+    if (!selfGeMonth || !selfGeFile || !uploadInsiderUuid) {
+      alert('Please select insider, period, and choose a Self.ge XLS/XLSX file.');
       return;
     }
 
@@ -629,6 +644,7 @@ export function SalaryAccrualsTable() {
       formData.append('month', selfGeMonth);
       formData.append('action', 'preview');
       formData.append('file', selfGeFile);
+      formData.append('insider_uuid', uploadInsiderUuid);
 
       const response = await fetch('/api/salary-accruals/upload-self-ge', {
         method: 'POST',
@@ -1247,6 +1263,10 @@ export function SalaryAccrualsTable() {
     if (columnKey === 'cumulative_accrual') return row.cumulative_accrual ?? 0;
     if (columnKey === 'cumulative_payment') return row.cumulative_payment ?? 0;
     if (columnKey === 'cumulative_balance') return row.cumulative_balance ?? 0;
+    if (columnKey === 'insiderName') {
+      const insiderUuid = String(row.insider_uuid || '').trim();
+      return insiderNameByUuid.get(insiderUuid) || row.insiderName || insiderUuid || '-';
+    }
     return row[columnKey];
   };
 
@@ -1419,7 +1439,7 @@ export function SalaryAccrualsTable() {
       const selectedUuids = Array.isArray(data?.selectedUuids) ? data.selectedUuids : [];
       const selectedInsiders = Array.isArray(data?.selectedInsiders) ? data.selectedInsiders : [];
       const options = Array.isArray(data?.options) ? data.options : [];
-      const availableInsidersRaw = selectedInsiders.length > 0 ? selectedInsiders : options;
+      const availableInsidersRaw = options.length > 0 ? options : selectedInsiders;
       const availableInsiders = availableInsidersRaw.map((option: any) => ({
         value: option.insiderUuid,
         label: option.insiderName,
@@ -1434,6 +1454,18 @@ export function SalaryAccrualsTable() {
         setSelectedInsiderUuid((prev) => prev || selectedUuids[0]);
       } else if (availableInsiders.length > 0) {
         setSelectedInsiderUuid((prev) => prev || availableInsiders[0].value);
+      }
+
+      if (selectedUuids.length > 0) {
+        setBulkInsiderUuid((prev) => prev || selectedUuids[0]);
+      } else if (availableInsiders.length > 0) {
+        setBulkInsiderUuid((prev) => prev || availableInsiders[0].value);
+      }
+
+      if (selectedUuids.length > 0) {
+        setUploadInsiderUuid((prev) => prev || selectedUuids[0]);
+      } else if (availableInsiders.length > 0) {
+        setUploadInsiderUuid((prev) => prev || availableInsiders[0].value);
       }
     } catch (error) {
       console.error('Error fetching insider selection:', error);
@@ -1527,6 +1559,11 @@ export function SalaryAccrualsTable() {
         ...result,
         id: result.id?.toString?.() || editingId || result.id,
         counteragent_uuid: selectedEmployee,
+        insider_uuid: result.insider_uuid || selectedInsiderUuid || existing?.insider_uuid || null,
+        insiderName:
+          insiderNameByUuid.get(result.insider_uuid || selectedInsiderUuid || '')
+          || existing?.insiderName
+          || null,
         financial_code_uuid: selectedFinancialCode,
         nominal_currency_uuid: selectedCurrency,
         counteragent_name: employeeLabel || existing?.counteragent_name || 'Unknown',
@@ -1601,6 +1638,50 @@ export function SalaryAccrualsTable() {
     } catch (error: any) {
       console.error('Error saving salary accrual:', error);
       alert(error.message || 'Failed to save salary accrual');
+    }
+  };
+
+  const handleAssignInsiderToSelected = async () => {
+    if (selectedIds.size === 0) return;
+    const persistedIds = Array.from(selectedIds).filter((id) => /^\d+$/.test(String(id)));
+    if (persistedIds.length === 0) {
+      setAssignInsiderError('Select at least one saved (non-projected) accrual row.');
+      return;
+    }
+    const targetInsiderUuid = String(bulkInsiderUuid || '').trim();
+    if (!targetInsiderUuid) {
+      setAssignInsiderError('Please select an insider.');
+      return;
+    }
+
+    setIsAssigningInsider(true);
+    setAssignInsiderError(null);
+    try {
+      const response = await fetch('/api/salary-accruals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'assign-insider',
+          ids: persistedIds,
+          insider_uuid: targetInsiderUuid,
+          insiderUuid: targetInsiderUuid,
+          updated_by: 'user',
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to assign insider.');
+      }
+
+      setIsAssignInsiderOpen(false);
+      setSelectedIds(new Set());
+      await fetchData({ showLoading: false });
+    } catch (error: any) {
+      console.error('Error assigning insider:', error);
+      setAssignInsiderError(error.message || 'Failed to assign insider.');
+    } finally {
+      setIsAssigningInsider(false);
     }
   };
 
@@ -1707,6 +1788,7 @@ export function SalaryAccrualsTable() {
   };
 
   const handleToggleColumn = (columnKey: string) => {
+    if (columnKey === 'insiderName') return;
     setColumns(prev => 
       prev.map(col => 
         col.key === columnKey ? { ...col, visible: !col.visible } : col
@@ -1968,6 +2050,59 @@ export function SalaryAccrualsTable() {
                 className="h-7 w-20 text-sm"
               />
             </div>
+            {selectedIds.size > 0 && insidersList.length > 1 && (
+              <Dialog
+                open={isAssignInsiderOpen}
+                onOpenChange={(open) => {
+                  setIsAssignInsiderOpen(open);
+                  if (!open) {
+                    setAssignInsiderError(null);
+                    return;
+                  }
+
+                  const selectedRows = sortedAccruals.filter((row) => selectedIds.has(row.id));
+                  const uniqueInsiders = Array.from(
+                    new Set(selectedRows.map((row) => String(row.insider_uuid || '').trim()).filter(Boolean))
+                  );
+                  if (uniqueInsiders.length === 1) {
+                    setBulkInsiderUuid(uniqueInsiders[0]);
+                  } else {
+                    setBulkInsiderUuid((prev) => prev || selectedInsiderUuid || selectedInsiderUuids[0] || insidersList[0]?.value || '');
+                  }
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline">Assign Insider ({selectedIds.size})</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Assign Insider To Selected Accruals</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-600">Selected rows: {selectedIds.size}</div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="bulk-insider">Target insider</Label>
+                      <Combobox
+                        options={insidersList}
+                        value={bulkInsiderUuid}
+                        onValueChange={setBulkInsiderUuid}
+                        placeholder="Select insider..."
+                        searchPlaceholder="Search insiders..."
+                      />
+                    </div>
+                    {assignInsiderError && <div className="text-sm text-red-600">{assignInsiderError}</div>}
+                    <div className="flex gap-3 pt-1">
+                      <Button onClick={handleAssignInsiderToSelected} disabled={isAssigningInsider} className="flex-1">
+                        {isAssigningInsider ? 'Assigning...' : 'Assign'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsAssignInsiderOpen(false)} className="flex-1">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
             {selectedIds.size > 0 && (
               <Button variant="outline" onClick={handleDownloadBankXlsx} disabled={hasUnconfirmedSelected}>
                 Bank XLSX
@@ -2140,6 +2275,21 @@ export function SalaryAccrualsTable() {
                 </DialogHeader>
                 <div className="grid gap-4 py-2">
                   <div className="grid gap-2">
+                    <Label htmlFor="salaryUploadInsider">Insider</Label>
+                    <Combobox
+                      options={insidersList}
+                      value={uploadInsiderUuid}
+                      onValueChange={setUploadInsiderUuid}
+                      placeholder="Select insider..."
+                      searchPlaceholder="Search insiders..."
+                      disabled={isInsiderFixed}
+                      triggerClassName={isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
+                    />
+                    {isInsiderFixed && fixedInsider?.label && (
+                      <p className="text-xs text-muted-foreground">Fixed by homepage selection: {fixedInsider.label}</p>
+                    )}
+                  </div>
+                  <div className="grid gap-2">
                     <Label htmlFor="salaryPeriodMonth">Period</Label>
                     <Input
                       id="salaryPeriodMonth"
@@ -2179,6 +2329,21 @@ export function SalaryAccrualsTable() {
                   <DialogTitle>Upload Self.ge Salary File</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="selfGeUploadInsider">Insider</Label>
+                    <Combobox
+                      options={insidersList}
+                      value={uploadInsiderUuid}
+                      onValueChange={setUploadInsiderUuid}
+                      placeholder="Select insider..."
+                      searchPlaceholder="Search insiders..."
+                      disabled={isInsiderFixed}
+                      triggerClassName={isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
+                    />
+                    {isInsiderFixed && fixedInsider?.label && (
+                      <p className="text-xs text-muted-foreground">Fixed by homepage selection: {fixedInsider.label}</p>
+                    )}
+                  </div>
                   <div className="grid gap-2">
                     <Label htmlFor="selfGeMonth">Period</Label>
                     <Input
@@ -2705,6 +2870,7 @@ export function SalaryAccrualsTable() {
                       <Checkbox
                         id={col.key}
                         checked={col.visible}
+                        disabled={col.key === 'insiderName'}
                         onCheckedChange={() => handleToggleColumn(col.key)}
                       />
                       <label htmlFor={col.key} className="text-sm cursor-pointer">
@@ -2731,6 +2897,21 @@ export function SalaryAccrualsTable() {
                   <DialogTitle>Upload TBC Insurance</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="tbcUploadInsider">Insider</Label>
+                    <Combobox
+                      options={insidersList}
+                      value={uploadInsiderUuid}
+                      onValueChange={setUploadInsiderUuid}
+                      placeholder="Select insider..."
+                      searchPlaceholder="Search insiders..."
+                      disabled={isInsiderFixed}
+                      triggerClassName={isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
+                    />
+                    {isInsiderFixed && fixedInsider?.label && (
+                      <p className="text-xs text-muted-foreground">Fixed by homepage selection: {fixedInsider.label}</p>
+                    )}
+                  </div>
                   <div className="grid gap-2">
                     <Label htmlFor="tbcMonth">Month</Label>
                     <Input
@@ -3133,7 +3314,7 @@ export function SalaryAccrualsTable() {
                             </a>
                           </div>
                         ) : col.key === 'insiderName' ? (
-                          <div className="truncate">{requiredInsiderName || '-'}</div>
+                          <div className="truncate">{String(getRowValue(accrual, 'insiderName') || '-')}</div>
                         ) : (
                           <div className="truncate">
                             {formatValue(accrual[col.key], col.format)}

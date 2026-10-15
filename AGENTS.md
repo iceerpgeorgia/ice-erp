@@ -255,6 +255,15 @@ Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/in
 - `POST /api/insider-selection` validates UUIDs against current insider options, stores the effective list in DB (when authenticated), and refreshes the cookie.
 - This keeps insider-driven views (including Conversions and other insider-filtered APIs) stable across deployments even if browser cookie/domain context changes.
 
+### Salary Accrual Insider Assignment
+- The salary accrual table (`components/figma/salary-accruals-table.tsx`) uses the full insider options list (`/api/insider-selection` `options`) for assignment controls, not only the currently selected insider filter.
+- Bulk reassignment is supported via `POST /api/salary-accruals` with `{ action: 'assign-insider', ids, insiderUuid }`.
+- Bulk reassignment is scope-safe: API updates only rows whose current `insider_uuid` is within the active `resolveInsiderSelection(request).selectedUuids` set.
+- Projected (non-persisted) salary rows are not assignable; only numeric persisted accrual IDs are sent to the bulk-assign API.
+- Insider names are returned by `/api/salary-accruals` via join on `salary_accruals.insider_uuid`, and the Salary Accruals table keeps the Insider column always visible (non-toggleable in column settings).
+- All salary Excel upload dialogs (Salary Period, Self.ge, TBC Insurance) require/select an insider and send `insider_uuid` to their APIs; upload routes scope preview/update/create operations by that insider when provided.
+- The Insider column in Salary Accruals is filterable via column filters.
+
 ### VAT Lock Rule
 `vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:
 - **CREATE**: `vat` is stored from the live API response.
