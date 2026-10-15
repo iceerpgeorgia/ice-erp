@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-10-15 Deployment #419 (Feature: Insider-Aware Salary Uploads + Insider Filtering)
+- Commit: 82113c2 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-itqeivap1-iceerp.vercel.app
+- Summary: Added insider selection to all salary Excel upload dialogs and APIs, and enabled Insider column filtering in Salary Accruals.
+- Changes:
+  - [components/figma/salary-accruals-table.tsx](components/figma/salary-accruals-table.tsx): Added Insider selector to Salary Period, Self.ge, and TBC Insurance upload dialogs; upload handlers now require and send insider_uuid; Insider column marked filterable.
+  - [app/api/salary-accruals/upload-period/route.ts](app/api/salary-accruals/upload-period/route.ts): Added insider_uuid validation and insider-scoped update/create behavior for period uploads.
+  - [app/api/salary-accruals/upload-self-ge/route.ts](app/api/salary-accruals/upload-self-ge/route.ts): Added insider_uuid validation, insider-scoped preview filtering, and insider-aware add-to-salary creation.
+  - [app/api/salary-accruals/upload-tbc-insurance/route.ts](app/api/salary-accruals/upload-tbc-insurance/route.ts): Added insider_uuid validation and insider-scoped accrual matching for preview/apply.
+  - [AGENTS.md](AGENTS.md): Updated Salary Accrual Insider Assignment rules with upload-insider and Insider-filter behavior.
+- Status: ✅ Live
+
 ## 2026-09-30 Deployment #418 (Fix: Feature Dialog Empty State Resilience)
 - Commit: c29a14d (deploy/2026-06-16-emission-insider)
 - Production: https://ice-6nkfuebw7-iceerp.vercel.app
