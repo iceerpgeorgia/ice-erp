@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin, isAuthError } from '@/lib/auth-guard';
 
 export const revalidate = 0;
 
 export async function GET() {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
   try {
     // Simple count query
     const total = await prisma.attachments.count();

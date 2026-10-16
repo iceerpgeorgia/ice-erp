@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 export const revalidate = 0;
 
@@ -8,6 +9,8 @@ export const revalidate = 0;
  * For debugging production issues
  */
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     console.log('[Attachments Simple] Request received');
     

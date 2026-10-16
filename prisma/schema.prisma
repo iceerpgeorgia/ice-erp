@@ -829,7 +829,7 @@ model salary_accruals {
   confirmed             Boolean  @default(false)
   insider_uuid          String   @db.Uuid
 
-  @@unique([counteragent_uuid, financial_code_uuid, salary_month], name: "salary_accruals_ca_fc_month_unique", map: "salary_accruals_ca_fc_month_unique")
+  @@unique([counteragent_uuid, financial_code_uuid, salary_month, insider_uuid], name: "salary_accruals_ca_fc_month_insider_unique", map: "salary_accruals_ca_fc_month_insider_unique")
   @@index([counteragent_uuid], map: "idx_salary_accruals_counteragent")
   @@index([nominal_currency_uuid], map: "idx_salary_accruals_currency")
   @@index([financial_code_uuid], map: "idx_salary_accruals_financial_code")

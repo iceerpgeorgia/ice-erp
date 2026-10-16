@@ -1227,7 +1227,9 @@ export function SalaryAccrualsTable() {
     const runningTotals = new Map<string, { accrual: number; payment: number }>();
 
     sortedForCumulative.forEach((row) => {
-      const groupKey = `${row.counteragent_uuid || ''}|${row.nominal_currency_uuid || ''}`;
+      // Scope cumulative running totals per insider so the same counteragent
+      // under different insiders is tracked separately.
+      const groupKey = `${row.insider_uuid || ''}|${row.counteragent_uuid || ''}|${row.nominal_currency_uuid || ''}`;
       const accrualValue = computeAccrualValue(row);
       const paidValue = getPaidValue(row);
       const previous = runningTotals.get(groupKey) || { accrual: 0, payment: 0 };

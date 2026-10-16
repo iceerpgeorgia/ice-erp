@@ -104,5 +104,7 @@ export const authOptions: NextAuthOptions = {
     signIn: '/auth/signin',
     error: '/auth/error',
   },
-  secret: process.env.NEXTAUTH_SECRET || 'dhFhx/XLIvdcZxDMszlcRnXLd5CHEGq0LVkLdbo4kis=',
+  // Secret must come from the environment. No hardcoded fallback — a committed
+  // secret lets anyone forge session JWTs. middleware.ts also enforces its presence.
+  secret: process.env.NEXTAUTH_SECRET,
 };

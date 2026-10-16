@@ -357,9 +357,9 @@ export async function POST(request: NextRequest) {
           insider_uuid: insiderUuid,
           counteragent_uuid: row.counteragentUuid,
           financial_code_uuid: row.financialCodeUuid,
-          nominal_currency_uuid: row.currencyUuid,
         },
         data: {
+          nominal_currency_uuid: row.currencyUuid,
           net_sum: row.netSum,
           surplus_insurance: row.surplusInsurance,
           deducted_insurance: row.deductedInsurance,

@@ -259,6 +259,7 @@ Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/in
 - The salary accrual table (`components/figma/salary-accruals-table.tsx`) uses the full insider options list (`/api/insider-selection` `options`) for assignment controls, not only the currently selected insider filter.
 - Bulk reassignment is supported via `POST /api/salary-accruals` with `{ action: 'assign-insider', ids, insiderUuid }`.
 - Bulk reassignment is scope-safe: API updates only rows whose current `insider_uuid` is within the active `resolveInsiderSelection(request).selectedUuids` set.
+- Salary accrual uniqueness is insider-scoped: database unique key is `(counteragent_uuid, financial_code_uuid, salary_month, insider_uuid)`, so the same employee/financial code/month combination is valid across different insiders.
 - Projected (non-persisted) salary rows are not assignable; only numeric persisted accrual IDs are sent to the bulk-assign API.
 - Insider names are returned by `/api/salary-accruals` via join on `salary_accruals.insider_uuid`, and the Salary Accruals table keeps the Insider column always visible (non-toggleable in column settings).
 - All salary Excel upload dialogs (Salary Period, Self.ge, TBC Insurance) require/select an insider and send `insider_uuid` to their APIs; upload routes scope preview/update/create operations by that insider when provided.

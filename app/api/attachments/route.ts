@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, withRetry } from '@/lib/prisma';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 export const revalidate = 0;
 
@@ -15,6 +16,8 @@ export const revalidate = 0;
  * - search: search in file names (optional)
  */
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     console.log('[Attachments API] Request received');
     const { searchParams } = new URL(request.url);

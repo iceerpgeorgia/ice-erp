@@ -67,6 +67,16 @@ const serializeInsuranceValues = (accrual: {
   };
 };
 
+const isSalaryAccrualUniqueConflict = (error: any): boolean => {
+  if (error?.code !== 'P2002') return false;
+  const target = Array.isArray(error?.meta?.target)
+    ? error.meta.target.map((value: unknown) => String(value))
+    : [];
+  if (!target.length) return false;
+  const required = ['counteragent_uuid', 'financial_code_uuid', 'salary_month'];
+  return required.every((field) => target.includes(field));
+};
+
 async function remapPaymentIdBindings(oldPaymentId: string, newPaymentId: string, sourceTables: string[]) {
   if (!oldPaymentId || !newPaymentId) return;
   if (oldPaymentId.trim().toLowerCase() === newPaymentId.trim().toLowerCase()) return;
@@ -495,17 +505,23 @@ export async function POST(request: NextRequest) {
       // Check if records already exist in the target month
       const targetEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
       const existingTargetCount = await prisma.salary_accruals.count({
-        where: { salary_month: { gte: targetDate, lt: targetEnd } },
+        where: {
+          salary_month: { gte: targetDate, lt: targetEnd },
+          insider_uuid: { in: insiderUuids },
+        },
       });
       if (existingTargetCount > 0) {
         return NextResponse.json(
-          { error: `Target month already has ${existingTargetCount} records. Delete them first before copying.` },
+          { error: `Target month already has ${existingTargetCount} records for selected insider scope. Delete them first before copying.` },
           { status: 409 }
         );
       }
 
       const baseRecords = await prisma.salary_accruals.findMany({
-        where: { salary_month: { gte: baseStart, lt: baseEnd } },
+        where: {
+          salary_month: { gte: baseStart, lt: baseEnd },
+          insider_uuid: { in: insiderUuids },
+        },
       });
       console.log('[copy-latest] Found', baseRecords.length, 'base records');
 
@@ -620,6 +636,7 @@ export async function POST(request: NextRequest) {
           where: {
             counteragent_uuid: sourceRecord.counteragent_uuid,
             financial_code_uuid: sourceRecord.financial_code_uuid,
+            insider_uuid: sourceRecord.insider_uuid,
             salary_month: { gte: monthStart, lt: monthEnd },
           },
         });
@@ -768,6 +785,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error creating salary accrual:', error);
+    if (isSalaryAccrualUniqueConflict(error)) {
+      return NextResponse.json(
+        {
+          error:
+            'Salary accrual already exists for this insider, counteragent, financial code, and month.',
+        },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -859,6 +885,15 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error updating salary accrual:', error);
+    if (isSalaryAccrualUniqueConflict(error)) {
+      return NextResponse.json(
+        {
+          error:
+            'Salary accrual already exists for this insider, counteragent, financial code, and month.',
+        },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

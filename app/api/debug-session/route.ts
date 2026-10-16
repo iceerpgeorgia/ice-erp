@@ -1,8 +1,11 @@
 import { getServerSession } from 'next-auth';
 import { authOptions, prisma } from '@/lib/auth';
 import { NextResponse } from 'next/server';
+import { requireAdmin, isAuthError } from '@/lib/auth-guard';
 
 export async function GET() {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
   try {
     const session = await getServerSession(authOptions);
     

@@ -30,6 +30,8 @@ function validatePayload(body: any) {
 }
 
 export async function GET() {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const rows = await withRetry(() => prisma.currencies.findMany({
       orderBy: { code: "asc" },
