@@ -1,5 +1,18 @@
 # Deployment Log
 
+## 2026-10-16 Deployment #420 (Fix: Insider-Scoped Salary Accrual Uniqueness + API Guarding)
+- Commit: e3dd67b (deploy/2026-06-16-emission-insider)
+- Production: https://ice-d2ljtvrc2-iceerp.vercel.app
+- Summary: Fixed production `P2002` collisions on salary accrual create by making uniqueness insider-scoped, and aligned salary copy/upload API behavior with the new key.
+- Changes:
+  - [prisma/schema.prisma](prisma/schema.prisma): Updated salary accrual unique key to include `insider_uuid` (`counteragent_uuid + financial_code_uuid + salary_month + insider_uuid`).
+  - [prisma/migrations/20261016122000_salary_accruals_unique_by_insider/migration.sql](prisma/migrations/20261016122000_salary_accruals_unique_by_insider/migration.sql): Replaced old 3-column unique index with insider-aware 4-column unique index.
+  - [app/api/salary-accruals/route.ts](app/api/salary-accruals/route.ts): Added insider-aware duplicate conflict handling (HTTP 409), scoped `copy-latest` existence/base-record checks by insider selection, and updated `copy-accrual` duplicate check to include insider.
+  - [app/api/salary-accruals/upload-period/route.ts](app/api/salary-accruals/upload-period/route.ts): Aligned update matching with insider-scoped uniqueness and kept currency updates in data payload.
+  - [AGENTS.md](AGENTS.md): Documented insider-scoped salary accrual uniqueness rule.
+- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), `pnpm build` (compiled successfully).
+- Status: ✅ Live
+
 ## 2026-10-15 Deployment #419 (Feature: Insider-Aware Salary Uploads + Insider Filtering)
 - Commit: 82113c2 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-itqeivap1-iceerp.vercel.app
