@@ -1,55 +1,15 @@
 # Deployment Log
 
-## 2026-10-16 Deployment #420 (Fix: Insider-Scoped Salary Accrual Uniqueness + API Guarding)
-- Commit: e3dd67b (deploy/2026-06-16-emission-insider)
-- Production: https://ice-d2ljtvrc2-iceerp.vercel.app
-- Summary: Fixed production `P2002` collisions on salary accrual create by making uniqueness insider-scoped, and aligned salary copy/upload API behavior with the new key.
+## 2026-10-22 Deployment #421 (Fix: Handovers Jobs Table Totals After Distribution Save)
+- Commit: 885aa59 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-1erf96e33-iceerp.vercel.app
+- Summary: Fixed batch transaction distributions not appearing in Handovers jobs table totals after save/clear operations. Root cause: parent jobs table was not refreshing after child JobDistributionGrid saved distributions. Implemented callback chain from JobDistributionGrid.onSave() → HandoverJobDistributionsGrid.onDistributionsSaved() → HandoversTable.fetchJobs() to trigger parent recalculation.
 - Changes:
-  - [prisma/schema.prisma](prisma/schema.prisma): Updated salary accrual unique key to include `insider_uuid` (`counteragent_uuid + financial_code_uuid + salary_month + insider_uuid`).
-  - [prisma/migrations/20261016122000_salary_accruals_unique_by_insider/migration.sql](prisma/migrations/20261016122000_salary_accruals_unique_by_insider/migration.sql): Replaced old 3-column unique index with insider-aware 4-column unique index.
-  - [app/api/salary-accruals/route.ts](app/api/salary-accruals/route.ts): Added insider-aware duplicate conflict handling (HTTP 409), scoped `copy-latest` existence/base-record checks by insider selection, and updated `copy-accrual` duplicate check to include insider.
-  - [app/api/salary-accruals/upload-period/route.ts](app/api/salary-accruals/upload-period/route.ts): Aligned update matching with insider-scoped uniqueness and kept currency updates in data payload.
-  - [AGENTS.md](AGENTS.md): Documented insider-scoped salary accrual uniqueness rule.
-- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), `pnpm build` (compiled successfully).
-- Status: ✅ Live
-
-## 2026-10-15 Deployment #419 (Feature: Insider-Aware Salary Uploads + Insider Filtering)
-- Commit: 82113c2 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-itqeivap1-iceerp.vercel.app
-- Summary: Added insider selection to all salary Excel upload dialogs and APIs, and enabled Insider column filtering in Salary Accruals.
-- Changes:
-  - [components/figma/salary-accruals-table.tsx](components/figma/salary-accruals-table.tsx): Added Insider selector to Salary Period, Self.ge, and TBC Insurance upload dialogs; upload handlers now require and send insider_uuid; Insider column marked filterable.
-  - [app/api/salary-accruals/upload-period/route.ts](app/api/salary-accruals/upload-period/route.ts): Added insider_uuid validation and insider-scoped update/create behavior for period uploads.
-  - [app/api/salary-accruals/upload-self-ge/route.ts](app/api/salary-accruals/upload-self-ge/route.ts): Added insider_uuid validation, insider-scoped preview filtering, and insider-aware add-to-salary creation.
-  - [app/api/salary-accruals/upload-tbc-insurance/route.ts](app/api/salary-accruals/upload-tbc-insurance/route.ts): Added insider_uuid validation and insider-scoped accrual matching for preview/apply.
-  - [AGENTS.md](AGENTS.md): Updated Salary Accrual Insider Assignment rules with upload-insider and Insider-filter behavior.
-- Status: ✅ Live
-
-## 2026-09-30 Deployment #418 (Fix: Feature Dialog Empty State Resilience)
-- Commit: c29a14d (deploy/2026-06-16-emission-insider)
-- Production: https://ice-6nkfuebw7-iceerp.vercel.app
-- Summary: Prevented Admin Users -> Features dialog from showing an empty module list after reseeding when records were previously deactivated. Seed flows are now self-healing and always reactivate modules/features.
-- Changes:
-  - [app/api/admin/seed-modules/route.ts](app/api/admin/seed-modules/route.ts): Upsert update path now sets `isActive: true` for `Module` and `ModuleFeature` rows.
-  - [scripts/seed-modules-and-features.ts](scripts/seed-modules-and-features.ts): Update path now sets `isActive: true` for modules and features.
-  - [AGENTS.md](AGENTS.md): Added "Module/Feature Seeding Activation Rule" documenting the invariant for `activeOnly=true` consumers.
-- Data remediation run: production records reactivated (`modulesUpdated=8`, `featuresUpdated=40`) before deploy so the checkbox list is visible immediately.
-- Status: ✅ Live
-
-## 2026-09-10 Deployment #417 (Feature: Admin Page User Management Enhancements)
-- Commit: 9ed6a22 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-ockt00f9w-iceerp.vercel.app
-- Summary: Enhanced Admin user management page with dynamic counteragent search, user edit capability, and feature-level permission system. Counteragent selector replaced with searchbox similar to ledger binding. Added Edit button for modifying user name and email. Converted modules button to grid of feature-level checkboxes organized by module. Added Payment Ledger Confirmation feature to Payments module as the first capability checkbox.
-- Changes:
-  - `components/figma/users-management-table.tsx`: Complete refactor of user management grid:
-    - Replace counteragent `<Select>` with `<Combobox>` for dynamic search with regex filtering
-    - Add Edit button (disabled for current user) with edit dialog for name and email
-    - Convert modules dialog from module-level toggles to feature-level checkboxes in grid layout
-    - Implement permission UUID mapping with Map<string, string> for proper type safety
-    - Add loading states and error handling for all operations
-  - `scripts/seed-modules-and-features.ts`: Add "Confirm Ledger Entries" feature to Payments module with key `confirm_ledger_entries`
-  - `app/api/admin/seed-modules/route.ts`: Add same feature to API seed endpoint for Vercel deployment compatibility
-  - Fixed TypeScript type issues with Map value handling and const assertions for proper type narrowing
+  - `components/figma/job-distribution-grid.tsx`: Removed duplicate onSave() callback invocations in handleSave() and handleClear(). Now single onSave callback triggers once per operation.
+  - `components/figma/handover-job-distributions-grid.tsx`: Added optional `onDistributionsSaved` callback prop. Invoked in handleSave after distribution fetch completes, alongside fetchData().
+  - `components/figma/handovers-table.tsx`: Wired onDistributionsSaved callback to HandoverJobDistributionsGrid, passes `fetchJobs(selectedProjectUuid, currency)` to trigger parent totals recalculation (Paid Nominal, Paid GEL, Debit GEL, Total GEL columns).
+  - `AGENTS.md`: Updated Handovers architecture notes on callback wiring and refresh guarantees.
+- Example: Batch BTC_DEBEAD_EB_12BB48 (project 808bf640-8295-46a9-a083-c43472345717) with 2 partitions and 16 job distributions now correctly updates totals immediately on save without page reload.
 - Status: ✅ Live
 
 ## 2026-09-10 Deployment #416 (Feature: Inspection Interim Report as Lift Cert Alternative)
