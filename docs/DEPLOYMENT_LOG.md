@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-10-22 Deployment #422 (Fix: Batch Transactions Excluded from Jobs Table Totals)
+- Commit: b7d9d37 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-5b4abpos9-iceerp.vercel.app
+- Summary: Fixed jobs table totals not including batch transaction distributions. Root cause: jobs table `fetchJobs` was filtering bank transactions using `row.project_uuid` directly, but batch transactions have `batch_project_uuid` set with `project_uuid` NULL. Applied COALESCE pattern used in bottom grid: `(row.batch_project_uuid || row.project_uuid) === projectUuid`. This ensures batch transactions are included in Paid Nominal, Paid GEL, Debit GEL, and Total GEL calculations.
+- Changes:
+  - `components/figma/handovers-table.tsx`: Line 547 changed to use `const effectiveProjectUuid = row.batch_project_uuid || row.project_uuid;` before project UUID comparison
+  - Comment updated to clarify COALESCE pattern is applied (matching bottom grid behavior)
+- Example: Batch BTC_DEBEAD_EB_12BB48 (project 808bf640-8295-46a9-a083-c43472345717) distributions now correctly contribute to jobs table totals.
+- Impact: Jobs showing correct Paid and Debit amounts after distribution save; batch transactions no longer filtered out due to NULL project_uuid.
+- Status: ✅ Live
+
 ## 2026-10-22 Deployment #421 (Fix: Handovers Jobs Table Totals After Distribution Save)
 - Commit: 885aa59 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-1erf96e33-iceerp.vercel.app
