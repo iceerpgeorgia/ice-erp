@@ -543,8 +543,9 @@ export function HandoversTable() {
           : [];
 
         bankTxRows.forEach((row: any) => {
-          // Apply same filters as bottom grid: project, not balance, has payment_id, is income
-          if (row.project_uuid !== projectUuid || row.is_balance_record || !row.payment_id) return;
+          // Apply same filters as bottom grid: project (COALESCE batch_project_uuid || project_uuid), not balance, has payment_id, is income
+          const effectiveProjectUuid = row.batch_project_uuid || row.project_uuid;
+          if (effectiveProjectUuid !== projectUuid || row.is_balance_record || !row.payment_id) return;
           if (!incomePaymentIds.has(String(row.payment_id))) return;
 
           // Find distributions for this bank transaction
