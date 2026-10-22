@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-10-22 Deployment #423 (Fix: Jobs Table Totals — Direct Distribution Aggregation)
+- Commit: 50dfe65 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-aphaw0502-iceerp.vercel.app
+- Summary: Fixed root cause of jobs table showing wrong Paid Nominal / Paid GEL / Total GEL. The previous approach stored distributions in a bank-transaction-keyed map (`batch:UUID` / `raw:UUID`) and only counted them when a matching bank transaction was returned by the project-filtered bank-tx API. This silently dropped all distributions whose underlying bank transaction had a different or null `project_uuid` on the raw table. Fixed by directly aggregating `paidNominalByJob` and `paidGelByJob` from income distributions by `job_uuid` — the `incomePaymentIds` filter already scopes to this project's income payments. Also removed the unnecessary `/api/bank-transactions` fetch from the jobs loading `Promise.all`, saving one network request.
+- DB evidence: Project 808bf640 (Chkondideli Repair 21 UNITS, USD), 21 jobs, 92 income distributions (58 batch + 34 non-batch), total paid nominal = 908,780 USD, total account_curr = 2,457,608 GEL. Expected debit nominal = 175,340 USD (1,084,120 − 908,780). Previous totals were wrong because most distributions were never counted.
+- Changes:
+  - `components/figma/handovers-table.tsx`: Replaced bank-transaction-matching loop with direct `distData.forEach()` aggregation by `job_uuid`. Removed `bankTxRes` from `Promise.all`, removed `distributionsByBankTx` and `unmappedDistributions` maps (−75 lines).
+- Status: ✅ Live
+
 ## 2026-10-22 Deployment #422 (Fix: Batch Transactions Excluded from Jobs Table Totals)
 - Commit: b7d9d37 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-5b4abpos9-iceerp.vercel.app
