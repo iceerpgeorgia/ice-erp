@@ -1650,7 +1650,13 @@ export function HandoversTable() {
               </button>
             </div>
           )}>
-            <HandoverJobDistributionsGrid ref={distributionsGridRef} projectUuid={selectedProjectUuid} />
+            <HandoverJobDistributionsGrid
+              ref={distributionsGridRef}
+              projectUuid={selectedProjectUuid}
+              onDistributionsSaved={() => {
+                fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null);
+              }}
+            />
           </ErrorBoundary>
         </div>
       )}

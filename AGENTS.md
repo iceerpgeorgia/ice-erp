@@ -255,16 +255,6 @@ Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/in
 - `POST /api/insider-selection` validates UUIDs against current insider options, stores the effective list in DB (when authenticated), and refreshes the cookie.
 - This keeps insider-driven views (including Conversions and other insider-filtered APIs) stable across deployments even if browser cookie/domain context changes.
 
-### Salary Accrual Insider Assignment
-- The salary accrual table (`components/figma/salary-accruals-table.tsx`) uses the full insider options list (`/api/insider-selection` `options`) for assignment controls, not only the currently selected insider filter.
-- Bulk reassignment is supported via `POST /api/salary-accruals` with `{ action: 'assign-insider', ids, insiderUuid }`.
-- Bulk reassignment is scope-safe: API updates only rows whose current `insider_uuid` is within the active `resolveInsiderSelection(request).selectedUuids` set.
-- Salary accrual uniqueness is insider-scoped: database unique key is `(counteragent_uuid, financial_code_uuid, salary_month, insider_uuid)`, so the same employee/financial code/month combination is valid across different insiders.
-- Projected (non-persisted) salary rows are not assignable; only numeric persisted accrual IDs are sent to the bulk-assign API.
-- Insider names are returned by `/api/salary-accruals` via join on `salary_accruals.insider_uuid`, and the Salary Accruals table keeps the Insider column always visible (non-toggleable in column settings).
-- All salary Excel upload dialogs (Salary Period, Self.ge, TBC Insurance) require/select an insider and send `insider_uuid` to their APIs; upload routes scope preview/update/create operations by that insider when provided.
-- The Insider column in Salary Accruals is filterable via column filters.
-
 ### VAT Lock Rule
 `vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:
 - **CREATE**: `vat` is stored from the live API response.
@@ -521,12 +511,6 @@ When a payment is created or updated with both `jobUuid` and `projectUuid`, the 
 
 ### Rationale
 Previously, payments could reference a `jobUuid` and `projectUuid` combination without the job being bound to that project in `job_projects`. This caused jobs to not render in Handovers even though they were allocated there. Now, the binding is automatically maintained whenever a payment references both.
-
-## Module/Feature Seeding Activation Rule
-
-- `GET /api/modules?activeOnly=true` is used by Admin user feature dialogs and returns only active modules/features.
-- Seeding must be **self-healing**: both seed paths (`scripts/seed-modules-and-features.ts` and `POST /api/admin/seed-modules`) must set `isActive=true` on update as well as create.
-- Rationale: if modules/features were previously deactivated, reseeding must reactivate them so Admin feature checkboxes do not disappear with "No modules/features available".
 
 ## Global Date Normalization Rules (Ledger/Statement)
 

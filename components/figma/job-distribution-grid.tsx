@@ -434,7 +434,6 @@ export function JobDistributionGrid({
       setSaving(false);
       setIsOpen(false);
       if (onSave) onSave();
-      if (onSave) onSave();
     } catch (error: any) {
       console.error('Save error:', error);
       alert(error.message || 'Failed to save job distribution');
@@ -472,7 +471,6 @@ export function JobDistributionGrid({
       onChange(cleared);
       setSaving(false);
       setIsOpen(false);
-      if (onSave) onSave();
       if (onSave) onSave();
     } catch (error: any) {
       console.error('Clear error:', error);

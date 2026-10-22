@@ -80,6 +80,7 @@ type PaymentMapEntry = PaymentLookupEntry;
 
 type Props = {
   projectUuid: string;
+  onDistributionsSaved?: () => void;
 };
 
 export type HandoverJobDistributionsGridHandle = {
@@ -286,7 +287,7 @@ function buildDistributionExportRows(
   return exportRows;
 }
 
-export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsGridHandle, Props>(function HandoverJobDistributionsGrid({ projectUuid }, ref) {
+export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsGridHandle, Props>(function HandoverJobDistributionsGrid({ projectUuid, onDistributionsSaved }, ref) {
   // ── Data ──────────────────────────────────────────────────────────────────
   const [transactions, setTransactions] = useState<BankTransactionRow[]>([]);
   const [paymentMap, setPaymentMap] = useState<Map<string, PaymentMapEntry>>(new Map());
@@ -911,7 +912,10 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
                                 financialCodeUuid={paymentFinancialCodeUuid}
                                 value={distributionValue}
                                 onChange={() => {}}
-                                onSave={fetchData}
+                                onSave={() => {
+                                  fetchData();
+                                  if (onDistributionsSaved) onDistributionsSaved();
+                                }}
                               />
                             ) : null}
                           </td>
