@@ -477,6 +477,12 @@ Both columns A (labels) and B (values) must be populated for formulas to resolve
 
 ### Handovers toolbar now supports both export modes: full template export (placeholders + all grids) and separate XLSX exports per table (Jobs, Income Payments, Job Distributions).
 - Handovers toolbar also supports **Doc. No attachment bulk download**: it calls `POST /api/export/handover-job-doc-attachments` and returns one ZIP containing job-level Doc. No source attachments.
+- Handovers toolbar also supports **app-side print form**: "Print Form" opens `/handovers/print?projectUuid=...` in a new tab and renders a browser-printable handover document without relying on Excel formulas.
+- Print form data parity rules:
+  - Uses the same Handovers data sources (`/api/projects`, `/api/jobs`, `/api/payments-report`, `/api/payments-jobs`, `/api/jobs/attachments`).
+  - Includes only jobs whose lift-certificate effective date equals the project handover date.
+  - Computes GEL totals using NBG exchange rates by lift certificate date (same principle as Handovers table Debit GEL/Total GEL calculation).
+- Next.js App Router constraint: the print route uses `useSearchParams`, so it must be wrapped with `Suspense` at page boundary to avoid prerender/build failure.
 - ZIP selection logic must match Jobs table Doc. No source: per project/job, use the earliest active attachment among lift-certificate/interim-inspection document types, and only rows with non-empty `document_no`.
 - ZIP entry filename format is mandatory: `Job Name_Factory No_Doc. No` (original extension preserved when available; duplicate names get numeric suffixes).
 - ZIP response header must use RFC 5987 filename encoding for non-ASCII project names: set `Content-Disposition` with both `filename*` (UTF-8 encoded) and ASCII-safe `filename` fallback; do not place raw Unicode directly in header values.

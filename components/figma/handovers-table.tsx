@@ -1126,6 +1126,12 @@ export function HandoversTable() {
     }
   }, [downloadingDocAttachments, selectedProjectUuid]);
 
+  const handleOpenPrintForm = useCallback(() => {
+    if (!selectedProjectUuid) return;
+    const printUrl = `/handovers/print?projectUuid=${encodeURIComponent(selectedProjectUuid)}`;
+    window.open(printUrl, '_blank', 'noopener,noreferrer');
+  }, [selectedProjectUuid]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="w-full p-6 space-y-6">
@@ -1263,6 +1269,18 @@ export function HandoversTable() {
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Full Template Export
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleOpenPrintForm}
+                    title="Open app-side printable handover form"
+                    disabled={!selectedProjectUuid}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Print Form
                   </Button>
 
                   <Button
