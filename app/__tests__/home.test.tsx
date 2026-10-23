@@ -14,7 +14,7 @@ describe('HomePage', () => {
     render(<HomePage />);
     expect(
       screen.getByRole('heading', {
-        name: /Next\.js \+ Postgres \+ Google Sign-In/i,
+        name: /ICE ERP/i,
       })
     ).toBeInTheDocument();
   });

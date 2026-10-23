@@ -39,6 +39,7 @@ describe('handover job distribution lookup', () => {
       paymentUuid: 'uuid-1',
       currencyCode: 'USD',
       paymentId: 'PAY-1',
+      financialCodeUuid: 'fc-a',
     });
   });
 
