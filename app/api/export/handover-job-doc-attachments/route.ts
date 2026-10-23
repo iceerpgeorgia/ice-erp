@@ -184,12 +184,9 @@ export async function POST(req: NextRequest) {
     const projectToken = sanitizeFilePart(project.project_index || project.project_name, 'project');
     const archiveName = `handover-doc-attachments-${projectToken}-${today}.zip`;
 
-    const zipArrayBuffer = zipBytes.buffer.slice(
-      zipBytes.byteOffset,
-      zipBytes.byteOffset + zipBytes.byteLength,
-    );
+    const zipBlob = new Blob([zipBytes], { type: 'application/zip' });
 
-    return new NextResponse(zipArrayBuffer, {
+    return new NextResponse(zipBlob, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${archiveName}"`,
