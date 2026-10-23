@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-10-23 Deployment #425 (Fix: Doc Attachments ZIP Unicode Header Runtime Error)
+- Commit: 9afbc45 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-1bhg5isya-iceerp.vercel.app
+- Summary: Fixed runtime 500 in `POST /api/export/handover-job-doc-attachments` caused by raw Unicode characters in `Content-Disposition` header values (Undici ByteString conversion failure).
+- Changes:
+  - `app/api/export/handover-job-doc-attachments/route.ts`: switched ZIP download header to RFC 5987 format using `filename*` with UTF-8 percent-encoding plus ASCII-safe `filename` fallback.
+  - `AGENTS.md`: documented mandatory non-ASCII-safe `Content-Disposition` policy for Doc. No ZIP exports.
+- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), `pnpm build` all completed before deploy.
+- Status: ✅ Live
+
 ## 2026-10-23 Deployment #424 (Feature: Handovers Doc. No Attachments ZIP Export)
 - Commit: eab2fd2 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-9to4kgynv-iceerp.vercel.app
