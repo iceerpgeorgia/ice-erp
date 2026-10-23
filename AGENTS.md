@@ -478,10 +478,16 @@ Both columns A (labels) and B (values) must be populated for formulas to resolve
 ### Handovers toolbar now supports both export modes: full template export (placeholders + all grids) and separate XLSX exports per table (Jobs, Income Payments, Job Distributions).
 - Handovers toolbar also supports **Doc. No attachment bulk download**: it calls `POST /api/export/handover-job-doc-attachments` and returns one ZIP containing job-level Doc. No source attachments.
 - Handovers toolbar also supports **app-side print form**: "Print Form" opens `/handovers/print?projectUuid=...` in a new tab and renders a browser-printable handover document without relying on Excel formulas.
+- Handovers toolbar also supports **downloadable printable forms**: "Printable Form (DOCX/PDF)" opens a cert-date selector and downloads a generated file from `POST /api/export/handover-print-form`.
 - Print form data parity rules:
   - Uses the same Handovers data sources (`/api/projects`, `/api/jobs`, `/api/payments-report`, `/api/payments-jobs`, `/api/jobs/attachments`).
   - Includes only jobs whose lift-certificate effective date equals the project handover date.
   - Computes GEL totals using NBG exchange rates by lift certificate date (same principle as Handovers table Debit GEL/Total GEL calculation).
+- Downloadable printable form rules:
+  - User must select a **unique Cert. Date** before download; each exported file is scoped to that date's jobs/amounts combination.
+  - Supported formats: **DOCX** and **PDF**, both generated in **portrait** orientation.
+  - Files are generated server-side (not browser print) so they must not include browser header/footer artifacts (URL, timestamp, browser title).
+  - Keep explicit **page numbering** in the exported document.
 - Next.js App Router constraint: the print route uses `useSearchParams`, so it must be wrapped with `Suspense` at page boundary to avoid prerender/build failure.
 - ZIP selection logic must match Jobs table Doc. No source: per project/job, use the earliest active attachment among lift-certificate/interim-inspection document types, and only rows with non-empty `document_no`.
 - ZIP entry filename format is mandatory: `Job Name_Factory No_Doc. No` (original extension preserved when available; duplicate names get numeric suffixes).

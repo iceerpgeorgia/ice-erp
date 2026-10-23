@@ -26,9 +26,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters } from './shared/use-table-filters';
@@ -110,6 +112,16 @@ type FormData = {
   insiderUuid: string;
 };
 
+type PrintDownloadFormat = 'pdf' | 'docx';
+
+type PrintDateOption = {
+  value: string;
+  jobCount: number;
+  nominal: number;
+  gel: number;
+  gelCount: number;
+};
+
 export function HandoversTable() {
   // ── Project / Job state ──────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
@@ -127,6 +139,9 @@ export function HandoversTable() {
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
   const [downloadingDocAttachments, setDownloadingDocAttachments] = useState(false);
+  const [isPrintExportDialogOpen, setIsPrintExportDialogOpen] = useState(false);
+  const [selectedPrintCertDate, setSelectedPrintCertDate] = useState<string>('');
+  const [downloadingPrintableFormat, setDownloadingPrintableFormat] = useState<PrintDownloadFormat | null>(null);
   
   // ── Export data cache ────────────────────────────────────────────────────
   const [exportCache, setExportCache] = useState<{
@@ -219,6 +234,12 @@ export function HandoversTable() {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+  const formatDateLabel = (dateKey: string) => {
+    const [year, month, day] = dateKey.split('-');
+    if (!year || !month || !day) return dateKey;
+    return `${day}.${month}.${year}`;
+  };
 
   const rateCacheRef = useRef<Map<string, number | null>>(new Map());
 
@@ -1126,7 +1147,101 @@ export function HandoversTable() {
     }
   }, [downloadingDocAttachments, selectedProjectUuid]);
 
-  const handleOpenPrintForm = useCallback(() => {
+  const printDateOptions = useMemo<PrintDateOption[]>(() => {
+    const byDate = new Map<string, PrintDateOption>();
+    sortedJobs.forEach((job) => {
+      if (!job.liftCertDate) return;
+      const dateKey = String(job.liftCertDate).split('T')[0];
+      if (!dateKey) return;
+
+      const current = byDate.get(dateKey) || {
+        value: dateKey,
+        jobCount: 0,
+        nominal: 0,
+        gel: 0,
+        gelCount: 0,
+      };
+
+      current.jobCount += 1;
+      current.nominal += Number(job.sellingPrice || 0);
+      if (job.totalGel != null) {
+        current.gel += Number(job.totalGel);
+        current.gelCount += 1;
+      }
+
+      byDate.set(dateKey, current);
+    });
+
+    return Array.from(byDate.values()).sort((a, b) => a.value.localeCompare(b.value));
+  }, [sortedJobs]);
+
+  useEffect(() => {
+    if (!isPrintExportDialogOpen) return;
+    if (selectedPrintCertDate) return;
+    if (printDateOptions.length === 0) return;
+    setSelectedPrintCertDate(printDateOptions[0].value);
+  }, [isPrintExportDialogOpen, printDateOptions, selectedPrintCertDate]);
+
+  const handleOpenPrintExportDialog = useCallback(() => {
+    if (!selectedProjectUuid) return;
+    if (printDateOptions.length === 0) {
+      alert('No certificate dates found in current jobs list.');
+      return;
+    }
+    setSelectedPrintCertDate((prev) => prev || printDateOptions[0].value);
+    setIsPrintExportDialogOpen(true);
+  }, [printDateOptions, selectedProjectUuid]);
+
+  const handleDownloadPrintableForm = useCallback(async (format: PrintDownloadFormat) => {
+    if (!selectedProjectUuid || !selectedPrintCertDate || downloadingPrintableFormat) return;
+
+    setDownloadingPrintableFormat(format);
+    try {
+      const response = await fetch('/api/export/handover-print-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          projectUuid: selectedProjectUuid,
+          certDate: selectedPrintCertDate,
+          format,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        alert(`Printable form download failed: ${err?.error || response.statusText}`);
+        return;
+      }
+
+      const disposition = response.headers.get('content-disposition') || '';
+      const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+      const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+      const fallbackName = `handover-print-${selectedPrintCertDate}.${format}`;
+      const fileName = utfMatch?.[1]
+        ? decodeURIComponent(utfMatch[1])
+        : (plainMatch?.[1] || fallbackName);
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+
+      setIsPrintExportDialogOpen(false);
+    } catch (error) {
+      console.error('[Handovers] Failed to download printable form:', error);
+      alert('Printable form download failed. Please try again.');
+    } finally {
+      setDownloadingPrintableFormat(null);
+    }
+  }, [downloadingPrintableFormat, selectedPrintCertDate, selectedProjectUuid]);
+
+  const handleOpenPrintPreview = useCallback(() => {
     if (!selectedProjectUuid) return;
     const printUrl = `/handovers/print?projectUuid=${encodeURIComponent(selectedProjectUuid)}`;
     window.open(printUrl, '_blank', 'noopener,noreferrer');
@@ -1274,13 +1389,25 @@ export function HandoversTable() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleOpenPrintForm}
-                    title="Open app-side printable handover form"
+                    onClick={handleOpenPrintExportDialog}
+                    title="Choose certificate date and download printable form in DOCX or PDF"
                     disabled={!selectedProjectUuid}
                     className="w-full justify-start"
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    Print Form
+                    Printable Form (DOCX/PDF)
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleOpenPrintPreview}
+                    title="Open app-side print preview"
+                    disabled={!selectedProjectUuid}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Print Preview
                   </Button>
 
                   <Button
@@ -1658,6 +1785,70 @@ export function HandoversTable() {
       )}
 
       {/* Edit Job Dialog */}
+      <Dialog
+        open={isPrintExportDialogOpen}
+        onOpenChange={(open) => {
+          setIsPrintExportDialogOpen(open);
+          if (!open) {
+            setDownloadingPrintableFormat(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Download Printable Form</DialogTitle>
+            <DialogDescription>
+              Select a unique Cert. Date. The file is generated in portrait orientation with clean content and page numbering.
+            </DialogDescription>
+          </DialogHeader>
+
+          {printDateOptions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No certificate dates available for this project.</p>
+          ) : (
+            <div className="max-h-[300px] overflow-y-auto pr-1">
+              <RadioGroup value={selectedPrintCertDate} onValueChange={setSelectedPrintCertDate}>
+                {printDateOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    htmlFor={`print-date-${option.value}`}
+                    className="flex cursor-pointer items-start gap-3 rounded-md border p-3"
+                  >
+                    <RadioGroupItem id={`print-date-${option.value}`} value={option.value} className="mt-1" />
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">{formatDateLabel(option.value)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {option.jobCount} jobs • Nominal {formatMoney(option.nominal)} • GEL {option.gelCount > 0 ? formatMoney(option.gel) : '-'}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </RadioGroup>
+            </div>
+          )}
+
+          <DialogFooter className="sm:justify-between">
+            <p className="text-xs text-muted-foreground">No browser print header/footer marks are added to these downloads.</p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!selectedPrintCertDate || !!downloadingPrintableFormat}
+                onClick={() => handleDownloadPrintableForm('docx')}
+              >
+                {downloadingPrintableFormat === 'docx' ? 'Preparing DOCX...' : 'Download DOCX'}
+              </Button>
+              <Button
+                type="button"
+                disabled={!selectedPrintCertDate || !!downloadingPrintableFormat}
+                onClick={() => handleDownloadPrintableForm('pdf')}
+              >
+                {downloadingPrintableFormat === 'pdf' ? 'Preparing PDF...' : 'Download PDF'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={isEditDialogOpen}
         onOpenChange={open => {
