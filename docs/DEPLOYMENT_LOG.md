@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-10-24 Deployment #427 (Feature: App-side Handovers Print Form)
+- Commit: 86e03fd (deploy/2026-06-16-emission-insider)
+- Production: https://ice-hiotj44ux-iceerp.vercel.app
+- Summary: Added native app-side printable handover form and wired it into Handovers "More Exports" as "Print Form".
+- Changes:
+  - `app/handovers/print/page.tsx`: New print route that fetches project/jobs/payments/distributions/lift-cert data, computes row totals, and renders browser-printable handover document.
+  - `components/figma/handovers-table.tsx`: Added `handleOpenPrintForm` and "Print Form" action to open `/handovers/print?projectUuid=...` in a new tab.
+  - `AGENTS.md`: Documented print-form behavior, data parity expectations, and Next.js Suspense requirement for `useSearchParams`.
+- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), and `pnpm build` completed before deploy.
+- Status: ✅ Live
+
 ## 2026-10-24 Deployment #426 (Feature: Handover Template Workbook Refresh)
 - Commit: 7b2274e (deploy/2026-06-16-emission-insider)
 - Production: https://ice-oq7yrhggp-iceerp.vercel.app
