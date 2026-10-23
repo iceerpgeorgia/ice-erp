@@ -479,6 +479,7 @@ Both columns A (labels) and B (values) must be populated for formulas to resolve
 - Handovers toolbar also supports **Doc. No attachment bulk download**: it calls `POST /api/export/handover-job-doc-attachments` and returns one ZIP containing job-level Doc. No source attachments.
 - ZIP selection logic must match Jobs table Doc. No source: per project/job, use the earliest active attachment among lift-certificate/interim-inspection document types, and only rows with non-empty `document_no`.
 - ZIP entry filename format is mandatory: `Job Name_Factory No_Doc. No` (original extension preserved when available; duplicate names get numeric suffixes).
+- ZIP response header must use RFC 5987 filename encoding for non-ASCII project names: set `Content-Disposition` with both `filename*` (UTF-8 encoded) and ASCII-safe `filename` fallback; do not place raw Unicode directly in header values.
 - The dialog resolves `payment_uuid` via `/api/payments-report` and preloads existing allocations from `/api/payments-jobs`.
 - **Debugging**: Console logs track payment_uuid resolution (`[Job Dist]` prefix) including payment mapping, distribution loading, row payment lookup, and save operations. This helps diagnose cases where distributions might incorrectly appear across multiple payments.
 - Runtime resilience guards for Handovers dependencies:

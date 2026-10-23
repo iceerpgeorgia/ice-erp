@@ -183,6 +183,8 @@ export async function POST(req: NextRequest) {
     const today = new Date().toISOString().split('T')[0];
     const projectToken = sanitizeFilePart(project.project_index || project.project_name, 'project');
     const archiveName = `handover-doc-attachments-${projectToken}-${today}.zip`;
+    const archiveNameAscii = archiveName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(archiveName)}; filename="${archiveNameAscii}"`;
 
     const zipArrayBuffer = new ArrayBuffer(zipBytes.byteLength);
     new Uint8Array(zipArrayBuffer).set(zipBytes);
@@ -190,7 +192,7 @@ export async function POST(req: NextRequest) {
     return new NextResponse(zipArrayBuffer, {
       headers: {
         'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${archiveName}"`,
+        'Content-Disposition': contentDisposition,
         'Cache-Control': 'no-store',
         'X-Attachments-Added': String(added),
         'X-Attachments-Skipped': String(skipped),
