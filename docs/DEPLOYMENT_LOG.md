@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-10-24 Deployment #426 (Feature: Handover Template Workbook Refresh)
+- Commit: 7b2274e (deploy/2026-06-16-emission-insider)
+- Production: https://ice-oq7yrhggp-iceerp.vercel.app
+- Summary: Updated handover template workbooks with the provided exported file content while preserving formula-driven Handover sheet behavior required by template export.
+- Changes:
+  - `public/Handover Tamplate New.xlsx`: refreshed workbook data sheets from provided handovers file and preserved formula-enabled Handover sheet.
+  - `public/Handover Tamplate New CLEANED.xlsx`: same refresh and formula-preservation update for cleaned fallback template.
+  - `app/__tests__/home.test.tsx`: aligned heading expectation with current landing page title (`ICE ERP`).
+  - `lib/__tests__/handover-job-distributions.test.ts`: aligned expected payment info object with current resolver output (`financialCodeUuid` present).
+- Validation: `pnpm test` (all passing), `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), and `pnpm build` all completed before deploy.
+- Status: ✅ Live
+
 ## 2026-10-23 Deployment #425 (Fix: Doc Attachments ZIP Unicode Header Runtime Error)
 - Commit: 9afbc45 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-1bhg5isya-iceerp.vercel.app
