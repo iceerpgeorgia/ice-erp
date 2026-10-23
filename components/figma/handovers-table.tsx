@@ -141,6 +141,7 @@ export function HandoversTable() {
   const [downloadingDocAttachments, setDownloadingDocAttachments] = useState(false);
   const [isPrintExportDialogOpen, setIsPrintExportDialogOpen] = useState(false);
   const [selectedPrintCertDate, setSelectedPrintCertDate] = useState<string>('');
+  const [selectedPrintCertDates, setSelectedPrintCertDates] = useState<Set<string>>(new Set());
   const [downloadingPrintableFormat, setDownloadingPrintableFormat] = useState<PrintDownloadFormat | null>(null);
   
   // ── Export data cache ────────────────────────────────────────────────────
@@ -1179,7 +1180,9 @@ export function HandoversTable() {
     if (!isPrintExportDialogOpen) return;
     if (selectedPrintCertDate) return;
     if (printDateOptions.length === 0) return;
-    setSelectedPrintCertDate(printDateOptions[0].value);
+    const first = printDateOptions[0].value;
+    setSelectedPrintCertDate(first);
+    setSelectedPrintCertDates(new Set([first]));
   }, [isPrintExportDialogOpen, printDateOptions, selectedPrintCertDate]);
 
   const handleOpenPrintExportDialog = useCallback(() => {
@@ -1188,12 +1191,27 @@ export function HandoversTable() {
       alert('No certificate dates found in current jobs list.');
       return;
     }
-    setSelectedPrintCertDate((prev) => prev || printDateOptions[0].value);
+    const first = printDateOptions[0].value;
+    setSelectedPrintCertDate((prev) => prev || first);
+    setSelectedPrintCertDates((prev) => (prev.size > 0 ? prev : new Set([first])));
     setIsPrintExportDialogOpen(true);
   }, [printDateOptions, selectedProjectUuid]);
 
+  const togglePrintDate = useCallback((date: string, checked: boolean) => {
+    setSelectedPrintCertDates((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(date);
+      } else {
+        next.delete(date);
+      }
+      return next;
+    });
+  }, []);
+
   const handleDownloadPrintableForm = useCallback(async (format: PrintDownloadFormat) => {
-    if (!selectedProjectUuid || !selectedPrintCertDate || downloadingPrintableFormat) return;
+    const selectedDates = Array.from(selectedPrintCertDates).sort((a, b) => a.localeCompare(b));
+    if (!selectedProjectUuid || selectedDates.length === 0 || downloadingPrintableFormat) return;
 
     setDownloadingPrintableFormat(format);
     try {
@@ -1203,7 +1221,9 @@ export function HandoversTable() {
         credentials: 'include',
         body: JSON.stringify({
           projectUuid: selectedProjectUuid,
-          certDate: selectedPrintCertDate,
+          certDate: selectedDates[0],
+          certDates: selectedDates,
+          zip: selectedDates.length > 1,
           format,
         }),
       });
@@ -1217,7 +1237,9 @@ export function HandoversTable() {
       const disposition = response.headers.get('content-disposition') || '';
       const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
       const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
-      const fallbackName = `handover-print-${selectedPrintCertDate}.${format}`;
+      const fallbackName = selectedDates.length > 1
+        ? `handover-print-${new Date().toISOString().split('T')[0]}-${format}.zip`
+        : `handover-print-${selectedDates[0]}.${format}`;
       const fileName = utfMatch?.[1]
         ? decodeURIComponent(utfMatch[1])
         : (plainMatch?.[1] || fallbackName);
@@ -1239,7 +1261,7 @@ export function HandoversTable() {
     } finally {
       setDownloadingPrintableFormat(null);
     }
-  }, [downloadingPrintableFormat, selectedPrintCertDate, selectedProjectUuid]);
+  }, [downloadingPrintableFormat, selectedPrintCertDates, selectedProjectUuid]);
 
   const handleOpenPrintPreview = useCallback(() => {
     if (!selectedProjectUuid) return;
@@ -1791,6 +1813,7 @@ export function HandoversTable() {
           setIsPrintExportDialogOpen(open);
           if (!open) {
             setDownloadingPrintableFormat(null);
+            setSelectedPrintCertDates(new Set());
           }
         }}
       >
@@ -1798,7 +1821,7 @@ export function HandoversTable() {
           <DialogHeader>
             <DialogTitle>Download Printable Form</DialogTitle>
             <DialogDescription>
-              Select a unique Cert. Date. The file is generated in portrait orientation with clean content and page numbering.
+              Select one or multiple Cert. Dates. Multiple selected dates are bundled into a ZIP file.
             </DialogDescription>
           </DialogHeader>
 
@@ -1806,6 +1829,30 @@ export function HandoversTable() {
             <p className="text-sm text-muted-foreground">No certificate dates available for this project.</p>
           ) : (
             <div className="max-h-[300px] overflow-y-auto pr-1">
+              <div className="mb-3 flex items-center justify-between rounded-md border p-2 text-xs">
+                <span className="text-muted-foreground">Selected dates: {selectedPrintCertDates.size}</span>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedPrintCertDates(new Set(printDateOptions.map((option) => option.value)))}
+                    disabled={!!downloadingPrintableFormat}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedPrintCertDates(new Set())}
+                    disabled={!!downloadingPrintableFormat}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+
               <RadioGroup value={selectedPrintCertDate} onValueChange={setSelectedPrintCertDate}>
                 {printDateOptions.map((option) => (
                   <label
@@ -1813,7 +1860,21 @@ export function HandoversTable() {
                     htmlFor={`print-date-${option.value}`}
                     className="flex cursor-pointer items-start gap-3 rounded-md border p-3"
                   >
-                    <RadioGroupItem id={`print-date-${option.value}`} value={option.value} className="mt-1" />
+                    <Checkbox
+                      checked={selectedPrintCertDates.has(option.value)}
+                      onCheckedChange={(checked) => togglePrintDate(option.value, checked === true)}
+                    />
+                    <RadioGroupItem
+                      id={`print-date-${option.value}`}
+                      value={option.value}
+                      className="mt-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!selectedPrintCertDates.has(option.value)) {
+                          setSelectedPrintCertDates((prev) => new Set([...prev, option.value]));
+                        }
+                      }}
+                    />
                     <div className="space-y-1">
                       <div className="text-sm font-medium">{formatDateLabel(option.value)}</div>
                       <div className="text-xs text-muted-foreground">
@@ -1832,17 +1893,25 @@ export function HandoversTable() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={!selectedPrintCertDate || !!downloadingPrintableFormat}
+                disabled={selectedPrintCertDates.size === 0 || !!downloadingPrintableFormat}
                 onClick={() => handleDownloadPrintableForm('docx')}
               >
-                {downloadingPrintableFormat === 'docx' ? 'Preparing DOCX...' : 'Download DOCX'}
+                {downloadingPrintableFormat === 'docx'
+                  ? 'Preparing DOCX...'
+                  : selectedPrintCertDates.size > 1
+                    ? 'Download DOCX ZIP'
+                    : 'Download DOCX'}
               </Button>
               <Button
                 type="button"
-                disabled={!selectedPrintCertDate || !!downloadingPrintableFormat}
+                disabled={selectedPrintCertDates.size === 0 || !!downloadingPrintableFormat}
                 onClick={() => handleDownloadPrintableForm('pdf')}
               >
-                {downloadingPrintableFormat === 'pdf' ? 'Preparing PDF...' : 'Download PDF'}
+                {downloadingPrintableFormat === 'pdf'
+                  ? 'Preparing PDF...'
+                  : selectedPrintCertDates.size > 1
+                    ? 'Download PDF ZIP'
+                    : 'Download PDF'}
               </Button>
             </div>
           </DialogFooter>

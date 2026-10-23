@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import PDFDocument from 'pdfkit';
+import JSZip from 'jszip';
 import {
   AlignmentType,
+  BorderStyle,
   Document,
   Footer,
   Packer,
   PageNumber,
   PageOrientation,
   Paragraph,
+  ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   WidthType,
@@ -19,6 +22,7 @@ import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { prisma, withRetry } from '@/lib/prisma';
 import { getJobLiftCertInfo } from '@/lib/attachments';
 import { toGenitiveCase } from '@/lib/georgian-genitive';
+import fs from 'fs';
 import path from 'path';
 
 export const runtime = 'nodejs';
@@ -77,6 +81,29 @@ type PrintableRow = {
   totalGel: number | null;
 };
 
+type LiftCertInfo = {
+  date: string | null;
+  docNo: string | null;
+};
+
+type PrintableTotals = { nominal: number; gel: number; gelCount: number };
+
+type PrintableData = {
+  project: ProjectData;
+  certDate: string;
+  rows: PrintableRow[];
+  totals: PrintableTotals;
+};
+
+type PrintableBaseData = {
+  project: ProjectData;
+  jobs: JobData[];
+  liftInfo: Record<string, LiftCertInfo>;
+  paidNominalByJob: Map<string, number>;
+  paidGelByJob: Map<string, number>;
+  rateByDate: Map<string, number | null>;
+};
+
 const MONTHS_NOMINATIVE = [
   'იანვარი',
   'თებერვალი',
@@ -108,6 +135,15 @@ const MONTHS_GENITIVE = [
 ];
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const DOCX_CELL_BORDERS = {
+  top: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+  bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+  left: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+  right: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+};
+
+const TABLE_COLUMN_WIDTHS = [5, 20, 11, 12, 8, 7, 11, 13, 13];
 
 function sanitizeFilePart(value: string | null | undefined, fallback: string): string {
   const normalized = String(value || '')
@@ -166,20 +202,63 @@ function resolveCityLabel(department: string | null | undefined): string {
   return 'ქ. ბათუმი';
 }
 
-function toPdfBuffer(doc: PDFKit.PDFDocument): Promise<Buffer> {
+function toPdfBuffer(doc: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    doc.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    doc.on('data', (chunk: Buffer | Uint8Array) => chunks.push(Buffer.from(chunk)));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
     doc.end();
   });
 }
 
-function toResponseArrayBuffer(buffer: Buffer): ArrayBuffer {
-  const arrayBuffer = new ArrayBuffer(buffer.byteLength);
-  new Uint8Array(arrayBuffer).set(buffer);
+function toResponseArrayBuffer(bytes: Buffer | Uint8Array): ArrayBuffer {
+  const source = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const arrayBuffer = new ArrayBuffer(source.byteLength);
+  new Uint8Array(arrayBuffer).set(source);
   return arrayBuffer;
+}
+
+function multilineRuns(text: string, size: number, bold = false): TextRun[] {
+  const lines = text.split('\n');
+  return lines.map((line, idx) => new TextRun({ text: line, size, bold, break: idx > 0 ? 1 : 0 }));
+}
+
+function buildDocxCell(
+  text: string,
+  widthPct: number,
+  opts: {
+    align?: (typeof AlignmentType)[keyof typeof AlignmentType];
+    bold?: boolean;
+    size?: number;
+    shaded?: boolean;
+    columnSpan?: number;
+  } = {},
+) {
+  return new TableCell({
+    width: { size: widthPct, type: WidthType.PERCENTAGE },
+    borders: DOCX_CELL_BORDERS,
+    shading: opts.shaded
+      ? {
+          type: ShadingType.CLEAR,
+          fill: 'EDEDED',
+          color: 'auto',
+        }
+      : undefined,
+    columnSpan: opts.columnSpan,
+    children: [
+      new Paragraph({
+        alignment: opts.align ?? AlignmentType.LEFT,
+        children: [
+          new TextRun({
+            text,
+            bold: opts.bold,
+            size: opts.size ?? 20,
+          }),
+        ],
+      }),
+    ],
+  });
 }
 
 async function getRateForDate(dateKey: string, currencyCode: string | null): Promise<number | null> {
@@ -201,12 +280,7 @@ async function getRateForDate(dateKey: string, currencyCode: string | null): Pro
   return numeric && Number.isFinite(numeric) && numeric > 0 ? numeric : null;
 }
 
-async function getPrintableData(projectUuid: string, certDate: string): Promise<{
-  project: ProjectData;
-  certDate: string;
-  rows: PrintableRow[];
-  totals: { nominal: number; gel: number; gelCount: number };
-}> {
+async function loadPrintableBaseData(projectUuid: string): Promise<PrintableBaseData> {
   const projects = await withRetry(() =>
     prisma.$queryRawUnsafe<ProjectData[]>(
       `SELECT
@@ -265,7 +339,7 @@ async function getPrintableData(projectUuid: string, certDate: string): Promise<
   );
 
   const jobUuids = jobs.map((j) => j.job_uuid).filter(Boolean);
-  const liftInfo = await getJobLiftCertInfo(jobUuids);
+  const liftInfo = (await getJobLiftCertInfo(jobUuids)) as Record<string, LiftCertInfo>;
 
   const incomePayments = await withRetry(() =>
     prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
@@ -319,6 +393,19 @@ async function getPrintableData(projectUuid: string, certDate: string): Promise<
       rateByDate.set(dateKey, rate);
     }),
   );
+
+  return {
+    project,
+    jobs,
+    liftInfo,
+    paidNominalByJob,
+    paidGelByJob,
+    rateByDate,
+  };
+}
+
+function buildPrintableDataForDate(base: PrintableBaseData, certDate: string): PrintableData {
+  const { project, jobs, liftInfo, paidNominalByJob, paidGelByJob, rateByDate } = base;
 
   const normalizedSelectedDate = toDateKey(certDate);
   if (!normalizedSelectedDate) {
@@ -377,12 +464,7 @@ async function getPrintableData(projectUuid: string, certDate: string): Promise<
   };
 }
 
-async function buildDocxPrintable(data: {
-  project: ProjectData;
-  certDate: string;
-  rows: PrintableRow[];
-  totals: { nominal: number; gel: number; gelCount: number };
-}): Promise<Buffer> {
+async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
   const { project, certDate, rows, totals } = data;
   const cityLabel = resolveCityLabel(project.department);
   const certDateDisplay = formatDateDdMmYyyy(certDate);
@@ -398,78 +480,69 @@ async function buildDocxPrintable(data: {
     `საიდენტიფიკაციო ნომერი: ${project.insider_identification_number || ''}\n\n` +
     `${contractDateText ? `${contractDateText} ხელშეკრულების თანახმად` : 'ხელშეკრულების თანახმად'} დამკვეთმა მიიღო, ხოლო შემსრულებელმა ჩააბარა დამკვეთის ობიექტზე მისამართზე ${project.address || ''} ქვემოთ მოცემული ერთეულები:`;
 
-  const tableRows: TableRow[] = [];
-  tableRows.push(
+  const headers = [
+    '#',
+    'Job Name',
+    'Brand',
+    'Factory No',
+    'Weight',
+    'Floors',
+    'Doc. No',
+    `თანხა (${currencyCode})`,
+    'თანხა (GEL)',
+  ];
+
+  const tableRows: TableRow[] = [
     new TableRow({
-      children: [
-        '#',
-        'Job Name',
-        'Brand',
-        'Factory No',
-        'Weight',
-        'Floors',
-        'Doc. No',
-        `თანხა (${currencyCode})`,
-        'თანხა (GEL)',
-      ].map(
-        (header) =>
-          new TableCell({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: header, bold: true, size: 18 })],
-              }),
-            ],
-          }),
+      children: headers.map((header, idx) =>
+        buildDocxCell(header, TABLE_COLUMN_WIDTHS[idx], {
+          align: AlignmentType.CENTER,
+          bold: true,
+          size: 18,
+          shaded: true,
+        }),
       ),
     }),
-  );
+  ];
 
   if (rows.length === 0) {
     tableRows.push(
       new TableRow({
         children: [
-          new TableCell({
+          buildDocxCell('ამ სერტიფიკატის თარიღისთვის მონაცემები არ მოიძებნა.', 100, {
+            align: AlignmentType.CENTER,
+            size: 20,
             columnSpan: 9,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun('ამ სერტიფიკატის თარიღისთვის მონაცემები არ მოიძებნა.')],
-              }),
-            ],
           }),
         ],
       }),
     );
   } else {
     rows.forEach((row) => {
+      const values = [
+        String(row.index),
+        row.jobName || '-',
+        row.brandName || '-',
+        row.factoryNo || '-',
+        row.weight == null ? '-' : `${row.weight} კგ`,
+        row.floors == null ? '-' : String(row.floors),
+        row.liftCertDocNo || '-',
+        formatMoney(row.sellingPrice),
+        formatMoney(row.totalGel),
+      ];
+
       tableRows.push(
         new TableRow({
-          children: [
-            String(row.index),
-            row.jobName || '-',
-            row.brandName || '-',
-            row.factoryNo || '-',
-            row.weight == null ? '-' : `${row.weight} კგ`,
-            row.floors == null ? '-' : String(row.floors),
-            row.liftCertDocNo || '-',
-            formatMoney(row.sellingPrice),
-            formatMoney(row.totalGel),
-          ].map(
-            (value, idx) =>
-              new TableCell({
-                children: [
-                  new Paragraph({
-                    alignment:
-                      idx === 0 || idx === 4 || idx === 5 || idx === 6
-                        ? AlignmentType.CENTER
-                        : idx >= 7
-                          ? AlignmentType.RIGHT
-                          : AlignmentType.LEFT,
-                    children: [new TextRun({ text: value, size: 18 })],
-                  }),
-                ],
-              }),
+          children: values.map((value, idx) =>
+            buildDocxCell(value, TABLE_COLUMN_WIDTHS[idx], {
+              align:
+                idx === 0 || idx === 4 || idx === 5 || idx === 6
+                  ? AlignmentType.CENTER
+                  : idx >= 7
+                    ? AlignmentType.RIGHT
+                    : AlignmentType.LEFT,
+              size: 18,
+            }),
           ),
         }),
       );
@@ -478,32 +551,24 @@ async function buildDocxPrintable(data: {
     tableRows.push(
       new TableRow({
         children: [
-          new TableCell({
+          buildDocxCell('Total', 74, {
+            align: AlignmentType.RIGHT,
+            bold: true,
+            size: 19,
+            shaded: true,
             columnSpan: 7,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [new TextRun({ text: 'Total', bold: true })],
-              }),
-            ],
           }),
-          new TableCell({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [new TextRun({ text: formatMoney(totals.nominal), bold: true })],
-              }),
-            ],
+          buildDocxCell(formatMoney(totals.nominal), TABLE_COLUMN_WIDTHS[7], {
+            align: AlignmentType.RIGHT,
+            bold: true,
+            size: 19,
+            shaded: true,
           }),
-          new TableCell({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [
-                  new TextRun({ text: totals.gelCount > 0 ? formatMoney(totals.gel) : '-', bold: true }),
-                ],
-              }),
-            ],
+          buildDocxCell(totals.gelCount > 0 ? formatMoney(totals.gel) : '-', TABLE_COLUMN_WIDTHS[8], {
+            align: AlignmentType.RIGHT,
+            bold: true,
+            size: 19,
+            shaded: true,
           }),
         ],
       }),
@@ -547,29 +612,32 @@ async function buildDocxPrintable(data: {
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { after: 120 },
-            children: [new TextRun({ text: 'მიღება-ჩაბარების აქტი', bold: true, size: 34 })],
+            children: [new TextRun({ text: 'მიღება-ჩაბარების აქტი', bold: true, size: 36 })],
           }),
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 240 },
-            children: [new TextRun({ text: `${cityLabel}, ${certDateDisplay}`, size: 22 })],
+            spacing: { after: 220 },
+            children: [new TextRun({ text: `${cityLabel}, ${certDateDisplay}`, size: 22, bold: true })],
           }),
           new Paragraph({
             spacing: { after: 240 },
-            children: [new TextRun({ text: intro, size: 22 })],
+            children: multilineRuns(intro, 21),
           }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
             rows: tableRows,
           }),
           new Paragraph({ text: '', spacing: { after: 380 } }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
             rows: [
               new TableRow({
                 children: [
                   new TableCell({
                     width: { size: 50, type: WidthType.PERCENTAGE },
+                    borders: DOCX_CELL_BORDERS,
                     children: [
                       new Paragraph({ children: [new TextRun({ text: 'დამკვეთი', bold: true, size: 22 })] }),
                       new Paragraph({ text: `${project.entity_type || ''} ${project.name || ''}` }),
@@ -579,6 +647,7 @@ async function buildDocxPrintable(data: {
                   }),
                   new TableCell({
                     width: { size: 50, type: WidthType.PERCENTAGE },
+                    borders: DOCX_CELL_BORDERS,
                     children: [
                       new Paragraph({ children: [new TextRun({ text: 'შემსრულებელი', bold: true, size: 22 })] }),
                       new Paragraph({ text: `${project.insider_entity_type || ''} ${project.insider_name_field || ''}` }),
@@ -599,12 +668,7 @@ async function buildDocxPrintable(data: {
   return Buffer.from(buffer);
 }
 
-async function buildPdfPrintable(data: {
-  project: ProjectData;
-  certDate: string;
-  rows: PrintableRow[];
-  totals: { nominal: number; gel: number; gelCount: number };
-}): Promise<Buffer> {
+async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
   const { project, certDate, rows, totals } = data;
   const cityLabel = resolveCityLabel(project.department);
   const certDateDisplay = formatDateDdMmYyyy(certDate);
@@ -620,6 +684,8 @@ async function buildPdfPrintable(data: {
     `საიდენტიფიკაციო ნომერი: ${project.insider_identification_number || ''}\n\n` +
     `${contractDateText ? `${contractDateText} ხელშეკრულების თანახმად` : 'ხელშეკრულების თანახმად'} დამკვეთმა მიიღო, ხოლო შემსრულებელმა ჩააბარა დამკვეთის ობიექტზე მისამართზე ${project.address || ''} ქვემოთ მოცემული ერთეულები:`;
 
+  const PDFDocument = require('pdfkit');
+
   const fontPath = path.join(
     process.cwd(),
     'node_modules',
@@ -629,6 +695,9 @@ async function buildPdfPrintable(data: {
     'noto-sans-georgian-georgian-400-normal.woff',
   );
 
+  const hasGeoFont = fs.existsSync(fontPath);
+  const activeFont = hasGeoFont ? 'Geo' : 'Helvetica';
+
   const doc = new PDFDocument({
     size: 'A4',
     layout: 'portrait',
@@ -636,8 +705,10 @@ async function buildPdfPrintable(data: {
     bufferPages: true,
   });
 
-  doc.registerFont('Geo', fontPath);
-  doc.font('Geo');
+  if (hasGeoFont) {
+    doc.registerFont('Geo', fontPath);
+  }
+  doc.font(activeFont);
 
   doc.fontSize(16).text('მიღება-ჩაბარების აქტი', { align: 'center' });
   doc.moveDown(0.2);
@@ -653,7 +724,8 @@ async function buildPdfPrintable(data: {
   const colRatios = [0.05, 0.17, 0.12, 0.12, 0.08, 0.07, 0.12, 0.14, 0.13];
   const tableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const colWidths = colRatios.map((r) => Math.floor(tableWidth * r));
-  const rowHeight = 20;
+  const tableBottomPadding = 40;
+  const minRowHeight = 20;
 
   const headers = [
     '#',
@@ -669,36 +741,81 @@ async function buildPdfPrintable(data: {
 
   let y = doc.y;
   const xStart = doc.page.margins.left;
+  const textAlignByColumn: Array<'left' | 'center' | 'right'> = [
+    'center',
+    'left',
+    'left',
+    'left',
+    'center',
+    'center',
+    'center',
+    'right',
+    'right',
+  ];
 
-  function drawRow(cells: string[], isHeader = false, isTotal = false) {
+  const getContentBottom = () => doc.page.height - doc.page.margins.bottom - tableBottomPadding;
+
+  const measureRowHeight = (cells: string[], opts: { isHeader?: boolean; isTotal?: boolean }) => {
+    const fontSize = opts.isHeader || opts.isTotal ? 9.5 : 9;
+    doc.font(activeFont).fontSize(fontSize);
+    let maxHeight = minRowHeight;
+    cells.forEach((cell, index) => {
+      const width = Math.max((colWidths[index] ?? 80) - 8, 16);
+      const measured = doc.heightOfString(cell, {
+        width,
+        align: textAlignByColumn[index],
+      });
+      maxHeight = Math.max(maxHeight, measured + 10);
+    });
+    return maxHeight;
+  };
+
+  const drawRow = (
+    cells: string[],
+    opts: { isHeader?: boolean; isTotal?: boolean; rowHeight: number },
+  ) => {
     let x = xStart;
     cells.forEach((cell, index) => {
       const width = colWidths[index] ?? 80;
-      doc.rect(x, y, width, rowHeight).stroke();
-      doc.font('Geo').fontSize(isHeader || isTotal ? 9.5 : 9);
-      if (isHeader || isTotal) {
-        doc.font('Geo');
+      if (opts.isHeader || opts.isTotal) {
+        doc.save();
+        doc.rect(x, y, width, opts.rowHeight).fillAndStroke('#EFEFEF', '#000000');
+        doc.restore();
+      } else {
+        doc.rect(x, y, width, opts.rowHeight).stroke();
       }
-      const align = index === 0 || index === 4 || index === 5 || index === 6 ? 'center' : index >= 7 ? 'right' : 'left';
-      doc.text(cell, x + 3, y + 6, { width: width - 6, align: align as any });
+
+      doc.font(activeFont).fontSize(opts.isHeader || opts.isTotal ? 9.5 : 9).fillColor('#000000');
+      doc.text(cell, x + 4, y + 4, {
+        width: width - 8,
+        height: opts.rowHeight - 8,
+        align: textAlignByColumn[index],
+      });
       x += width;
     });
-    y += rowHeight;
-  }
+    y += opts.rowHeight;
+  };
 
-  drawRow(headers, true);
+  const addPageAndHeader = () => {
+    doc.addPage({ size: 'A4', layout: 'portrait', margins: { top: 42, right: 38, bottom: 42, left: 38 } });
+    y = doc.page.margins.top;
+    const headerHeight = measureRowHeight(headers, { isHeader: true });
+    drawRow(headers, { isHeader: true, rowHeight: headerHeight });
+  };
+
+  const headerHeight = measureRowHeight(headers, { isHeader: true });
+  drawRow(headers, { isHeader: true, rowHeight: headerHeight });
 
   if (rows.length === 0) {
-    drawRow(['', 'ამ სერტიფიკატის თარიღისთვის მონაცემები არ მოიძებნა.', '', '', '', '', '', '', '']);
+    const noDataRow = ['', 'ამ სერტიფიკატის თარიღისთვის მონაცემები არ მოიძებნა.', '', '', '', '', '', '', ''];
+    const noDataHeight = measureRowHeight(noDataRow, {});
+    if (y + noDataHeight > getContentBottom()) {
+      addPageAndHeader();
+    }
+    drawRow(noDataRow, { rowHeight: noDataHeight });
   } else {
     rows.forEach((row) => {
-      if (y + rowHeight > doc.page.height - doc.page.margins.bottom - 40) {
-        doc.addPage({ size: 'A4', layout: 'portrait', margins: { top: 42, right: 38, bottom: 42, left: 38 } });
-        y = doc.page.margins.top;
-        drawRow(headers, true);
-      }
-
-      drawRow([
+      const cells = [
         String(row.index),
         row.jobName || '-',
         row.brandName || '-',
@@ -708,10 +825,17 @@ async function buildPdfPrintable(data: {
         row.liftCertDocNo || '-',
         formatMoney(row.sellingPrice),
         formatMoney(row.totalGel),
-      ]);
+      ];
+
+      const rowHeight = measureRowHeight(cells, {});
+      if (y + rowHeight > getContentBottom()) {
+        addPageAndHeader();
+      }
+
+      drawRow(cells, { rowHeight });
     });
 
-    drawRow([
+    const totalRow = [
       '',
       '',
       '',
@@ -721,7 +845,13 @@ async function buildPdfPrintable(data: {
       'Total',
       formatMoney(totals.nominal),
       totals.gelCount > 0 ? formatMoney(totals.gel) : '-',
-    ], false, true);
+    ];
+
+    const totalHeight = measureRowHeight(totalRow, { isTotal: true });
+    if (y + totalHeight > getContentBottom()) {
+      addPageAndHeader();
+    }
+    drawRow(totalRow, { isTotal: true, rowHeight: totalHeight });
   }
 
   y += 22;
@@ -751,7 +881,7 @@ async function buildPdfPrintable(data: {
   for (let i = 0; i < pageRange.count; i += 1) {
     doc.switchToPage(i);
     const pageLabel = `Page ${i + 1} / ${pageRange.count}`;
-    doc.font('Geo').fontSize(9);
+    doc.font(activeFont).fontSize(9);
     doc.text(pageLabel, 0, doc.page.height - 24, {
       align: 'center',
       width: doc.page.width,
@@ -759,6 +889,27 @@ async function buildPdfPrintable(data: {
   }
 
   return toPdfBuffer(doc);
+}
+
+function buildContentDisposition(fileName: string) {
+  const fileNameAscii = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}; filename="${fileNameAscii}"`;
+}
+
+function buildPerDateFileName(projectToken: string, certDate: string, today: string, format: ExportFormat) {
+  const dateToken = sanitizeFilePart(certDate, 'cert-date');
+  return `handover-print-${projectToken}-${dateToken}-${today}.${format}`;
+}
+
+function buildZipFileName(projectToken: string, today: string, format: ExportFormat) {
+  return `handover-print-${projectToken}-${today}-${format}.zip`;
+}
+
+async function buildPrintableBuffer(data: PrintableData, format: ExportFormat): Promise<Buffer> {
+  if (format === 'docx') {
+    return buildDocxPrintable(data);
+  }
+  return buildPdfPrintable(data);
 }
 
 export async function POST(req: NextRequest) {
@@ -769,50 +920,81 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const projectUuid = String(body?.projectUuid || '').trim();
     const certDate = String(body?.certDate || '').trim();
+    const certDates = Array.isArray(body?.certDates)
+      ? body.certDates.map((x: unknown) => String(x || '').trim()).filter(Boolean)
+      : [];
+    const zipRequested = Boolean(body?.zip);
     const format = String(body?.format || '').toLowerCase() as ExportFormat;
+
+    const requestedDates: string[] = certDates.length > 0 ? certDates : (certDate ? [certDate] : []);
+    const uniqueDates: string[] = Array.from(new Set(requestedDates)).sort((a, b) => a.localeCompare(b));
 
     if (!projectUuid || !UUID_REGEX.test(projectUuid)) {
       return NextResponse.json({ error: 'Valid projectUuid is required' }, { status: 400 });
     }
-    if (!certDate || !/^\d{4}-\d{2}-\d{2}$/.test(certDate)) {
-      return NextResponse.json({ error: 'Valid certDate (YYYY-MM-DD) is required' }, { status: 400 });
+    if (uniqueDates.length === 0) {
+      return NextResponse.json({ error: 'At least one cert date is required' }, { status: 400 });
+    }
+    if (uniqueDates.some((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d))) {
+      return NextResponse.json({ error: 'All certDates must use YYYY-MM-DD format' }, { status: 400 });
     }
     if (format !== 'pdf' && format !== 'docx') {
       return NextResponse.json({ error: 'format must be "pdf" or "docx"' }, { status: 400 });
     }
 
-    const data = await getPrintableData(projectUuid, certDate);
+    const baseData = await loadPrintableBaseData(projectUuid);
 
     const today = new Date().toISOString().split('T')[0];
-    const projectToken = sanitizeFilePart(data.project.project_index || data.project.project_name, 'project');
-    const dateToken = sanitizeFilePart(certDate, 'cert-date');
+    const projectToken = sanitizeFilePart(baseData.project.project_index || baseData.project.project_name, 'project');
+    const shouldZip = zipRequested || uniqueDates.length > 1;
 
-    if (format === 'docx') {
-      const docxBuffer = await buildDocxPrintable(data);
-      const fileName = `handover-print-${projectToken}-${dateToken}-${today}.docx`;
-      const fileNameAscii = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}; filename="${fileNameAscii}"`;
-      const responseBody = toResponseArrayBuffer(docxBuffer);
+    if (shouldZip) {
+      const zip = new JSZip();
+
+      for (const dateKey of uniqueDates) {
+        const data = buildPrintableDataForDate(baseData, dateKey);
+        const fileBuffer = await buildPrintableBuffer(data, format);
+        const fileName = buildPerDateFileName(projectToken, dateKey, today, format);
+        zip.file(fileName, fileBuffer);
+      }
+
+      const zipBytes = await zip.generateAsync({
+        type: 'uint8array',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 },
+      });
+
+      const zipFileName = buildZipFileName(projectToken, today, format);
+      const responseBody = toResponseArrayBuffer(zipBytes);
 
       return new NextResponse(responseBody, {
         headers: {
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'Content-Disposition': contentDisposition,
+          'Content-Type': 'application/zip',
+          'Content-Disposition': buildContentDisposition(zipFileName),
           'Cache-Control': 'no-store',
         },
       });
     }
 
-    const pdfBuffer = await buildPdfPrintable(data);
-    const fileName = `handover-print-${projectToken}-${dateToken}-${today}.pdf`;
-    const fileNameAscii = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}; filename="${fileNameAscii}"`;
-    const responseBody = toResponseArrayBuffer(pdfBuffer);
+    const selectedDate = uniqueDates[0];
+    const data = buildPrintableDataForDate(baseData, selectedDate);
+    const fileName = buildPerDateFileName(projectToken, selectedDate, today, format);
+    const responseBody = toResponseArrayBuffer(await buildPrintableBuffer(data, format));
+
+    if (format === 'docx') {
+      return new NextResponse(responseBody, {
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'Content-Disposition': buildContentDisposition(fileName),
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
 
     return new NextResponse(responseBody, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': contentDisposition,
+        'Content-Disposition': buildContentDisposition(fileName),
         'Cache-Control': 'no-store',
       },
     });

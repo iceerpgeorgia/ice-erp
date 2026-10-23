@@ -200,6 +200,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Each raw table has a unique offset to generate synthetic IDs
 - Returns `raw_record_uuid` from the source raw table
 - Batch transactions are resolved from `bank_transaction_batches` table
+- **UNION type safety rule**: any UNION/UNION ALL branch that emits `raw_record_uuid` must cast placeholders as `NULL::uuid` (never `NULL::text`) to avoid Postgres runtime errors (`UNION types uuid and text cannot be matched`) in project/payment aggregation routes.
 
 ### Job Distribution Linkage
 - `payments_jobs` table links distributions to bank transactions via `raw_record_uuid` or `batch_partition_uuid`
@@ -484,7 +485,10 @@ Both columns A (labels) and B (values) must be populated for formulas to resolve
   - Includes only jobs whose lift-certificate effective date equals the project handover date.
   - Computes GEL totals using NBG exchange rates by lift certificate date (same principle as Handovers table Debit GEL/Total GEL calculation).
 - Downloadable printable form rules:
-  - User must select a **unique Cert. Date** before download; each exported file is scoped to that date's jobs/amounts combination.
+  - User can select **one or multiple Cert. Dates** before download.
+  - Single-date export returns one file; multi-date export returns one ZIP with one file per selected date.
+  - API contract for `POST /api/export/handover-print-form`: accepts `certDate` (single) or `certDates[]` (multi). ZIP mode is enabled automatically for multi-date and can also be requested with `zip=true`.
+  - Each generated file is scoped to that date's jobs/amounts combination.
   - Supported formats: **DOCX** and **PDF**, both generated in **portrait** orientation.
   - Files are generated server-side (not browser print) so they must not include browser header/footer artifacts (URL, timestamp, browser title).
   - Keep explicit **page numbering** in the exported document.
