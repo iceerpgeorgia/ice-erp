@@ -126,6 +126,7 @@ export function HandoversTable() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
+  const [downloadingDocAttachments, setDownloadingDocAttachments] = useState(false);
   
   // ── Export data cache ────────────────────────────────────────────────────
   const [exportCache, setExportCache] = useState<{
@@ -1086,6 +1087,45 @@ export function HandoversTable() {
     });
   }, [selectedProject]);
 
+  const handleDownloadDocAttachmentsZip = useCallback(async () => {
+    if (!selectedProjectUuid || downloadingDocAttachments) return;
+
+    setDownloadingDocAttachments(true);
+    try {
+      const response = await fetch('/api/export/handover-job-doc-attachments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ projectUuid: selectedProjectUuid }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        alert(`Attachment archive download failed: ${err?.error || response.statusText}`);
+        return;
+      }
+
+      const disposition = response.headers.get('content-disposition') || '';
+      const match = disposition.match(/filename="([^"]+)"/i);
+      const fileName = match?.[1] || `handover-doc-attachments-${new Date().toISOString().split('T')[0]}.zip`;
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('[Handovers] Failed to download Doc. No attachments ZIP:', error);
+      alert('Attachment archive download failed. Please try again.');
+    } finally {
+      setDownloadingDocAttachments(false);
+    }
+  }, [downloadingDocAttachments, selectedProjectUuid]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="w-full p-6 space-y-6">
@@ -1223,6 +1263,18 @@ export function HandoversTable() {
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Full Template Export
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDownloadDocAttachmentsZip}
+                    title="Download all attachments referenced by Jobs Doc. No in one ZIP"
+                    disabled={!selectedProjectUuid || sortedJobs.length === 0 || downloadingDocAttachments}
+                    className="w-full justify-start"
+                  >
+                    <Download className={`h-4 w-4 mr-2 ${downloadingDocAttachments ? 'animate-pulse' : ''}`} />
+                    {downloadingDocAttachments ? 'Preparing Doc ZIP...' : 'Doc. No Attachments ZIP'}
                   </Button>
 
                   <div className="h-px bg-gray-200" />

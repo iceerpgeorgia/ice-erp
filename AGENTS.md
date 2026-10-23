@@ -476,6 +476,9 @@ Handover sheet formulas reference:
 Both columns A (labels) and B (values) must be populated for formulas to resolve.
 
 ### Handovers toolbar now supports both export modes: full template export (placeholders + all grids) and separate XLSX exports per table (Jobs, Income Payments, Job Distributions).
+- Handovers toolbar also supports **Doc. No attachment bulk download**: it calls `POST /api/export/handover-job-doc-attachments` and returns one ZIP containing job-level Doc. No source attachments.
+- ZIP selection logic must match Jobs table Doc. No source: per project/job, use the earliest active attachment among lift-certificate/interim-inspection document types, and only rows with non-empty `document_no`.
+- ZIP entry filename format is mandatory: `Job Name_Factory No_Doc. No` (original extension preserved when available; duplicate names get numeric suffixes).
 - The dialog resolves `payment_uuid` via `/api/payments-report` and preloads existing allocations from `/api/payments-jobs`.
 - **Debugging**: Console logs track payment_uuid resolution (`[Job Dist]` prefix) including payment mapping, distribution loading, row payment lookup, and save operations. This helps diagnose cases where distributions might incorrectly appear across multiple payments.
 - Runtime resilience guards for Handovers dependencies:
