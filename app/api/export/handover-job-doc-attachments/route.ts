@@ -174,8 +174,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const zipBuffer = await zip.generateAsync({
-      type: 'nodebuffer',
+    const zipBytes = await zip.generateAsync({
+      type: 'uint8array',
       compression: 'DEFLATE',
       compressionOptions: { level: 6 },
     });
@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
     const projectToken = sanitizeFilePart(project.project_index || project.project_name, 'project');
     const archiveName = `handover-doc-attachments-${projectToken}-${today}.zip`;
 
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(zipBytes, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${archiveName}"`,
