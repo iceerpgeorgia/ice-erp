@@ -1,5 +1,19 @@
 # Deployment Log
 
+## 2026-10-23 Deployment #424 (Feature: Handovers Doc. No Attachments ZIP Export)
+- Commit: eab2fd2 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-9to4kgynv-iceerp.vercel.app
+- Summary: Added bulk ZIP export for Handovers Jobs table Doc. No source attachments and placed the action in More Exports. ZIP includes one file per selected job using required filename format: Job Name_Factory No_Doc. No, with extension preserved and collision-safe numeric suffixes.
+- Selection Rules:
+  - Only rows with non-empty document_no are included
+  - Source attachment per job is the earliest active attachment among lift-certificate and interim-inspection document types
+- Changes:
+  - app/api/export/handover-job-doc-attachments/route.ts: Added POST endpoint that resolves eligible attachments, downloads from Supabase storage, and returns a ZIP archive with metadata headers for added/skipped counts
+  - components/figma/handovers-table.tsx: Added "Doc. No Attachments ZIP" action under More Exports and wired client download flow
+  - AGENTS.md: Documented ZIP export behavior, selection logic, and filename requirements
+- Build/Deploy Note: Vercel type-checking rejected direct typed-array response bodies in this route. Final compatibility fix returns a fresh ArrayBuffer copy before NextResponse construction.
+- Status: ✅ Live
+
 ## 2026-10-22 Deployment #423 (Fix: Jobs Table Totals — Direct Distribution Aggregation)
 - Commit: 50dfe65 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-aphaw0502-iceerp.vercel.app
