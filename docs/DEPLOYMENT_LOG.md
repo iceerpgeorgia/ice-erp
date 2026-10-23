@@ -1,5 +1,27 @@
 # Deployment Log
 
+## 2026-10-24 Deployment #429 (Fix: Printable Export Runtime + Multi-date ZIP + Projects UNION UUID Safety)
+- Commit: 6a87426 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-fz1b27r4t-iceerp.vercel.app
+- Summary: Resolved production runtime/API failures and completed handover printable export enhancements: fixed pdfkit runtime module loading issue, added multi-date Cert. Date export with ZIP output, improved DOCX/PDF printable formatting/pagination, and fixed `raw_record_uuid` UNION type mismatch in projects aggregation routes.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`: 
+    - fixed strict typing issues that blocked build (`chunk` type, alignment value type, date array narrowing)
+    - switched PDF document construction to runtime CJS import (`require('pdfkit')`) to avoid module alias resolution failure in production
+    - added robust font fallback behavior (`Geo` when available, otherwise `Helvetica`)
+    - added multi-date request handling (`certDates[]`) and ZIP generation path (automatic when multiple dates or `zip=true`)
+    - improved output formatting: fixed DOCX table layout/borders/shading, dynamic PDF row-height pagination, repeated PDF table headers on page breaks, explicit page numbering
+    - kept RFC 5987-safe `Content-Disposition` handling for downloadable filenames
+  - `components/figma/handovers-table.tsx`:
+    - printable dialog now supports multi-date selection (Select All / Clear)
+    - sends `{ certDates, zip, certDate, format }` payload
+    - updates action labels for ZIP downloads when multiple dates are selected
+  - `app/api/projects-v2/route.ts`: cast adjustment union placeholder to `NULL::uuid as raw_record_uuid` (from `NULL::text`)
+  - `app/api/projects/route.ts`: cast both adjustment union placeholders to `NULL::uuid as raw_record_uuid` (from `NULL::text`)
+  - `AGENTS.md`: documented multi-date printable export API contract and `raw_record_uuid` UNION type-safety rule
+- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), `pnpm test`, and `pnpm build` completed before deploy.
+- Status: ✅ Live
+
 ## 2026-10-24 Deployment #428 (Feature: Downloadable Handovers Printable DOCX/PDF)
 - Commit: 80f81e0 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-jy73zbgvb-iceerp.vercel.app
