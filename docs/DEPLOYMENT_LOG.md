@@ -1,5 +1,19 @@
 # Deployment Log
 
+## 2026-10-24 Deployment #428 (Feature: Downloadable Handovers Printable DOCX/PDF)
+- Commit: 80f81e0 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-jy73zbgvb-iceerp.vercel.app
+- Summary: Added server-generated downloadable printable handover forms in DOCX/PDF, with mandatory unique Cert. Date selection, portrait orientation, clean output (no browser header/footer artifacts), and explicit page numbering.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`: new POST export route that validates `{ projectUuid, certDate, format }`, loads handover data scoped to selected cert date, and returns DOCX/PDF binary response with RFC 5987-safe download headers.
+  - `components/figma/handovers-table.tsx`: added “Printable Form (DOCX/PDF)” flow with cert-date selection dialog and format-specific download actions; kept existing print preview as separate action.
+  - `components/figma/ui/radio-group.tsx`: fixed Radix import path to package module name.
+  - `package.json` / `pnpm-lock.yaml`: added export dependencies (`docx`, `pdfkit`, `@fontsource/noto-sans-georgian`, `@radix-ui/react-radio-group`, `@types/pdfkit`).
+  - `e2e/smoke.spec.ts`, `e2e/dictionaries-countries.spec.ts`: updated stale Playwright assertions to current auth-gated behavior.
+  - `AGENTS.md`: documented printable DOCX/PDF export requirements and constraints.
+- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), `pnpm test`, `pnpm test:e2e` (with `EXPORT_SERVER_LOGS=false`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`), and `pnpm build` all completed before deploy.
+- Status: ✅ Live
+
 ## 2026-10-24 Deployment #427 (Feature: App-side Handovers Print Form)
 - Commit: 86e03fd (deploy/2026-06-16-emission-insider)
 - Production: https://ice-hiotj44ux-iceerp.vercel.app
