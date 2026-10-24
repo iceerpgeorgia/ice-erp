@@ -6,16 +6,6 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 /** @type {import('next').NextConfig} */
 const nextConfig = { 
   reactStrictMode: true,
-  experimental: {
-    outputFileTracingIncludes: {
-      '/api/export/handover-print-form': [
-        './node_modules/pdfkit/js/standard-fonts/*.cjs',
-        './node_modules/pdfkit/js/pdfkit.js',
-        './node_modules/pdfkit/package.json',
-        './node_modules/@fontsource/noto-sans-georgian/files/noto-sans-georgian-georgian-400-normal.woff',
-      ],
-    },
-  },
   // Security headers applied to every response. CSP is intentionally omitted here
   // to avoid breaking inline styles/scripts; add it separately after testing.
   async headers() {

@@ -691,14 +691,16 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
 
   const fontPath = path.join(
     process.cwd(),
-    'node_modules',
-    '@fontsource',
-    'noto-sans-georgian',
-    'files',
+    'app',
+    'api',
+    'export',
+    'handover-print-form',
+    'fonts',
     'noto-sans-georgian-georgian-400-normal.woff',
   );
 
   const hasGeoFont = fs.existsSync(fontPath);
+  const geoFontBuffer = hasGeoFont ? fs.readFileSync(fontPath) : null;
   const activeFont = hasGeoFont ? 'Geo' : 'Helvetica';
 
   const doc = new PDFDocument({
@@ -706,10 +708,11 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     layout: 'portrait',
     margins: { top: 42, right: 38, bottom: 42, left: 38 },
     bufferPages: true,
+    font: hasGeoFont ? geoFontBuffer : 'Helvetica',
   });
 
-  if (hasGeoFont) {
-    doc.registerFont('Geo', fontPath);
+  if (hasGeoFont && geoFontBuffer) {
+    doc.registerFont('Geo', geoFontBuffer);
   }
   doc.font(activeFont);
 
