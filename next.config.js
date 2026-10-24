@@ -6,11 +6,6 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 /** @type {import('next').NextConfig} */
 const nextConfig = { 
   reactStrictMode: true,
-  // Keep pdfkit as a runtime external so Node resolves package imports (#standard-fonts/*)
-  // from the pdfkit package context instead of an inlined route bundle context.
-  experimental: {
-    serverComponentsExternalPackages: ['pdfkit'],
-  },
   // Security headers applied to every response. CSP is intentionally omitted here
   // to avoid breaking inline styles/scripts; add it separately after testing.
   async headers() {
