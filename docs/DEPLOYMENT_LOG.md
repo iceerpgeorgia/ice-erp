@@ -1,5 +1,28 @@
 # Deployment Log
 
+## 2026-10-24 Deployment #430 (Hotfix: Printable PDF Runtime Font Resolution)
+- Commit: 58830d6 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-fsvfb7shr-iceerp.vercel.app
+- Summary: Fixed production `POST /api/export/handover-print-form` runtime failure (`Cannot find module ... standard-fonts/Helvetica.cjs`) by removing fragile serverless tracing dependency and forcing PDFKit startup to use a vendored Georgian font as the default constructor font.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - switched font source to a vendored route-local file: `app/api/export/handover-print-form/fonts/noto-sans-georgian-georgian-400-normal.woff`
+    - loads font as `Buffer` and passes it to `new PDFDocument({ font: geoFontBuffer })` so PDFKit does not initialize standard Helvetica aliases at startup
+    - keeps registered `Geo` font usage for document rendering
+  - `app/api/export/handover-print-form/fonts/noto-sans-georgian-georgian-400-normal.woff`:
+    - added deterministic in-repo font asset to avoid symlinked `node_modules` packaging edge cases in serverless output
+  - `next.config.js`:
+    - removed experimental output file tracing globs that previously caused Vercel `invalid deployment package for a Serverless Function` errors
+  - `AGENTS.md`:
+    - updated printable-form serverless guidance to require constructor-level custom font strategy and avoid route-level tracing globs for pdfkit standard fonts
+- Validation:
+  - Local: `pnpm exec tsc --noEmit --pretty false`, `pnpm build`
+  - Live authenticated checks (Handovers session):
+    - `GET /api/projects` → 200
+    - `GET /api/projects-v2` → 200
+    - `POST /api/export/handover-print-form` (PDF) → 200 (`application/pdf`, non-empty binary)
+- Status: ✅ Live
+
 ## 2026-10-24 Deployment #429 (Fix: Printable Export Runtime + Multi-date ZIP + Projects UNION UUID Safety)
 - Commit: 6a87426 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-fz1b27r4t-iceerp.vercel.app
