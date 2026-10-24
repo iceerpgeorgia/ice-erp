@@ -12,7 +12,7 @@ const SOURCE_TABLES = [
 
 const UNION_SQL = SOURCE_TABLES.map((table) => (
   `SELECT
-     raw_record_uuid::text as raw_record_uuid,
+     raw_record_uuid::uuid as raw_record_uuid,
      payment_id::text as payment_id,
      nominal_amount::numeric as nominal_amount,
      account_currency_amount::numeric as account_currency_amount

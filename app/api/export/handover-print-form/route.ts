@@ -23,10 +23,13 @@ import { prisma, withRetry } from '@/lib/prisma';
 import { getJobLiftCertInfo } from '@/lib/attachments';
 import { toGenitiveCase } from '@/lib/georgian-genitive';
 import fs from 'fs';
+import { createRequire } from 'module';
 import path from 'path';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const serverRequire = createRequire(import.meta.url);
 
 type ExportFormat = 'pdf' | 'docx';
 
@@ -684,7 +687,7 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     `საიდენტიფიკაციო ნომერი: ${project.insider_identification_number || ''}\n\n` +
     `${contractDateText ? `${contractDateText} ხელშეკრულების თანახმად` : 'ხელშეკრულების თანახმად'} დამკვეთმა მიიღო, ხოლო შემსრულებელმა ჩააბარა დამკვეთის ობიექტზე მისამართზე ${project.address || ''} ქვემოთ მოცემული ერთეულები:`;
 
-  const PDFDocument = require('pdfkit');
+  const PDFDocument = serverRequire(serverRequire.resolve('pdfkit'));
 
   const fontPath = path.join(
     process.cwd(),
