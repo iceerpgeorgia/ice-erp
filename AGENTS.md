@@ -490,6 +490,7 @@ Both columns A (labels) and B (values) must be populated for formulas to resolve
   - API contract for `POST /api/export/handover-print-form`: accepts `certDate` (single) or `certDates[]` (multi). ZIP mode is enabled automatically for multi-date and can also be requested with `zip=true`.
   - Each generated file is scoped to that date's jobs/amounts combination.
   - Supported formats: **DOCX** and **PDF**, both generated in **portrait** orientation.
+  - **Serverless tracing requirement (critical):** Next.js must include `pdfkit/js/standard-fonts/*.cjs` and the custom Georgian font file (`@fontsource/noto-sans-georgian/...-400-normal.woff`) via `experimental.outputFileTracingIncludes['/api/export/handover-print-form']` in `next.config.js`. Missing these files causes runtime `Cannot find module ... standard-fonts/Helvetica.cjs` failures in production.
   - Files are generated server-side (not browser print) so they must not include browser header/footer artifacts (URL, timestamp, browser title).
   - Keep explicit **page numbering** in the exported document.
 - Next.js App Router constraint: the print route uses `useSearchParams`, so it must be wrapped with `Suspense` at page boundary to avoid prerender/build failure.
