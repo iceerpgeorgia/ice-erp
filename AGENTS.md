@@ -490,7 +490,7 @@ Both columns A (labels) and B (values) must be populated for formulas to resolve
   - API contract for `POST /api/export/handover-print-form`: accepts `certDate` (single) or `certDates[]` (multi). ZIP mode is enabled automatically for multi-date and can also be requested with `zip=true`.
   - Each generated file is scoped to that date's jobs/amounts combination.
   - Supported formats: **DOCX** and **PDF**, both generated in **portrait** orientation.
-  - **Serverless runtime safety (critical):** PDF generation must resolve the Georgian font via package exports (`@fontsource/noto-sans-georgian/...-400-normal.woff`) and pass it as the PDFKit constructor `font` option so startup does not rely on standard Helvetica module aliases. Route-level tracing globs for pdfkit standard fonts can cause invalid serverless package failures and must be avoided.
+  - **Serverless runtime safety (critical):** PDF generation must use the vendored Georgian font file at `app/api/export/handover-print-form/fonts/noto-sans-georgian-georgian-400-normal.woff` and pass it as the PDFKit constructor `font` option (Buffer) so startup does not rely on standard Helvetica module aliases. Route-level tracing globs for pdfkit standard fonts can cause invalid serverless package failures and must be avoided.
   - Files are generated server-side (not browser print) so they must not include browser header/footer artifacts (URL, timestamp, browser title).
   - Keep explicit **page numbering** in the exported document.
 - Next.js App Router constraint: the print route uses `useSearchParams`, so it must be wrapped with `Suspense` at page boundary to avoid prerender/build failure.
