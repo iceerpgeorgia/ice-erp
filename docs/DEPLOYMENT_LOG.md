@@ -1,5 +1,23 @@
 # Deployment Log
 
+## 2026-10-25 Deployment #431 (Hotfix: Printable PDF Numeric Font Legibility)
+- Commit: 81674a1 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-6tobeku2t-iceerp.vercel.app
+- Summary: Improved numeric rendering quality in printable PDF exports by introducing a dedicated Latin subset font for numeric-heavy cells and page numbering while preserving Georgian text rendering.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - Added route-local Latin font loading (`noto-sans-georgian-latin-400-normal.woff`) as Buffer.
+    - Registered `Latin` font and applied it selectively to numeric columns (index, weight, floors, amount columns) and footer page numbering.
+    - Kept primary Georgian font (`Geo`) for narrative and non-numeric text.
+  - `app/api/export/handover-print-form/fonts/noto-sans-georgian-latin-400-normal.woff`:
+    - Added vendored Latin subset font asset used by the PDF renderer.
+  - `AGENTS.md`:
+    - Documented numeric rendering rule for printable PDF route.
+- Validation:
+  - Local: `pnpm exec tsc --noEmit --pretty false`, `pnpm build`
+  - Live authenticated check: `POST /api/export/handover-print-form` (PDF) -> 200, `application/pdf`, non-empty binary.
+- Status: ✅ Live
+
 ## 2026-10-24 Deployment #430 (Hotfix: Printable PDF Runtime Font Resolution)
 - Commit: 58830d6 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-fsvfb7shr-iceerp.vercel.app
