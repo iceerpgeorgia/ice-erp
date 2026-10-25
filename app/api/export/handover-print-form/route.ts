@@ -701,7 +701,19 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
 
   const hasGeoFont = fs.existsSync(fontPath);
   const geoFontBuffer = hasGeoFont ? fs.readFileSync(fontPath) : null;
+  const latinFontPath = path.join(
+    process.cwd(),
+    'app',
+    'api',
+    'export',
+    'handover-print-form',
+    'fonts',
+    'noto-sans-georgian-latin-400-normal.woff',
+  );
+  const hasLatinFont = fs.existsSync(latinFontPath);
+  const latinFontBuffer = hasLatinFont ? fs.readFileSync(latinFontPath) : null;
   const activeFont = hasGeoFont ? 'Geo' : 'Helvetica';
+  const numberFont = hasLatinFont ? 'Latin' : activeFont;
 
   const doc = new PDFDocument({
     size: 'A4',
@@ -713,6 +725,9 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
 
   if (hasGeoFont && geoFontBuffer) {
     doc.registerFont('Geo', geoFontBuffer);
+  }
+  if (hasLatinFont && latinFontBuffer) {
+    doc.registerFont('Latin', latinFontBuffer);
   }
   doc.font(activeFont);
 
@@ -758,6 +773,7 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     'right',
     'right',
   ];
+  const shouldUseNumberFont = (index: number) => index === 0 || index === 4 || index === 5 || index === 7 || index === 8;
 
   const getContentBottom = () => doc.page.height - doc.page.margins.bottom - tableBottomPadding;
 
@@ -766,6 +782,7 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     doc.font(activeFont).fontSize(fontSize);
     let maxHeight = minRowHeight;
     cells.forEach((cell, index) => {
+      doc.font(shouldUseNumberFont(index) ? numberFont : activeFont).fontSize(fontSize);
       const width = Math.max((colWidths[index] ?? 80) - 8, 16);
       const measured = doc.heightOfString(cell, {
         width,
@@ -791,7 +808,10 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
         doc.rect(x, y, width, opts.rowHeight).stroke();
       }
 
-      doc.font(activeFont).fontSize(opts.isHeader || opts.isTotal ? 9.5 : 9).fillColor('#000000');
+      doc
+        .font(shouldUseNumberFont(index) ? numberFont : activeFont)
+        .fontSize(opts.isHeader || opts.isTotal ? 9.5 : 9)
+        .fillColor('#000000');
       doc.text(cell, x + 4, y + 4, {
         width: width - 8,
         height: opts.rowHeight - 8,
@@ -887,7 +907,7 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
   for (let i = 0; i < pageRange.count; i += 1) {
     doc.switchToPage(i);
     const pageLabel = `Page ${i + 1} / ${pageRange.count}`;
-    doc.font(activeFont).fontSize(9);
+    doc.font(numberFont).fontSize(9);
     doc.text(pageLabel, 0, doc.page.height - 24, {
       align: 'center',
       width: doc.page.width,
