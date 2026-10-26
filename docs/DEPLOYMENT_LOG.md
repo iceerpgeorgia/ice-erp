@@ -1,5 +1,27 @@
 # Deployment Log
 
+## 2026-10-26 Deployment #435 (Feature: Handovers Certificate Bulk Auto-Attach via OCR)
+- Commit: 45ae5df (deploy/2026-06-16-emission-insider)
+- Production: https://ice-owyeod1op-iceerp.vercel.app
+- Summary: Added bulk certificate upload directly in the Handovers Project Attachments dialog. The flow OCR-parses each uploaded certificate (including image-based PDFs), auto-matches by lift identifier to job factory number, uploads matched files as job attachments, and pre-fills certificate metadata.
+- Changes:
+  - `components/figma/project-attachments.tsx`:
+    - added bulk Auto-Attach Certificates section in Project Attachments dialog
+    - introduced OCR parse pipeline per file via `/api/payments/attachments/ocr`
+    - implemented field extraction (lift identifier, document number/date, reporting dates, permitted load, installer)
+    - implemented deterministic auto-match rule: normalized OCR lift number -> normalized job `factory_no`
+    - uploads and confirms matched files via existing signed-upload job attachment flow
+    - added per-file result reporting (attached, skipped no match, skipped ambiguous match, parse/upload errors)
+  - `AGENTS.md`:
+    - documented Handovers auto-attach capability and matching rule
+    - documented support for image-based PDF certificates through OCR
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only)
+  - `pnpm build` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-26 Deployment #434 (Feature: Jobs-Table Handover Emission Selection + Row Status Colors)
 - Commit: 965bc85 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-jfslamrkx-iceerp.vercel.app
