@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-10-26 Deployment #439 (Fix: Printable Handover Form Matches Template)
+- Commit: 2bf1c21 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-9t9oi21iw-iceerp.vercel.app
+- Summary: Aligned the generated Printable Form (DOCX/PDF) with the shared Handover XLSX template. The generated document previously used English table headers (`Job Name`, `Brand`, `Weight`, `Floors`, `Doc. No`), an English `Total` label, and omitted the template's legal notes paragraph, so the download looked different from the template. It now mirrors the template's Georgian column headers, `ჯამი` total, and notes block, with the factory-number column labeled `ლიფტის #`.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - replaced English table headers with the template's Georgian labels (`#`, `კონტ. #`, `მწარმოებელი`, `ლიფტის #`, `ამწეობა (კგ)`, `სართ.`, `სერტიფიკატის #`, `თანხა {currency}`, `თანხა ₾`) via a shared `handoverTableHeaders` helper used by both DOCX and PDF paths
+    - changed the totals label from `Total` to `ჯამი` in both DOCX and PDF
+    - added the verbatim template notes paragraph (`HANDOVER_NOTES`) after the table in both DOCX and PDF, with PDF page-break safety
+    - data mapping unchanged (values already sit in the correct template column positions)
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm build` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-26 Deployment #438 (Fix: Handover Export Lift Label)
 - Commit: e32c0e1 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-beut8dsiz-iceerp.vercel.app
