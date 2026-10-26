@@ -1,5 +1,18 @@
 # Deployment Log
 
+## 2026-10-26 Deployment #440 (Fix: Georgian Genitive Date Format)
+- Commit: 798f026 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-5rdpvtaan-iceerp.vercel.app
+- Summary: Fixed Georgian genitive date rendering in printable handover forms (DOCX/PDF). The contract date on the form now correctly displays in genitive format as `YYYY წლის D month` (for example `2026 წლის 26 ოქტომბერი`) instead of nominative format `D month YYYY`. This aligns with Georgian grammar rules where dates in genitive case place the year first.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - updated `formatGeorgianDate()` to return genitive dates in the correct order: `${year} წლის ${day} ${months[month - 1]}` instead of `${day} ${months[month - 1]} ${year}`
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm build` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-26 Deployment #439 (Fix: Printable Handover Form Matches Template)
 - Commit: 2bf1c21 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-9t9oi21iw-iceerp.vercel.app
