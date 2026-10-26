@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-10-27 Deployment #443 (Feat: Printable PDF via DOCX→PDF Conversion for Word-Identical Output)
+- Commit: a1fa59d (deploy/2026-06-16-emission-insider)
+- Production: https://ice-ikrb132le-iceerp.vercel.app
+- Summary: The handover printable-form PDF is now produced by converting the generated DOCX to PDF (LibreOffice engine via CloudConvert), so the PDF is visually identical to the DOCX (fonts, tables, spacing). Falls back to the built-in pdfkit renderer when conversion is unavailable or fails, so PDF export never breaks.
+- Changes:
+  - `lib/export/docx-to-pdf.ts` (new): `convertDocxToPdf(buffer)` + `isPdfConversionConfigured()`. Uses CloudConvert v2 jobs API (import/base64 → convert libreoffice → export/url), polls to completion (max ~55s), downloads the resulting PDF.
+  - `app/api/export/handover-print-form/route.ts`: `buildPrintableBuffer` now, for PDF, builds the DOCX and converts it when `CLOUDCONVERT_API_KEY` is set; on any failure it logs and falls back to `buildPdfPrintable` (pdfkit). Added `export const maxDuration = 60`. Removed the now-dead `resolveCityLabel` helper and its call sites.
+  - `.env.example`: documented `CLOUDCONVERT_API_KEY`.
+  - `AGENTS.md`: documented the DOCX-first PDF strategy and fallback.
+- **ACTION REQUIRED to activate conversion:** add `CLOUDCONVERT_API_KEY` to Vercel env (and `.env.local` for local). Get a key at https://cloudconvert.com/dashboard/api/v2/keys with `task.read` + `task.write` scopes. Until the key is set, PDF export continues to use the pdfkit renderer (no behavior change).
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm build` ✅ (clean rebuild, 127/127 pages, compiled successfully)
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live (conversion dormant until `CLOUDCONVERT_API_KEY` is configured)
+
 ## 2026-10-27 Deployment #442 (Fix: Printable Handover Form Typography — Remove City, Unify Font Size to 11)
 - Commit: c601bf5 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-l6rwz708p-iceerp.vercel.app
