@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-10-26 Deployment #441 (Fix: Printable Handover Form Layout — Autofit Table, Uniform Font, Bigger Signatures)
+- Commit: a9311b7 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-hb4x5k1nd-iceerp.vercel.app
+- Summary: Improved printable handover form (DOCX/PDF) table and signature layout. Tables now fit to content instead of stretching to full page width, all table text uses a consistent font size (18 for DOCX, 9 for PDF), and signature boxes are now visibly larger with proper borders and layout.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - DOCX table: switched from FIXED layout to AUTOFIT, allowing automatic column sizing based on content; set all table text to uniform size 18 (headers, body, totals).
+    - DOCX signatures: increased row height to 1.7″, added cell padding and margins, formatted with larger role titles and spacer before signature line.
+    - PDF table: changed column width calculation to fit-to-content measurement (width of widest cell per column), auto-scales down only if total exceeds printable area; set all table text to uniform size 9.
+    - PDF signatures: replaced bare text lines with two large bordered boxes (130px tall × table width, 18px gap between), each containing role title, entity, director, and signature line.
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm build` ✅ (127/127 pages)
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-26 Deployment #440 (Fix: Georgian Genitive Date Format)
 - Commit: 798f026 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-5rdpvtaan-iceerp.vercel.app
