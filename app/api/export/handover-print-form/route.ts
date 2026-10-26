@@ -139,6 +139,26 @@ const MONTHS_GENITIVE = [
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Verbatim notes block from the shared Handover template (reproduced exactly).
+const HANDOVER_NOTES =
+  'ცხრილში მოცემული თანხები მოცემულია მონტაჟის ღირებულების და დღგ-ს ჩათვლით.\n' +
+  '1. მხარეები აცხადებენ, რომ ამ თარიღისთვის ხელშეკრულებით ნაკისრი ვალდებულებავ შემსრულებლის მიერ გაწეულია სრულად და ჯეროვნად. \n' +
+  '2. წინამდებარე აქტზე ხელის მოწერით მხარეები ადასტურებენ, რომ ერთმანეთის მიმართ პრეტენზია არ გააჩნიათ.\n' +
+  '3. წინამდებარე აქტი შედგენილია თანაბარი იურიდიული ძალის მქონე 2 (ორი) ეგზემპლარად, ერთი ეგზემპლარი გადაეცემა დამკვეთს, ხოლო ერთი - შემსრულებელს.';
+
+// Georgian table headers matching the shared Handover template (factory-number column shown as ლიფტის #).
+const handoverTableHeaders = (currencyCode: string): string[] => [
+  '#',
+  'კონტ. #',
+  'მწარმოებელი',
+  'ლიფტის #',
+  'ამწეობა (კგ)',
+  'სართ.',
+  'სერტიფიკატის #',
+  `თანხა ${currencyCode}`,
+  'თანხა ₾',
+];
+
 const DOCX_CELL_BORDERS = {
   top: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
   bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
@@ -483,17 +503,7 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
     `საიდენტიფიკაციო ნომერი: ${project.insider_identification_number || ''}\n\n` +
     `${contractDateText ? `${contractDateText} ხელშეკრულების თანახმად` : 'ხელშეკრულების თანახმად'} დამკვეთმა მიიღო, ხოლო შემსრულებელმა ჩააბარა დამკვეთის ობიექტზე მისამართზე ${project.address || ''} ქვემოთ მოცემული ერთეულები:`;
 
-  const headers = [
-    '#',
-    'Job Name',
-    'Brand',
-    'ლიფტის #',
-    'Weight',
-    'Floors',
-    'Doc. No',
-    `თანხა (${currencyCode})`,
-    'თანხა (GEL)',
-  ];
+  const headers = handoverTableHeaders(currencyCode);
 
   const tableRows: TableRow[] = [
     new TableRow({
@@ -554,7 +564,7 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
     tableRows.push(
       new TableRow({
         children: [
-          buildDocxCell('Total', 74, {
+          buildDocxCell('ჯამი', 74, {
             align: AlignmentType.RIGHT,
             bold: true,
             size: 19,
@@ -631,7 +641,10 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
             layout: TableLayoutType.FIXED,
             rows: tableRows,
           }),
-          new Paragraph({ text: '', spacing: { after: 380 } }),
+          new Paragraph({
+            spacing: { before: 200, after: 380 },
+            children: multilineRuns(HANDOVER_NOTES, 18),
+          }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             layout: TableLayoutType.FIXED,
@@ -814,17 +827,7 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
   const tableBottomPadding = 40;
   const minRowHeight = 20;
 
-  const headers = [
-    '#',
-    'Job Name',
-    'Brand',
-    'ლიფტის #',
-    'Weight',
-    'Floors',
-    'Doc. No',
-    `თანხა (${currencyCode})`,
-    'თანხა (GEL)',
-  ];
+  const headers = handoverTableHeaders(currencyCode);
 
   let y = doc.y;
   const xStart = doc.page.margins.left;
@@ -927,7 +930,7 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
       '',
       '',
       '',
-      'Total',
+      'ჯამი',
       formatMoney(totals.nominal),
       totals.gelCount > 0 ? formatMoney(totals.gel) : '-',
     ];
@@ -939,7 +942,16 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     drawRow(totalRow, { isTotal: true, rowHeight: totalHeight });
   }
 
-  y += 22;
+  y += 16;
+  doc.y = y;
+  for (const line of HANDOVER_NOTES.split('\n')) {
+    if (doc.y > doc.page.height - doc.page.margins.bottom - 40) {
+      doc.addPage({ size: 'A4', layout: 'portrait', margins: { top: 42, right: 38, bottom: 42, left: 38 } });
+      doc.y = doc.page.margins.top;
+    }
+    drawMixedLeft(line.length ? line : ' ', xStart, doc.y, tableWidth, 9.5, 2);
+  }
+  y = doc.y + 22;
   if (y > doc.page.height - 150) {
     doc.addPage({ size: 'A4', layout: 'portrait', margins: { top: 42, right: 38, bottom: 42, left: 38 } });
     y = doc.page.margins.top;
