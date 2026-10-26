@@ -1,5 +1,23 @@
 # Deployment Log
 
+## 2026-10-27 Deployment #444 (Fix: Printable PDF Table Overlap + A4 Parity Diagnostics)
+- Commit: d61ec25 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-h1da8524g-iceerp.vercel.app
+- Summary: Improved printable-form PDF table stability and diagnosability. Reduced fallback PDF table text pressure and switched row-height measurement to wrapped text height to prevent layovers in narrow columns. Also added renderer diagnostics so each PDF response indicates whether it came from CloudConvert conversion or pdfkit fallback.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - PDF fallback table tuning: set `TABLE_FONT=10` (body text remains 11), raised minimum row height, and use `heightOfString` for left-aligned wrapped cells to prevent overlap.
+    - A4 parity: keep DOCX and pdfkit fallback on the same fixed template column proportions (`TABLE_COLUMN_WIDTHS`) and fixed DOCX table widths.
+    - Diagnostics: add `X-Printable-Pdf-Renderer` response header (`cloudconvert` or `pdfkit-fallback`; ZIP may contain comma-separated values).
+    - Runtime logs now emit the renderer path used for PDF generation.
+  - `AGENTS.md`: documented A4 table-fit parity rule and PDF overlap guard + diagnostics header behavior.
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only, no errors)
+  - `pnpm build` ✅ (using isolated local TEMP/TMP to avoid Windows EPERM temp-scan issue)
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-27 Deployment #443 (Feat: Printable PDF via DOCX→PDF Conversion for Word-Identical Output)
 - Commit: a1fa59d (deploy/2026-06-16-emission-insider)
 - Production: https://ice-ikrb132le-iceerp.vercel.app
