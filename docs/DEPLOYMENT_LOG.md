@@ -1,5 +1,20 @@
 # Deployment Log
 
+## 2026-10-25 Deployment #432 (Fix: Printable PDF Numbers Not Rendering)
+- Commit: dd1d431 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-eu58zkq7t-iceerp.vercel.app
+- Summary: Numbers (and other non-Georgian glyphs) were missing entirely from printable PDFs because the vendored Georgian font subset contains no Latin/digit/punctuation glyphs, and PDFKit performs no automatic font fallback. Implemented per-script font switching so Georgian letters use the Georgian font and digits/Latin/punctuation use the Latin font.
+- Root cause: `noto-sans-georgian-georgian-400-normal.woff` has Georgian glyphs only (digits/punctuation = `.notdef` → blank); `noto-sans-georgian-latin-400-normal.woff` has digits/Latin only.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - Added `splitScriptRuns` + `drawMixedLine` (manual-aligned single line) and `drawMixedLeft` (wrapping, left) helpers that render each run with the font that actually contains its glyphs.
+    - Replaced all table, header, intro, signature, title, and page-number text drawing with the mixed-script renderers.
+    - Manual alignment used for centered/right content because PDFKit mis-positions `continued` multi-font runs under `align`.
+- Validation:
+  - Local: `pnpm exec tsc --noEmit`, `pnpm build`, and a standalone render confirming both font subsets embed (two `Tf` resources) with digits present.
+  - Live authenticated `POST /api/export/handover-print-form` (PDF) → 200, `application/pdf`; output size increased (digits now embedded).
+- Status: ✅ Live
+
 ## 2026-10-25 Deployment #431 (Hotfix: Printable PDF Numeric Font Legibility)
 - Commit: 81674a1 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-6tobeku2t-iceerp.vercel.app
