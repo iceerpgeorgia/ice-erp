@@ -1,5 +1,36 @@
 # Deployment Log
 
+## 2026-10-26 Deployment #433 (Feature: Date-scoped Handover Emission + Pending Cert-Date Project Indicator)
+- Commit: bd6865c (deploy/2026-06-16-emission-insider)
+- Production: https://ice-4vbbsba09-iceerp.vercel.app
+- Summary: Added date-scoped handover emission and surfaced pending emission backlog directly in the Handovers project dropdown. Emission now locks only distributions tied to selected cert date(s), and projects with non-emitted cert dates are prioritized/highlighted in red.
+- Changes:
+  - `app/api/handovers/emit/route.ts`:
+    - accepts `certDate` and `certDates[]`
+    - validates ISO date format (`YYYY-MM-DD`)
+    - resolves job cert dates via `getJobLiftCertInfo`
+    - locks only non-emitted `payments_jobs` rows for jobs matching selected cert date(s)
+    - includes selected `cert_dates` in response and emission description
+  - `app/api/handovers/projects-emission-status/route.ts`:
+    - new endpoint returning per-project emission backlog (`missingEmissionCount`, `certDatesWithoutEmission`, `hasMissingEmissions`)
+    - computes backlog from non-emitted `payments_jobs` + lift cert dates
+  - `components/figma/handovers-table.tsx`:
+    - `Emit Handover` now requires selected cert date checkbox(es)
+    - sends selected dates to `/api/handovers/emit`
+    - project dropdown now sorts projects with pending cert-date emissions to the top
+    - pending projects show warning label and red-highlighted dropdown rows
+  - `components/ui/combobox.tsx`:
+    - added per-option `itemClassName` support to enable custom dropdown row styling
+  - `AGENTS.md`:
+    - documented date-scoped emission rule and project-dropdown pending-emission indicator
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only)
+  - `pnpm build` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+  - Alias updated: `ice-erp.vercel.app` → `https://ice-4vbbsba09-iceerp.vercel.app` ✅
+- Status: ✅ Live
+
 ## 2026-10-25 Deployment #432 (Fix: Printable PDF Numbers Not Rendering)
 - Commit: dd1d431 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-eu58zkq7t-iceerp.vercel.app
