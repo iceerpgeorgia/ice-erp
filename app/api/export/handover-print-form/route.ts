@@ -174,6 +174,13 @@ const DOCX_CELL_BORDERS = {
   right: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
 };
 
+const DOCX_NO_BORDERS = {
+  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+};
+
 const TABLE_COLUMN_WIDTHS = [5, 20, 11, 12, 8, 7, 11, 13, 13];
 
 function sanitizeFilePart(value: string | null | undefined, fallback: string): string {
@@ -657,7 +664,7 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
                 children: [
                   new TableCell({
                     width: { size: 50, type: WidthType.PERCENTAGE },
-                    borders: DOCX_CELL_BORDERS,
+                    borders: DOCX_NO_BORDERS,
                     margins: { top: 160, bottom: 160, left: 160, right: 160 },
                     children: [
                       new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: 'დამკვეთი', bold: true, size: 22 })] }),
@@ -669,7 +676,7 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
                   }),
                   new TableCell({
                     width: { size: 50, type: WidthType.PERCENTAGE },
-                    borders: DOCX_CELL_BORDERS,
+                    borders: DOCX_NO_BORDERS,
                     margins: { top: 160, bottom: 160, left: 160, right: 160 },
                     children: [
                       new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: 'შემსრულებელი', bold: true, size: 22 })] }),
@@ -1086,7 +1093,6 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
   const sigBoxWidth = Math.floor((tableWidth - sigGap) / 2);
   const sigPad = 10;
   const drawSignatureBox = (bx: number, title: string, entity: string, director: string) => {
-    doc.rect(bx, y, sigBoxWidth, sigBoxHeight).stroke();
     const innerW = sigBoxWidth - 2 * sigPad;
     drawMixedLine(title, bx + sigPad, y + sigPad, innerW, 'left', 11);
     drawMixedLine(entity, bx + sigPad, y + sigPad + 26, innerW, 'left', 11);
