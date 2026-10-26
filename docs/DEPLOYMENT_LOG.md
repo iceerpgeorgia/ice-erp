@@ -1,5 +1,23 @@
 # Deployment Log
 
+## 2026-10-26 Deployment #436 (Fix: Auto-Attach Lift Number Extraction Prefers Serial IDs)
+- Commit: 3ad3cb8 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-ok4v99xwp-iceerp.vercel.app
+- Summary: Fixed Handovers certificate auto-attach false negatives where OCR picked manufacturer words (for example `DELFAR`) instead of the actual elevator serial (for example `D022360E`). Lift-number extraction now prefers serial-like candidates that contain digits, and filename fallback is removed.
+- Changes:
+  - `components/figma/project-attachments.tsx`:
+    - updated lift-number parser to collect `ლიფტი/LIFT` candidates and prefer candidates containing digits
+    - removed filename-based lift-number fallback entirely
+    - kept project-scoped `factory_no` matching behavior unchanged
+  - `AGENTS.md`:
+    - documented the updated extraction rule (prefer digit-containing serials) and explicit no-filename-fallback policy
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only)
+  - `pnpm build` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-26 Deployment #435 (Feature: Handovers Certificate Bulk Auto-Attach via OCR)
 - Commit: 45ae5df (deploy/2026-06-16-emission-insider)
 - Production: https://ice-owyeod1op-iceerp.vercel.app
