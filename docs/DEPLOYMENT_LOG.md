@@ -1,5 +1,20 @@
 # Deployment Log
 
+## 2026-10-27 Deployment #442 (Fix: Printable Handover Form Typography — Remove City, Unify Font Size to 11)
+- Commit: c601bf5 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-l6rwz708p-iceerp.vercel.app
+- Summary: Simplified printable handover form (DOCX/PDF) typography and layout. Removed city label (ბათუმი/თბილისი) from header, leaving only the certification date. Unified all document text to consistent size 11 (22 half-points in DOCX).
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - DOCX: Changed all text sizes to 22 half-points (11pt) — title, date line, intro paragraphs, table headers/body/totals, notes, and signature box.
+    - DOCX: Removed `cityLabel` from date line, now shows only `certDateDisplay`.
+    - PDF: Changed all text sizes to 11 — title, date line, intro, table (TABLE_FONT), notes, signature box, and page numbers.
+    - PDF: Removed `cityLabel` from date line, now shows only `certDateDisplay`.
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-26 Deployment #441 (Fix: Printable Handover Form Layout — Autofit Table, Uniform Font, Bigger Signatures)
 - Commit: a9311b7 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-hb4x5k1nd-iceerp.vercel.app
