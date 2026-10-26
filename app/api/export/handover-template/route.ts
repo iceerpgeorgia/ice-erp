@@ -425,7 +425,7 @@ export async function POST(req: NextRequest) {
       // Transform jobs to sheet format
       const jobsData = jobs.map(job => ({
         'Job Name': job.job_name || '',
-        'Factory No': job.factory_no || '',
+        'ლიფტის #': job.factory_no || '',
         'Brand Name': job.brands?.name || '',
         'Floors': job.floors ?? '',
         'Weight (kg)': job.weight ?? '',

@@ -81,7 +81,7 @@ export async function exportHandoverFromTemplate({
   }
 
   // Add headers if they don't exist
-  const headers = ['Counteragent ID', 'Factory No', 'Manufacturer', 'Floors', 'Weight', 'Nominal', '', '', '', '', 'GEL Amount', '', 'Date', 'Cert No'];
+  const headers = ['Counteragent ID', 'ლიფტის #', 'Manufacturer', 'Floors', 'Weight', 'Nominal', '', '', '', '', 'GEL Amount', '', 'Date', 'Cert No'];
   for (let i = 0; i < headers.length; i++) {
     const colLetter = String.fromCharCode(65 + i); // A, B, C, etc.
     if (!jobsSheet[`${colLetter}1`]) {
