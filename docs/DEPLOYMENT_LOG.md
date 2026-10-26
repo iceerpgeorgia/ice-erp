@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-10-26 Deployment #437 (Fix: Auto-Attach Uses Certificate Issue Date)
+- Commit: a68e4aa (deploy/2026-06-16-emission-insider)
+- Production: https://ice-ioykyb841-iceerp.vercel.app
+- Summary: Updated Handovers certificate auto-attach so certificate `document_date` uses parsed issue date (`სერტ. გაცემის თარიღი`) first, with inspection date as fallback. This prevents false handover cert-date grouping when inspection date differs from certificate issue date.
+- Changes:
+  - `components/figma/project-attachments.tsx`:
+    - changed auto-attach date priority to `issueDate || inspectionDate` for attached and result-preview rows
+  - `AGENTS.md`:
+    - documented the auto-attach document-date rule: issue date first, inspection date fallback
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only)
+  - `pnpm build` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-26 Deployment #436 (Fix: Auto-Attach Lift Number Extraction Prefers Serial IDs)
 - Commit: 3ad3cb8 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-ok4v99xwp-iceerp.vercel.app
