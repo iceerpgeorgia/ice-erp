@@ -463,7 +463,7 @@ export function ProjectAttachments({
               reason: `No job matched lift number ${parsed.liftNo}`,
               liftNo: parsed.liftNo,
               documentNo: parsed.certificateNo || undefined,
-              documentDate: parsed.inspectionDate || parsed.issueDate || undefined,
+              documentDate: parsed.issueDate || parsed.inspectionDate || undefined,
             });
             continue;
           }
@@ -475,7 +475,7 @@ export function ProjectAttachments({
               reason: `Multiple jobs matched lift number ${parsed.liftNo}`,
               liftNo: parsed.liftNo,
               documentNo: parsed.certificateNo || undefined,
-              documentDate: parsed.inspectionDate || parsed.issueDate || undefined,
+              documentDate: parsed.issueDate || parsed.inspectionDate || undefined,
             });
             continue;
           }
@@ -485,7 +485,7 @@ export function ProjectAttachments({
             file,
             jobUuid: targetJob.jobUuid,
             documentTypeUuid,
-            documentDate: parsed.inspectionDate || parsed.issueDate || null,
+            documentDate: parsed.issueDate || parsed.inspectionDate || null,
             documentNo: parsed.certificateNo || undefined,
             metadata: {
               source: 'handovers_project_auto_attach',
@@ -505,7 +505,7 @@ export function ProjectAttachments({
             jobName: targetJob.jobName,
             liftNo: parsed.liftNo,
             documentNo: parsed.certificateNo || undefined,
-            documentDate: parsed.inspectionDate || parsed.issueDate || undefined,
+            documentDate: parsed.issueDate || parsed.inspectionDate || undefined,
           });
         } catch (error: any) {
           results.push({
