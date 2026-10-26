@@ -23,12 +23,14 @@ import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { prisma, withRetry } from '@/lib/prisma';
 import { getJobLiftCertInfo } from '@/lib/attachments';
 import { toGenitiveCase } from '@/lib/georgian-genitive';
+import { convertDocxToPdf, isPdfConversionConfigured } from '@/lib/export/docx-to-pdf';
 import fs from 'fs';
 import { createRequire } from 'module';
 import path from 'path';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const serverRequire = createRequire(import.meta.url);
 
@@ -220,13 +222,6 @@ function formatMoney(value: number | null | undefined): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-}
-
-function resolveCityLabel(department: string | null | undefined): string {
-  const normalized = String(department || '').toLowerCase();
-  if (normalized.includes('tbilisi')) return 'ქ. თბილისი';
-  if (normalized.includes('თბილის')) return 'ქ. თბილისი';
-  return 'ქ. ბათუმი';
 }
 
 function toPdfBuffer(doc: any): Promise<Buffer> {
@@ -493,7 +488,6 @@ function buildPrintableDataForDate(base: PrintableBaseData, certDate: string): P
 
 async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
   const { project, certDate, rows, totals } = data;
-  const cityLabel = resolveCityLabel(project.department);
   const certDateDisplay = formatDateDdMmYyyy(certDate);
   const contractDateText = formatGeorgianDate(toDateKey(project.date), true);
   const currencyCode = String(project.currency || 'GEL').toUpperCase();
@@ -695,7 +689,6 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
 
 async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
   const { project, certDate, rows, totals } = data;
-  const cityLabel = resolveCityLabel(project.department);
   const certDateDisplay = formatDateDdMmYyyy(certDate);
   const contractDateText = formatGeorgianDate(toDateKey(project.date), true);
   const currencyCode = String(project.currency || 'GEL').toUpperCase();
@@ -1060,6 +1053,17 @@ function buildZipFileName(projectToken: string, today: string, format: ExportFor
 async function buildPrintableBuffer(data: PrintableData, format: ExportFormat): Promise<Buffer> {
   if (format === 'docx') {
     return buildDocxPrintable(data);
+  }
+  // PDF: prefer a high-fidelity conversion of the DOCX so the PDF matches Word output exactly
+  // (fonts, tables, spacing). Fall back to the hand-drawn pdfkit renderer when conversion is
+  // unavailable (no API key) or fails for any reason, so PDF export never breaks.
+  if (isPdfConversionConfigured()) {
+    try {
+      const docxBuffer = await buildDocxPrintable(data);
+      return await convertDocxToPdf(docxBuffer, 'handover.docx');
+    } catch (error) {
+      console.error('DOCX->PDF conversion failed; falling back to pdfkit renderer:', error);
+    }
   }
   return buildPdfPrintable(data);
 }
