@@ -207,7 +207,10 @@ function formatGeorgianDate(dateKey: string | null | undefined, genitive: boolea
     return '';
   }
   const months = genitive ? MONTHS_GENITIVE : MONTHS_NOMINATIVE;
-  return `${day} ${months[month - 1]} ${year}`;
+  // Georgian date reads "YYYY წლის D <month-genitive>" (e.g. 2024 წლის 1 სექტემბრის).
+  return genitive
+    ? `${year} წლის ${day} ${months[month - 1]}`
+    : `${day} ${months[month - 1]} ${year}`;
 }
 
 function formatMoney(value: number | null | undefined): string {
