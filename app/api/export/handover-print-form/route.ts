@@ -101,6 +101,11 @@ type PrintableData = {
   totals: PrintableTotals;
 };
 
+type PrintableBuildResult = {
+  buffer: Buffer;
+  pdfRenderer?: 'cloudconvert' | 'pdfkit-fallback';
+};
+
 type PrintableBaseData = {
   project: ProjectData;
   jobs: JobData[];
@@ -258,7 +263,7 @@ function buildDocxCell(
   } = {},
 ) {
   return new TableCell({
-    width: { size: widthPct, type: WidthType.AUTO },
+    width: { size: widthPct, type: WidthType.PERCENTAGE },
     borders: DOCX_CELL_BORDERS,
     shading: opts.shaded
       ? {
@@ -635,8 +640,8 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
             children: multilineRuns(intro, 22),
           }),
           new Table({
-            width: { size: 0, type: WidthType.AUTO },
-            layout: TableLayoutType.AUTOFIT,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
             rows: tableRows,
           }),
           new Paragraph({
@@ -824,8 +829,8 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
   doc.moveDown(1);
 
   const tableBottomPadding = 40;
-  const minRowHeight = 20;
-  const TABLE_FONT = 11;
+  const minRowHeight = 22;
+  const TABLE_FONT = 10;
 
   const headers = handoverTableHeaders(currencyCode);
   const xStart = doc.page.margins.left;
@@ -858,18 +863,11 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     totals.gelCount > 0 ? formatMoney(totals.gel) : '-',
   ];
 
-  // Fit-to-content column widths measured from header/body/total, capped to printable width.
-  const measureRows = rows.length === 0 ? [headers] : [headers, ...bodyCellRows, totalCells];
-  const CELL_PAD = 10;
-  let colWidths = headers.map((_, i) => {
-    let w = 0;
-    for (const r of measureRows) w = Math.max(w, mixedLineWidth(r[i] ?? '', TABLE_FONT));
-    return Math.ceil(w) + CELL_PAD;
-  });
-  const sumWidths = colWidths.reduce((a, b) => a + b, 0);
-  if (sumWidths > tableWidth) {
-    const scale = tableWidth / sumWidths;
-    colWidths = colWidths.map((w) => Math.floor(w * scale));
+  // Use the same fixed template proportions as DOCX so fallback PDF keeps A4 parity.
+  const colWidths = TABLE_COLUMN_WIDTHS.map((pct) => Math.floor((tableWidth * pct) / 100));
+  const widthDelta = Math.floor(tableWidth) - colWidths.reduce((a, b) => a + b, 0);
+  if (widthDelta !== 0 && colWidths.length > 0) {
+    colWidths[colWidths.length - 1] += widthDelta;
   }
 
   let y = doc.y;
@@ -892,10 +890,16 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     let maxHeight = minRowHeight;
     cells.forEach((cell, index) => {
       const innerWidth = Math.max((colWidths[index] ?? 80) - 8, 16);
-      const totalWidth = mixedLineWidth(cell, fontSize);
-      const lineCount = textAlignByColumn[index] === 'left' ? Math.max(1, Math.ceil(totalWidth / innerWidth)) : 1;
-      const measured = lineCount * fontSize * 1.3;
-      maxHeight = Math.max(maxHeight, measured + 10);
+      let measured = fontSize * 1.3;
+      if (textAlignByColumn[index] === 'left') {
+        doc.font(activeFont).fontSize(fontSize);
+        measured = doc.heightOfString(cell, {
+          width: innerWidth,
+          align: 'left',
+          lineGap: 2,
+        });
+      }
+      maxHeight = Math.max(maxHeight, measured + 12);
     });
     return maxHeight;
   };
@@ -1050,9 +1054,9 @@ function buildZipFileName(projectToken: string, today: string, format: ExportFor
   return `handover-print-${projectToken}-${today}-${format}.zip`;
 }
 
-async function buildPrintableBuffer(data: PrintableData, format: ExportFormat): Promise<Buffer> {
+async function buildPrintableBuffer(data: PrintableData, format: ExportFormat): Promise<PrintableBuildResult> {
   if (format === 'docx') {
-    return buildDocxPrintable(data);
+    return { buffer: await buildDocxPrintable(data) };
   }
   // PDF: prefer a high-fidelity conversion of the DOCX so the PDF matches Word output exactly
   // (fonts, tables, spacing). Fall back to the hand-drawn pdfkit renderer when conversion is
@@ -1060,12 +1064,15 @@ async function buildPrintableBuffer(data: PrintableData, format: ExportFormat): 
   if (isPdfConversionConfigured()) {
     try {
       const docxBuffer = await buildDocxPrintable(data);
-      return await convertDocxToPdf(docxBuffer, 'handover.docx');
+      const convertedBuffer = await convertDocxToPdf(docxBuffer, 'handover.docx');
+      console.info('Printable PDF renderer: cloudconvert');
+      return { buffer: convertedBuffer, pdfRenderer: 'cloudconvert' };
     } catch (error) {
       console.error('DOCX->PDF conversion failed; falling back to pdfkit renderer:', error);
     }
   }
-  return buildPdfPrintable(data);
+  console.warn('Printable PDF renderer: pdfkit-fallback');
+  return { buffer: await buildPdfPrintable(data), pdfRenderer: 'pdfkit-fallback' };
 }
 
 export async function POST(req: NextRequest) {
@@ -1106,10 +1113,15 @@ export async function POST(req: NextRequest) {
 
     if (shouldZip) {
       const zip = new JSZip();
+      const pdfRenderers = new Set<'cloudconvert' | 'pdfkit-fallback'>();
 
       for (const dateKey of uniqueDates) {
         const data = buildPrintableDataForDate(baseData, dateKey);
-        const fileBuffer = await buildPrintableBuffer(data, format);
+        const buildResult = await buildPrintableBuffer(data, format);
+        const fileBuffer = buildResult.buffer;
+        if (format === 'pdf' && buildResult.pdfRenderer) {
+          pdfRenderers.add(buildResult.pdfRenderer);
+        }
         const fileName = buildPerDateFileName(projectToken, dateKey, today, format);
         zip.file(fileName, fileBuffer);
       }
@@ -1122,20 +1134,25 @@ export async function POST(req: NextRequest) {
 
       const zipFileName = buildZipFileName(projectToken, today, format);
       const responseBody = toResponseArrayBuffer(zipBytes);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': buildContentDisposition(zipFileName),
+        'Cache-Control': 'no-store',
+      };
+      if (format === 'pdf' && pdfRenderers.size > 0) {
+        headers['X-Printable-Pdf-Renderer'] = Array.from(pdfRenderers).join(',');
+      }
 
       return new NextResponse(responseBody, {
-        headers: {
-          'Content-Type': 'application/zip',
-          'Content-Disposition': buildContentDisposition(zipFileName),
-          'Cache-Control': 'no-store',
-        },
+        headers,
       });
     }
 
     const selectedDate = uniqueDates[0];
     const data = buildPrintableDataForDate(baseData, selectedDate);
     const fileName = buildPerDateFileName(projectToken, selectedDate, today, format);
-    const responseBody = toResponseArrayBuffer(await buildPrintableBuffer(data, format));
+    const buildResult = await buildPrintableBuffer(data, format);
+    const responseBody = toResponseArrayBuffer(buildResult.buffer);
 
     if (format === 'docx') {
       return new NextResponse(responseBody, {
@@ -1152,6 +1169,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/pdf',
         'Content-Disposition': buildContentDisposition(fileName),
         'Cache-Control': 'no-store',
+        ...(buildResult.pdfRenderer ? { 'X-Printable-Pdf-Renderer': buildResult.pdfRenderer } : {}),
       },
     });
   } catch (error: any) {
