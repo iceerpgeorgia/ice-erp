@@ -75,25 +75,27 @@ function parseDateToIso(value: string | null | undefined): string | null {
   return `${year}-${month}-${day}`;
 }
 
-function parseCertificateFields(rawText: string, fileName?: string): ParsedCertificateFields {
+function parseCertificateFields(rawText: string): ParsedCertificateFields {
   const text = String(rawText || '').replace(/\u00a0/g, ' ');
 
   const certNoMatch = text.match(/ინსპექტირების\s*სერტიფიკატი\s*№?\s*([A-Z0-9-]{3,})/i);
   const reportNoMatch = text.match(/ინსპექტირების\s*ანგარიში\s*№?\s*([A-Z0-9-]{3,})/i);
 
-  const liftNoMatch =
-    text.match(/ლიფტი\s*№?\s*[-–—:]*\s*([A-Z0-9-]{4,})/i) ||
-    text.match(/LIFT\s*№?\s*[-–—:]*\s*([A-Z0-9-]{4,})/i);
+  const liftCandidates = Array.from(
+    text.matchAll(/(?:ლიფტი|LIFT)\s*(?:N[Oo]|NO|№|#)?\s*[-–—:]*\s*([A-Z0-9-]{4,})/gi),
+  )
+    .map((match) => match[1]?.toUpperCase())
+    .filter((value): value is string => Boolean(value));
+
+  // Prefer serial-like candidates that include digits (e.g. D022360E) over brand words.
+  const liftNo =
+    liftCandidates.find((candidate) => /\d/.test(candidate)) ??
+    liftCandidates[0] ??
+    null;
 
   const inspectionDateMatch = text.match(/ინსპექტირების\s*თარიღი\s*[:\-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{4})/i);
   const issueDateMatch = text.match(/სერტ\.?\s*გაცემის\s*თარიღი\s*[:\-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{4})/i);
   const validUntilMatch = text.match(/მოქმედებაშია\s*(\d{1,2}[./-]\d{1,2}[./-]\d{4})/i);
-
-  let liftNo = liftNoMatch?.[1]?.toUpperCase() ?? null;
-  if (!liftNo && fileName) {
-    const fromName = fileName.toUpperCase().match(/([A-Z]\d{6}[A-Z])/);
-    if (fromName) liftNo = fromName[1];
-  }
 
   return {
     certificateNo: certNoMatch?.[1] ?? null,
@@ -442,7 +444,7 @@ export function ProjectAttachments({
       for (const file of autoAttachFiles) {
         try {
           const rawText = await runOcrForFile(file);
-          const parsed = parseCertificateFields(rawText, file.name);
+          const parsed = parseCertificateFields(rawText);
           const matches = findMatchingJobsByLiftNo(parsed.liftNo, projectJobs);
 
           if (!parsed.liftNo) {
