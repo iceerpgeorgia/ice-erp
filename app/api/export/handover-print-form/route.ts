@@ -5,6 +5,7 @@ import {
   BorderStyle,
   Document,
   Footer,
+  HeightRule,
   Packer,
   PageNumber,
   PageOrientation,
@@ -262,7 +263,7 @@ function buildDocxCell(
   } = {},
 ) {
   return new TableCell({
-    width: { size: widthPct, type: WidthType.PERCENTAGE },
+    width: { size: widthPct, type: WidthType.AUTO },
     borders: DOCX_CELL_BORDERS,
     shading: opts.shaded
       ? {
@@ -527,7 +528,7 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
         children: [
           buildDocxCell('ამ სერტიფიკატის თარიღისთვის მონაცემები არ მოიძებნა.', 100, {
             align: AlignmentType.CENTER,
-            size: 20,
+            size: 18,
             columnSpan: 9,
           }),
         ],
@@ -570,20 +571,20 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
           buildDocxCell('ჯამი', 74, {
             align: AlignmentType.RIGHT,
             bold: true,
-            size: 19,
+            size: 18,
             shaded: true,
             columnSpan: 7,
           }),
           buildDocxCell(formatMoney(totals.nominal), TABLE_COLUMN_WIDTHS[7], {
             align: AlignmentType.RIGHT,
             bold: true,
-            size: 19,
+            size: 18,
             shaded: true,
           }),
           buildDocxCell(totals.gelCount > 0 ? formatMoney(totals.gel) : '-', TABLE_COLUMN_WIDTHS[8], {
             align: AlignmentType.RIGHT,
             bold: true,
-            size: 19,
+            size: 18,
             shaded: true,
           }),
         ],
@@ -640,8 +641,8 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
             children: multilineRuns(intro, 21),
           }),
           new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            layout: TableLayoutType.FIXED,
+            width: { size: 0, type: WidthType.AUTO },
+            layout: TableLayoutType.AUTOFIT,
             rows: tableRows,
           }),
           new Paragraph({
@@ -653,25 +654,30 @@ async function buildDocxPrintable(data: PrintableData): Promise<Buffer> {
             layout: TableLayoutType.FIXED,
             rows: [
               new TableRow({
+                height: { value: convertInchesToTwip(1.7), rule: HeightRule.ATLEAST },
                 children: [
                   new TableCell({
                     width: { size: 50, type: WidthType.PERCENTAGE },
                     borders: DOCX_CELL_BORDERS,
+                    margins: { top: 160, bottom: 160, left: 160, right: 160 },
                     children: [
-                      new Paragraph({ children: [new TextRun({ text: 'დამკვეთი', bold: true, size: 22 })] }),
-                      new Paragraph({ text: `${project.entity_type || ''} ${project.name || ''}` }),
-                      new Paragraph({ text: `დირექტორი: ${project.director || '-'}` }),
-                      new Paragraph({ text: 'ხელმოწერა: ____________________' }),
+                      new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: 'დამკვეთი', bold: true, size: 24 })] }),
+                      new Paragraph({ children: [new TextRun({ text: `${project.entity_type || ''} ${project.name || ''}`.trim(), size: 18 })] }),
+                      new Paragraph({ children: [new TextRun({ text: `დირექტორი: ${project.director || '-'}`, size: 18 })] }),
+                      new Paragraph({ text: '' }),
+                      new Paragraph({ children: [new TextRun({ text: 'ხელმოწერა: ____________________', size: 18 })] }),
                     ],
                   }),
                   new TableCell({
                     width: { size: 50, type: WidthType.PERCENTAGE },
                     borders: DOCX_CELL_BORDERS,
+                    margins: { top: 160, bottom: 160, left: 160, right: 160 },
                     children: [
-                      new Paragraph({ children: [new TextRun({ text: 'შემსრულებელი', bold: true, size: 22 })] }),
-                      new Paragraph({ text: `${project.insider_entity_type || ''} ${project.insider_name_field || ''}` }),
-                      new Paragraph({ text: `დირექტორი: ${project.insider_director || '-'}` }),
-                      new Paragraph({ text: 'ხელმოწერა: ____________________' }),
+                      new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: 'შემსრულებელი', bold: true, size: 24 })] }),
+                      new Paragraph({ children: [new TextRun({ text: `${project.insider_entity_type || ''} ${project.insider_name_field || ''}`.trim(), size: 18 })] }),
+                      new Paragraph({ children: [new TextRun({ text: `დირექტორი: ${project.insider_director || '-'}`, size: 18 })] }),
+                      new Paragraph({ text: '' }),
+                      new Paragraph({ children: [new TextRun({ text: 'ხელმოწერა: ____________________', size: 18 })] }),
                     ],
                   }),
                 ],
@@ -824,16 +830,56 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
   }
   doc.moveDown(1);
 
-  const colRatios = [0.05, 0.17, 0.12, 0.12, 0.08, 0.07, 0.12, 0.14, 0.13];
-  const tableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const colWidths = colRatios.map((r) => Math.floor(tableWidth * r));
   const tableBottomPadding = 40;
   const minRowHeight = 20;
+  const TABLE_FONT = 9;
 
   const headers = handoverTableHeaders(currencyCode);
+  const xStart = doc.page.margins.left;
+  const tableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+
+  const bodyCellRows: string[][] =
+    rows.length === 0
+      ? [['', 'ამ სერტიფიკატის თარიღისთვის მონაცემები არ მოიძებნა.', '', '', '', '', '', '', '']]
+      : rows.map((row) => [
+          String(row.index),
+          row.jobName || '-',
+          row.brandName || '-',
+          row.factoryNo || '-',
+          row.weight == null ? '-' : `${row.weight} კგ`,
+          row.floors == null ? '-' : String(row.floors),
+          row.liftCertDocNo || '-',
+          formatMoney(row.sellingPrice),
+          formatMoney(row.totalGel),
+        ]);
+
+  const totalCells = [
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    'ჯამი',
+    formatMoney(totals.nominal),
+    totals.gelCount > 0 ? formatMoney(totals.gel) : '-',
+  ];
+
+  // Fit-to-content column widths measured from header/body/total, capped to printable width.
+  const measureRows = rows.length === 0 ? [headers] : [headers, ...bodyCellRows, totalCells];
+  const CELL_PAD = 10;
+  let colWidths = headers.map((_, i) => {
+    let w = 0;
+    for (const r of measureRows) w = Math.max(w, mixedLineWidth(r[i] ?? '', TABLE_FONT));
+    return Math.ceil(w) + CELL_PAD;
+  });
+  const sumWidths = colWidths.reduce((a, b) => a + b, 0);
+  if (sumWidths > tableWidth) {
+    const scale = tableWidth / sumWidths;
+    colWidths = colWidths.map((w) => Math.floor(w * scale));
+  }
 
   let y = doc.y;
-  const xStart = doc.page.margins.left;
   const textAlignByColumn: Array<'left' | 'center' | 'right'> = [
     'center',
     'left',
@@ -848,7 +894,8 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
   const getContentBottom = () => doc.page.height - doc.page.margins.bottom - tableBottomPadding;
 
   const measureRowHeight = (cells: string[], opts: { isHeader?: boolean; isTotal?: boolean }) => {
-    const fontSize = opts.isHeader || opts.isTotal ? 9.5 : 9;
+    const fontSize = TABLE_FONT;
+    void opts;
     let maxHeight = minRowHeight;
     cells.forEach((cell, index) => {
       const innerWidth = Math.max((colWidths[index] ?? 80) - 8, 16);
@@ -875,7 +922,7 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
         doc.rect(x, y, width, opts.rowHeight).stroke();
       }
 
-      const cellSize = opts.isHeader || opts.isTotal ? 9.5 : 9;
+      const cellSize = TABLE_FONT;
       const cellAlign = textAlignByColumn[index];
       if (cellAlign === 'left') {
         drawMixedLeft(cell, x + 4, y + 4, width - 8, cellSize);
@@ -954,24 +1001,37 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     }
     drawMixedLeft(line.length ? line : ' ', xStart, doc.y, tableWidth, 9.5, 2);
   }
-  y = doc.y + 22;
-  if (y > doc.page.height - 150) {
+  y = doc.y + 24;
+  const sigBoxHeight = 130;
+  if (y + sigBoxHeight > doc.page.height - doc.page.margins.bottom) {
     doc.addPage({ size: 'A4', layout: 'portrait', margins: { top: 42, right: 38, bottom: 42, left: 38 } });
     y = doc.page.margins.top;
   }
 
-  const sigHalf = Math.floor(tableWidth / 2);
-  drawMixedLine('დამკვეთი', xStart, y, sigHalf - 8, 'left', 10.5);
-  drawMixedLine('შემსრულებელი', xStart + sigHalf, y, sigHalf - 8, 'left', 10.5);
-  y += 18;
-  drawMixedLine(`${project.entity_type || ''} ${project.name || ''}`.trim(), xStart, y, sigHalf - 8, 'left', 10.5);
-  drawMixedLine(`${project.insider_entity_type || ''} ${project.insider_name_field || ''}`.trim(), xStart + sigHalf, y, sigHalf - 8, 'left', 10.5);
-  y += 15;
-  drawMixedLine(`დირექტორი: ${project.director || '-'}`, xStart, y, sigHalf - 8, 'left', 10.5);
-  drawMixedLine(`დირექტორი: ${project.insider_director || '-'}`, xStart + sigHalf, y, sigHalf - 8, 'left', 10.5);
-  y += 28;
-  drawMixedLine('ხელმოწერა: ____________________', xStart, y, sigHalf - 8, 'left', 10.5);
-  drawMixedLine('ხელმოწერა: ____________________', xStart + sigHalf, y, sigHalf - 8, 'left', 10.5);
+  const sigGap = 18;
+  const sigBoxWidth = Math.floor((tableWidth - sigGap) / 2);
+  const sigPad = 10;
+  const drawSignatureBox = (bx: number, title: string, entity: string, director: string) => {
+    doc.rect(bx, y, sigBoxWidth, sigBoxHeight).stroke();
+    const innerW = sigBoxWidth - 2 * sigPad;
+    drawMixedLine(title, bx + sigPad, y + sigPad, innerW, 'left', 12);
+    drawMixedLine(entity, bx + sigPad, y + sigPad + 26, innerW, 'left', 10);
+    drawMixedLine(`დირექტორი: ${director}`, bx + sigPad, y + sigPad + 44, innerW, 'left', 10);
+    drawMixedLine('ხელმოწერა: ____________________', bx + sigPad, y + sigBoxHeight - 26, innerW, 'left', 10);
+  };
+  drawSignatureBox(
+    xStart,
+    'დამკვეთი',
+    `${project.entity_type || ''} ${project.name || ''}`.trim(),
+    project.director || '-',
+  );
+  drawSignatureBox(
+    xStart + sigBoxWidth + sigGap,
+    'შემსრულებელი',
+    `${project.insider_entity_type || ''} ${project.insider_name_field || ''}`.trim(),
+    project.insider_director || '-',
+  );
+  y += sigBoxHeight;
 
   const pageRange = doc.bufferedPageRange();
   for (let i = 0; i < pageRange.count; i += 1) {
