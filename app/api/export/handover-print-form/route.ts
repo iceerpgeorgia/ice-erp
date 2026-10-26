@@ -731,15 +731,81 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
   }
   doc.font(activeFont);
 
-  doc.fontSize(16).text('მიღება-ჩაბარების აქტი', { align: 'center' });
-  doc.moveDown(0.2);
-  doc.fontSize(11).text(`${cityLabel}, ${certDateDisplay}`, { align: 'center' });
-  doc.moveDown(1);
+  const isGeorgianChar = (ch: string) => /[\u10A0-\u10FF\u1C90-\u1CBF\u2D00-\u2D2F]/.test(ch);
+  const fontForGeo = (geo: boolean) => (geo ? activeFont : numberFont);
+  const splitScriptRuns = (text: string): Array<{ text: string; geo: boolean }> => {
+    const out: Array<{ text: string; geo: boolean }> = [];
+    for (const ch of text) {
+      const geo = isGeorgianChar(ch);
+      const last = out[out.length - 1];
+      if (last && last.geo === geo) last.text += ch;
+      else out.push({ text: ch, geo });
+    }
+    return out;
+  };
+  const mixedLineWidth = (text: string, size: number): number => {
+    let total = 0;
+    for (const run of splitScriptRuns(text)) {
+      doc.font(fontForGeo(run.geo)).fontSize(size);
+      total += doc.widthOfString(run.text);
+    }
+    return total;
+  };
+  // Single-line text with manual alignment; Georgian letters use the Georgian font, everything else (digits, Latin, punctuation) uses the Latin font so numbers are not dropped.
+  const drawMixedLine = (
+    text: string,
+    x: number,
+    y: number,
+    width: number,
+    align: 'left' | 'center' | 'right',
+    size: number,
+    color = '#000000',
+  ) => {
+    const runs = splitScriptRuns(text);
+    if (runs.length === 0) return;
+    const total = mixedLineWidth(text, size);
+    let startX = x;
+    if (align === 'center') startX = x + Math.max(0, (width - total) / 2);
+    else if (align === 'right') startX = x + Math.max(0, width - total);
+    doc.fillColor(color);
+    runs.forEach((run, i) => {
+      doc.font(fontForGeo(run.geo)).fontSize(size);
+      if (i === 0) doc.text(run.text, startX, y, { continued: i < runs.length - 1, lineBreak: false });
+      else doc.text(run.text, { continued: i < runs.length - 1, lineBreak: false });
+    });
+  };
+  // Left-aligned, wrapping text starting at (x, y).
+  const drawMixedLeft = (text: string, x: number, y: number, width: number, size: number, lineGap = 0) => {
+    const runs = splitScriptRuns(text.length ? text : ' ');
+    doc.fillColor('#000000');
+    runs.forEach((run, i) => {
+      doc.font(fontForGeo(run.geo)).fontSize(size);
+      const opts = { continued: i < runs.length - 1, align: 'left' as const, width, lineGap };
+      if (i === 0) doc.text(run.text, x, y, opts);
+      else doc.text(run.text, opts);
+    });
+  };
 
-  doc.fontSize(10.5).text(intro, {
-    align: 'left',
-    lineGap: 2,
-  });
+  const contentX = doc.page.margins.left;
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+
+  drawMixedLine('მიღება-ჩაბარების აქტი', contentX, doc.y, contentWidth, 'center', 16);
+  doc.font(activeFont).fontSize(16);
+  doc.y = doc.y + doc.currentLineHeight();
+  doc.moveDown(0.2);
+  drawMixedLine(`${cityLabel}, ${certDateDisplay}`, contentX, doc.y, contentWidth, 'center', 11);
+  doc.font(activeFont).fontSize(11);
+  doc.y = doc.y + doc.currentLineHeight();
+  doc.moveDown(0.8);
+
+  for (const para of intro.split('\n')) {
+    if (para.length === 0) {
+      doc.font(activeFont).fontSize(10.5);
+      doc.moveDown(0.5);
+      continue;
+    }
+    drawMixedLeft(para, contentX, doc.y, contentWidth, 10.5, 2);
+  }
   doc.moveDown(1);
 
   const colRatios = [0.05, 0.17, 0.12, 0.12, 0.08, 0.07, 0.12, 0.14, 0.13];
@@ -773,21 +839,16 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     'right',
     'right',
   ];
-  const shouldUseNumberFont = (index: number) => index === 0 || index === 4 || index === 5 || index === 7 || index === 8;
-
   const getContentBottom = () => doc.page.height - doc.page.margins.bottom - tableBottomPadding;
 
   const measureRowHeight = (cells: string[], opts: { isHeader?: boolean; isTotal?: boolean }) => {
     const fontSize = opts.isHeader || opts.isTotal ? 9.5 : 9;
-    doc.font(activeFont).fontSize(fontSize);
     let maxHeight = minRowHeight;
     cells.forEach((cell, index) => {
-      doc.font(shouldUseNumberFont(index) ? numberFont : activeFont).fontSize(fontSize);
-      const width = Math.max((colWidths[index] ?? 80) - 8, 16);
-      const measured = doc.heightOfString(cell, {
-        width,
-        align: textAlignByColumn[index],
-      });
+      const innerWidth = Math.max((colWidths[index] ?? 80) - 8, 16);
+      const totalWidth = mixedLineWidth(cell, fontSize);
+      const lineCount = textAlignByColumn[index] === 'left' ? Math.max(1, Math.ceil(totalWidth / innerWidth)) : 1;
+      const measured = lineCount * fontSize * 1.3;
       maxHeight = Math.max(maxHeight, measured + 10);
     });
     return maxHeight;
@@ -808,15 +869,13 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
         doc.rect(x, y, width, opts.rowHeight).stroke();
       }
 
-      doc
-        .font(shouldUseNumberFont(index) ? numberFont : activeFont)
-        .fontSize(opts.isHeader || opts.isTotal ? 9.5 : 9)
-        .fillColor('#000000');
-      doc.text(cell, x + 4, y + 4, {
-        width: width - 8,
-        height: opts.rowHeight - 8,
-        align: textAlignByColumn[index],
-      });
+      const cellSize = opts.isHeader || opts.isTotal ? 9.5 : 9;
+      const cellAlign = textAlignByColumn[index];
+      if (cellAlign === 'left') {
+        drawMixedLeft(cell, x + 4, y + 4, width - 8, cellSize);
+      } else {
+        drawMixedLine(cell, x + 4, y + 4, width - 8, cellAlign, cellSize);
+      }
       x += width;
     });
     y += opts.rowHeight;
@@ -886,32 +945,24 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     y = doc.page.margins.top;
   }
 
-  doc.fontSize(10.5);
-  doc.text('დამკვეთი', xStart, y);
-  doc.text('შემსრულებელი', xStart + Math.floor(tableWidth / 2), y);
+  const sigHalf = Math.floor(tableWidth / 2);
+  drawMixedLine('დამკვეთი', xStart, y, sigHalf - 8, 'left', 10.5);
+  drawMixedLine('შემსრულებელი', xStart + sigHalf, y, sigHalf - 8, 'left', 10.5);
   y += 18;
-  doc.text(`${project.entity_type || ''} ${project.name || ''}`, xStart, y, { width: Math.floor(tableWidth / 2) - 8 });
-  doc.text(`${project.insider_entity_type || ''} ${project.insider_name_field || ''}`, xStart + Math.floor(tableWidth / 2), y, {
-    width: Math.floor(tableWidth / 2) - 8,
-  });
+  drawMixedLine(`${project.entity_type || ''} ${project.name || ''}`.trim(), xStart, y, sigHalf - 8, 'left', 10.5);
+  drawMixedLine(`${project.insider_entity_type || ''} ${project.insider_name_field || ''}`.trim(), xStart + sigHalf, y, sigHalf - 8, 'left', 10.5);
   y += 15;
-  doc.text(`დირექტორი: ${project.director || '-'}`, xStart, y, { width: Math.floor(tableWidth / 2) - 8 });
-  doc.text(`დირექტორი: ${project.insider_director || '-'}`, xStart + Math.floor(tableWidth / 2), y, {
-    width: Math.floor(tableWidth / 2) - 8,
-  });
+  drawMixedLine(`დირექტორი: ${project.director || '-'}`, xStart, y, sigHalf - 8, 'left', 10.5);
+  drawMixedLine(`დირექტორი: ${project.insider_director || '-'}`, xStart + sigHalf, y, sigHalf - 8, 'left', 10.5);
   y += 28;
-  doc.text('ხელმოწერა: ____________________', xStart, y);
-  doc.text('ხელმოწერა: ____________________', xStart + Math.floor(tableWidth / 2), y);
+  drawMixedLine('ხელმოწერა: ____________________', xStart, y, sigHalf - 8, 'left', 10.5);
+  drawMixedLine('ხელმოწერა: ____________________', xStart + sigHalf, y, sigHalf - 8, 'left', 10.5);
 
   const pageRange = doc.bufferedPageRange();
   for (let i = 0; i < pageRange.count; i += 1) {
     doc.switchToPage(i);
     const pageLabel = `Page ${i + 1} / ${pageRange.count}`;
-    doc.font(numberFont).fontSize(9);
-    doc.text(pageLabel, 0, doc.page.height - 24, {
-      align: 'center',
-      width: doc.page.width,
-    });
+    drawMixedLine(pageLabel, 0, doc.page.height - 24, doc.page.width, 'center', 9);
   }
 
   return toPdfBuffer(doc);
