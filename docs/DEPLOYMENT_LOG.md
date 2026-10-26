@@ -1,5 +1,23 @@
 # Deployment Log
 
+## 2026-10-26 Deployment #438 (Fix: Handover Export Lift Label)
+- Commit: e32c0e1 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-beut8dsiz-iceerp.vercel.app
+- Summary: Kept the attached handover template content unchanged and updated export output to use the lift-number label `ლიფტის #` instead of `Factory No` in the relevant handover export flows.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - updated printable DOCX/PDF jobs header label from `Factory No` to `ლიფტის #`
+  - `app/api/export/handover-template/route.ts`:
+    - updated template export jobs payload key from `Factory No` to `ლიფტის #`
+  - `lib/export-handover-template.ts`:
+    - updated jobs header label from `Factory No` to `ლიფტის #`
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only)
+  - `pnpm build` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-26 Deployment #437 (Fix: Auto-Attach Uses Certificate Issue Date)
 - Commit: a68e4aa (deploy/2026-06-16-emission-insider)
 - Production: https://ice-ioykyb841-iceerp.vercel.app
