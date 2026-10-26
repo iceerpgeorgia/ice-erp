@@ -1,5 +1,30 @@
 # Deployment Log
 
+## 2026-10-26 Deployment #434 (Feature: Jobs-Table Handover Emission Selection + Row Status Colors)
+- Commit: 965bc85 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-jfslamrkx-iceerp.vercel.app
+- Summary: Switched Handovers emission UX to direct Jobs table selection via checkboxes, added row-level emitted/pending coloring, and extended emission API to support optional selected-job scoping while preserving cert-date-based locking.
+- Changes:
+  - `components/figma/handovers-table.tsx`:
+    - added checkbox column for emission selection (including page-level select-all for emittable rows)
+    - enabled selection only for rows with cert date + non-emitted distributions
+    - changed Emit Handover flow to derive unique cert dates from selected jobs and send `jobUuids[]` + `certDates[]`
+    - added row-status coloring: light red for pending/non-emitted cert-dated jobs, light green for fully emitted cert-dated jobs
+  - `app/api/handovers/emit/route.ts`:
+    - accepts optional `jobUuids[]` alongside `projectUuid`, `certDate`, `certDates[]`
+    - validates `jobUuids[]` as UUID strings
+    - scopes emission candidates by selected jobs before cert-date filtering
+    - returns `selected_job_count` in response
+  - `AGENTS.md`:
+    - documented new jobs-checkbox emission workflow and row coloring rules
+    - updated emission API contract with optional `jobUuids[]`
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only)
+  - `pnpm build` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-26 Deployment #433 (Feature: Date-scoped Handover Emission + Pending Cert-Date Project Indicator)
 - Commit: bd6865c (deploy/2026-06-16-emission-insider)
 - Production: https://ice-4vbbsba09-iceerp.vercel.app
