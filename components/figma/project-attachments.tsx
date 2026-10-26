@@ -37,6 +37,88 @@ type DocumentType = {
   requireProject?: boolean;
 };
 type Currency = { uuid: string; code: string; name: string };
+type ProjectJob = { jobUuid: string; jobName: string; factoryNo: string | null };
+
+type ParsedCertificateFields = {
+  certificateNo: string | null;
+  reportNo: string | null;
+  liftNo: string | null;
+  inspectionDate: string | null;
+  issueDate: string | null;
+  validUntil: string | null;
+};
+
+type AutoAttachResult = {
+  fileName: string;
+  status: 'attached' | 'skipped' | 'error';
+  reason?: string;
+  jobName?: string;
+  liftNo?: string;
+  documentNo?: string;
+  documentDate?: string;
+};
+
+const LIFT_CERT_DOC_TYPE_UUID = '77e8c811-3b1c-409d-a1e4-7cc40e1b0132';
+
+function normalizeLiftIdentifier(value: string | null | undefined): string {
+  if (!value) return '';
+  return String(value).toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function parseDateToIso(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const match = String(value).match(/(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
+  if (!match) return null;
+  const day = match[1].padStart(2, '0');
+  const month = match[2].padStart(2, '0');
+  const year = match[3];
+  return `${year}-${month}-${day}`;
+}
+
+function parseCertificateFields(rawText: string, fileName?: string): ParsedCertificateFields {
+  const text = String(rawText || '').replace(/\u00a0/g, ' ');
+
+  const certNoMatch = text.match(/ინსპექტირების\s*სერტიფიკატი\s*№?\s*([A-Z0-9-]{3,})/i);
+  const reportNoMatch = text.match(/ინსპექტირების\s*ანგარიში\s*№?\s*([A-Z0-9-]{3,})/i);
+
+  const liftNoMatch =
+    text.match(/ლიფტი\s*№?\s*[-–—:]*\s*([A-Z0-9-]{4,})/i) ||
+    text.match(/LIFT\s*№?\s*[-–—:]*\s*([A-Z0-9-]{4,})/i);
+
+  const inspectionDateMatch = text.match(/ინსპექტირების\s*თარიღი\s*[:\-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{4})/i);
+  const issueDateMatch = text.match(/სერტ\.?\s*გაცემის\s*თარიღი\s*[:\-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{4})/i);
+  const validUntilMatch = text.match(/მოქმედებაშია\s*(\d{1,2}[./-]\d{1,2}[./-]\d{4})/i);
+
+  let liftNo = liftNoMatch?.[1]?.toUpperCase() ?? null;
+  if (!liftNo && fileName) {
+    const fromName = fileName.toUpperCase().match(/([A-Z]\d{6}[A-Z])/);
+    if (fromName) liftNo = fromName[1];
+  }
+
+  return {
+    certificateNo: certNoMatch?.[1] ?? null,
+    reportNo: reportNoMatch?.[1] ?? null,
+    liftNo,
+    inspectionDate: parseDateToIso(inspectionDateMatch?.[1]),
+    issueDate: parseDateToIso(issueDateMatch?.[1]),
+    validUntil: parseDateToIso(validUntilMatch?.[1]),
+  };
+}
+
+function findMatchingJobsByLiftNo(liftNo: string | null, jobs: ProjectJob[]): ProjectJob[] {
+  const liftKey = normalizeLiftIdentifier(liftNo);
+  if (!liftKey) return [];
+
+  const exact = jobs.filter((job) => normalizeLiftIdentifier(job.factoryNo) === liftKey);
+  if (exact.length > 0) return exact;
+
+  // Fallback for minor OCR noise around separators.
+  return jobs.filter((job) => {
+    const factoryKey = normalizeLiftIdentifier(job.factoryNo);
+    if (!factoryKey || factoryKey.length < 4) return false;
+    return factoryKey.includes(liftKey) || liftKey.includes(factoryKey);
+  });
+}
 
 export type ProjectAttachmentsProps = {
   projectUuid: string;
@@ -81,11 +163,17 @@ export function ProjectAttachments({
   const [count, setCount] = useState<number>(initialCount ?? 0);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [projectJobs, setProjectJobs] = useState<ProjectJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [autoAttachRunning, setAutoAttachRunning] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(initiallyOpen);
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [showAutoAttachForm, setShowAutoAttachForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [autoAttachFiles, setAutoAttachFiles] = useState<File[]>([]);
+  const [autoAttachDocumentTypeUuid, setAutoAttachDocumentTypeUuid] = useState<string>('');
+  const [autoAttachResults, setAutoAttachResults] = useState<AutoAttachResult[]>([]);
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('');
   const [documentDate, setDocumentDate] = useState<string>('');
   const [documentNo, setDocumentNo] = useState<string>('');
@@ -192,6 +280,35 @@ export function ProjectAttachments({
     }
   };
 
+  const loadProjectJobs = async () => {
+    if (!projectUuid) {
+      setProjectJobs([]);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/jobs?projectUuid=${encodeURIComponent(projectUuid)}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        setProjectJobs([]);
+        return;
+      }
+      const data = await response.json();
+      const jobs = Array.isArray(data)
+        ? data.map((row: any) => ({
+            jobUuid: String(row.jobUuid || row.job_uuid || ''),
+            jobName: String(row.jobName || row.job_name || ''),
+            factoryNo: row.factoryNo ? String(row.factoryNo) : row.factory_no ? String(row.factory_no) : null,
+          }))
+        : [];
+      setProjectJobs(jobs.filter((j: ProjectJob) => Boolean(j.jobUuid)));
+    } catch (error) {
+      console.error('Error loading project jobs for auto-attach:', error);
+      setProjectJobs([]);
+    }
+  };
+
   const openDialog = () => {
     setDialogMounted(true);
     setIsDialogOpen(true);
@@ -207,6 +324,7 @@ export function ProjectAttachments({
       loadAttachments();
       loadDocumentTypes();
       loadCurrencies();
+      loadProjectJobs();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDialogOpen, dialogMounted]);
@@ -221,6 +339,189 @@ export function ProjectAttachments({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setSelectedFile(e.target.files[0]);
+  };
+
+  const handleAutoAttachFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setAutoAttachFiles(files);
+    setAutoAttachResults([]);
+  };
+
+  const runOcrForFile = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch('/api/payments/attachments/ocr', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err?.error || 'OCR failed');
+    }
+    const payload = await response.json();
+    return String(payload?.rawText || '');
+  };
+
+  const uploadJobAttachmentWithMetadata = async (params: {
+    file: File;
+    jobUuid: string;
+    documentTypeUuid: string;
+    documentDate?: string | null;
+    documentNo?: string | null;
+    metadata: Record<string, any>;
+  }) => {
+    const uploadUrlResponse = await fetch('/api/jobs/attachments/upload', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobUuid: params.jobUuid,
+        fileName: params.file.name,
+        documentTypeUuid: params.documentTypeUuid,
+        documentDate: params.documentDate || undefined,
+        documentNo: params.documentNo || undefined,
+        linkedProjectUuid: projectUuid,
+      }),
+    });
+
+    if (!uploadUrlResponse.ok) {
+      const err = await uploadUrlResponse.json().catch(() => ({}));
+      throw new Error(err?.error || 'Failed to get signed upload URL');
+    }
+    const uploadData = await uploadUrlResponse.json();
+
+    const putResponse = await fetch(uploadData.signedUrl, {
+      method: 'PUT',
+      body: params.file,
+      headers: { 'Content-Type': params.file.type || 'application/octet-stream' },
+    });
+
+    if (!putResponse.ok) {
+      throw new Error('Failed to upload file to storage');
+    }
+
+    const confirmResponse = await fetch('/api/jobs/attachments/confirm', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobUuid: params.jobUuid,
+        storagePath: uploadData.path,
+        storageBucket: uploadData.bucket,
+        fileName: params.file.name,
+        mimeType: params.file.type,
+        fileSizeBytes: params.file.size,
+        documentTypeUuid: params.documentTypeUuid,
+        documentDate: params.documentDate || undefined,
+        documentNo: params.documentNo || undefined,
+        metadata: params.metadata,
+        linkedProjectUuid: projectUuid,
+      }),
+    });
+
+    if (!confirmResponse.ok) {
+      const err = await confirmResponse.json().catch(() => ({}));
+      throw new Error(err?.error || 'Failed to confirm attachment');
+    }
+  };
+
+  const handleAutoAttachCertificates = async () => {
+    if (!projectUuid) return;
+    if (autoAttachFiles.length === 0) {
+      alert('Please select one or more certificate files.');
+      return;
+    }
+
+    const documentTypeUuid = autoAttachDocumentTypeUuid || LIFT_CERT_DOC_TYPE_UUID;
+    setAutoAttachRunning(true);
+    setAutoAttachResults([]);
+
+    const results: AutoAttachResult[] = [];
+    try {
+      for (const file of autoAttachFiles) {
+        try {
+          const rawText = await runOcrForFile(file);
+          const parsed = parseCertificateFields(rawText, file.name);
+          const matches = findMatchingJobsByLiftNo(parsed.liftNo, projectJobs);
+
+          if (!parsed.liftNo) {
+            results.push({
+              fileName: file.name,
+              status: 'skipped',
+              reason: 'Lift number was not detected',
+            });
+            continue;
+          }
+
+          if (matches.length === 0) {
+            results.push({
+              fileName: file.name,
+              status: 'skipped',
+              reason: `No job matched lift number ${parsed.liftNo}`,
+              liftNo: parsed.liftNo,
+              documentNo: parsed.certificateNo || undefined,
+              documentDate: parsed.inspectionDate || parsed.issueDate || undefined,
+            });
+            continue;
+          }
+
+          if (matches.length > 1) {
+            results.push({
+              fileName: file.name,
+              status: 'skipped',
+              reason: `Multiple jobs matched lift number ${parsed.liftNo}`,
+              liftNo: parsed.liftNo,
+              documentNo: parsed.certificateNo || undefined,
+              documentDate: parsed.inspectionDate || parsed.issueDate || undefined,
+            });
+            continue;
+          }
+
+          const targetJob = matches[0];
+          await uploadJobAttachmentWithMetadata({
+            file,
+            jobUuid: targetJob.jobUuid,
+            documentTypeUuid,
+            documentDate: parsed.inspectionDate || parsed.issueDate || null,
+            documentNo: parsed.certificateNo || undefined,
+            metadata: {
+              source: 'handovers_project_auto_attach',
+              projectUuid,
+              parsedLiftNo: parsed.liftNo,
+              parsedCertificateNo: parsed.certificateNo,
+              parsedInspectionReportNo: parsed.reportNo,
+              parsedInspectionDate: parsed.inspectionDate,
+              parsedIssueDate: parsed.issueDate,
+              parsedValidUntil: parsed.validUntil,
+            },
+          });
+
+          results.push({
+            fileName: file.name,
+            status: 'attached',
+            jobName: targetJob.jobName,
+            liftNo: parsed.liftNo,
+            documentNo: parsed.certificateNo || undefined,
+            documentDate: parsed.inspectionDate || parsed.issueDate || undefined,
+          });
+        } catch (error: any) {
+          results.push({
+            fileName: file.name,
+            status: 'error',
+            reason: error?.message || 'Unexpected error while processing file',
+          });
+        }
+      }
+    } finally {
+      setAutoAttachRunning(false);
+      setAutoAttachResults(results);
+      await loadAttachments();
+      const successCount = results.filter((r) => r.status === 'attached').length;
+      const skippedCount = results.filter((r) => r.status === 'skipped').length;
+      const errorCount = results.filter((r) => r.status === 'error').length;
+      alert(`Auto-attach finished. Attached: ${successCount}, Skipped: ${skippedCount}, Errors: ${errorCount}.`);
+    }
   };
 
   const handleUpload = async () => {
@@ -492,10 +793,111 @@ export function ProjectAttachments({
               )}
 
               {!showUploadForm && !disableUpload && (
-                <Button onClick={() => setShowUploadForm(true)} variant="outline" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Attachment
-                </Button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <Button onClick={() => setShowUploadForm(true)} variant="outline" className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Attachment
+                  </Button>
+                  <Button
+                    onClick={() => setShowAutoAttachForm((prev) => !prev)}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {showAutoAttachForm ? 'Hide Auto-Attach' : 'Auto-Attach Certificates'}
+                  </Button>
+                </div>
+              )}
+
+              {showAutoAttachForm && !disableUpload && (
+                <div className="border rounded-lg p-4 space-y-4 bg-blue-50/40">
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium">Bulk Certificate Auto-Attach</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Upload certificate PDFs/images. The app OCR-parses each file, extracts lift number,
+                      matches it to project jobs by Factory No, then attaches to the matched job with prefilled fields.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="auto-cert-files" className="text-sm">Certificate Files</Label>
+                      <Input
+                        id="auto-cert-files"
+                        type="file"
+                        multiple
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff"
+                        onChange={handleAutoAttachFilesSelect}
+                        disabled={autoAttachRunning}
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        Selected files: {autoAttachFiles.length}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="auto-doc-type" className="text-sm">Document Type</Label>
+                      <Select
+                        value={autoAttachDocumentTypeUuid}
+                        onValueChange={setAutoAttachDocumentTypeUuid}
+                        disabled={autoAttachRunning}
+                      >
+                        <SelectTrigger id="auto-doc-type"><SelectValue placeholder="Default: Lift certificate" /></SelectTrigger>
+                        <SelectContent>
+                          {documentTypes.map((type) => (
+                            <SelectItem key={type.uuid} value={type.uuid}>{type.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="text-xs text-muted-foreground">
+                        If empty, default lift certificate type is used.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={handleAutoAttachCertificates}
+                      disabled={autoAttachRunning || autoAttachFiles.length === 0}
+                    >
+                      {autoAttachRunning ? 'Processing...' : 'Run Auto-Attach'}
+                    </Button>
+                  </div>
+
+                  {autoAttachResults.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Results</div>
+                      <div className="max-h-56 overflow-auto border rounded-md bg-white">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/40 sticky top-0">
+                            <tr>
+                              <th className="text-left p-2">File</th>
+                              <th className="text-left p-2">Status</th>
+                              <th className="text-left p-2">Job</th>
+                              <th className="text-left p-2">Lift No</th>
+                              <th className="text-left p-2">Doc No</th>
+                              <th className="text-left p-2">Date</th>
+                              <th className="text-left p-2">Reason</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {autoAttachResults.map((row, idx) => (
+                              <tr key={`${row.fileName}-${idx}`} className="border-t">
+                                <td className="p-2">{row.fileName}</td>
+                                <td className="p-2">{row.status}</td>
+                                <td className="p-2">{row.jobName || '—'}</td>
+                                <td className="p-2">{row.liftNo || '—'}</td>
+                                <td className="p-2">{row.documentNo || '—'}</td>
+                                <td className="p-2">{row.documentDate || '—'}</td>
+                                <td className="p-2">{row.reason || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {showUploadForm && (
