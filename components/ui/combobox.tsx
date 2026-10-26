@@ -23,6 +23,7 @@ export interface ComboboxOption {
   label: string
   keywords?: string // Optional search keywords
   displayLabel?: string // Optional different label for dropdown items
+  itemClassName?: string // Optional custom class for dropdown item row
 }
 
 interface ComboboxProps {
@@ -93,6 +94,7 @@ export function Combobox({
             {safeOptions.map((option) => (
               <CommandItem
                 key={option.value}
+                className={option.itemClassName}
                 value={[
                   option.label,
                   option.displayLabel,

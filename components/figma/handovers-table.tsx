@@ -66,6 +66,13 @@ type HandoverProject = {
   currencyCode: string | null;
 };
 
+type ProjectEmissionStatus = {
+  projectUuid: string;
+  certDatesWithoutEmission: string[];
+  missingEmissionCount: number;
+  hasMissingEmissions: boolean;
+};
+
 type ColumnConfig = {
   key: ColumnKey;
   label: string;
@@ -135,9 +142,11 @@ export function HandoversTable() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [insidersList, setInsidersList] = useState<{ insiderUuid: string; insiderName: string }[]>([]);
   const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
+  const [projectEmissionStatusMap, setProjectEmissionStatusMap] = useState<Map<string, ProjectEmissionStatus>>(new Map());
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
+  const [emittingHandover, setEmittingHandover] = useState(false);
   const [downloadingDocAttachments, setDownloadingDocAttachments] = useState(false);
   const [isPrintExportDialogOpen, setIsPrintExportDialogOpen] = useState(false);
   const [selectedPrintCertDate, setSelectedPrintCertDate] = useState<string>('');
@@ -402,10 +411,11 @@ export function HandoversTable() {
   useEffect(() => {
     (async () => {
       try {
-        const [projRes, brandRes, insiderRes] = await Promise.all([
+        const [projRes, brandRes, insiderRes, emissionStatusRes] = await Promise.all([
           fetch('/api/projects-v2', { credentials: 'include' }),
           fetch('/api/brands', { credentials: 'include' }),
           fetch('/api/insider-selection', { cache: 'no-store', credentials: 'include' }),
+          fetch('/api/handovers/projects-emission-status', { credentials: 'include' }),
         ]);
         
         if (projRes.ok) {
@@ -447,6 +457,29 @@ export function HandoversTable() {
           setInsidersList(list);
         } else {
           console.error('[Handovers] insiderRes not ok:', { status: insiderRes.status });
+        }
+
+        if (emissionStatusRes.ok) {
+          const payload = await emissionStatusRes.json().catch(() => ({}));
+          const list: ProjectEmissionStatus[] = Array.isArray(payload?.projectStatuses)
+            ? payload.projectStatuses
+            : [];
+          const map = new Map<string, ProjectEmissionStatus>();
+          list.forEach((item) => {
+            if (!item?.projectUuid) return;
+            map.set(String(item.projectUuid), {
+              projectUuid: String(item.projectUuid),
+              certDatesWithoutEmission: Array.isArray(item.certDatesWithoutEmission)
+                ? item.certDatesWithoutEmission.map((d: any) => String(d))
+                : [],
+              missingEmissionCount: Number(item.missingEmissionCount || 0),
+              hasMissingEmissions: Boolean(item.hasMissingEmissions),
+            });
+          });
+          setProjectEmissionStatusMap(map);
+        } else {
+          console.error('[Handovers] emissionStatusRes not ok:', { status: emissionStatusRes.status });
+          setProjectEmissionStatusMap(new Map());
         }
       } catch (e) {
         console.error('Failed to fetch initial data:', e);
@@ -629,13 +662,33 @@ export function HandoversTable() {
   }, [selectedProjectUuid, selectedProject?.currencyCode]);
 
   const projectOptions = useMemo(
-    () =>
-      projects.map(p => ({
-        value: p.projectUuid,
-        label: `${p.projectIndex} — ${p.projectName}`,
-        keywords: `${p.projectIndex} ${p.projectName}`,
-      })),
-    [projects],
+    () => {
+      const sortedProjects = [...projects].sort((a, b) => {
+        const aMissing = projectEmissionStatusMap.get(a.projectUuid)?.hasMissingEmissions ? 1 : 0;
+        const bMissing = projectEmissionStatusMap.get(b.projectUuid)?.hasMissingEmissions ? 1 : 0;
+        if (aMissing !== bMissing) return bMissing - aMissing;
+        return `${a.projectIndex} ${a.projectName}`.localeCompare(`${b.projectIndex} ${b.projectName}`);
+      });
+
+      return sortedProjects.map((p) => {
+        const status = projectEmissionStatusMap.get(p.projectUuid);
+        const hasMissing = Boolean(status?.hasMissingEmissions);
+        const count = Number(status?.missingEmissionCount || 0);
+        const baseLabel = `${p.projectIndex} — ${p.projectName}`;
+        const warningLabel = hasMissing ? ` [${count} cert date${count === 1 ? '' : 's'} pending emit]` : '';
+
+        return {
+          value: p.projectUuid,
+          label: baseLabel,
+          displayLabel: `${hasMissing ? 'PENDING EMIT ' : ''}${baseLabel}${warningLabel}`,
+          keywords: `${p.projectIndex} ${p.projectName} ${hasMissing ? 'pending emit missing emission cert date handover' : ''}`,
+          itemClassName: hasMissing
+            ? 'bg-red-50 text-red-900 hover:bg-red-100 data-[selected=true]:bg-red-100 data-[selected=true]:text-red-950'
+            : undefined,
+        };
+      });
+    },
+    [projectEmissionStatusMap, projects],
   );
 
   // ── Column helpers ────────────────────────────────────────────────────────
@@ -1148,6 +1201,63 @@ export function HandoversTable() {
     }
   }, [downloadingDocAttachments, selectedProjectUuid]);
 
+  const handleEmitHandover = useCallback(async () => {
+    if (!selectedProjectUuid || emittingHandover) return;
+
+    const selectedDates = Array.from(selectedPrintCertDates).sort((a, b) => a.localeCompare(b));
+    if (selectedDates.length === 0) {
+      alert('Select at least one Cert. Date before emitting handover.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      selectedDates.length > 1
+        ? `Emit handover for ${selectedDates.length} selected dates? This will lock non-emitted distributions only for the selected cert dates.`
+        : `Emit handover for cert date ${selectedDates[0]}? This will lock non-emitted distributions only for the selected cert date.`,
+    );
+    if (!confirmed) return;
+
+    setEmittingHandover(true);
+    try {
+      const response = await fetch('/api/handovers/emit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          projectUuid: selectedProjectUuid,
+          certDates: selectedDates,
+          certDate: selectedDates[0],
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(`Emit failed: ${payload?.error || response.statusText}`);
+        return;
+      }
+
+      const emittedCount = Number(payload?.emitted_count ?? 0);
+      alert(
+        selectedDates.length > 1
+          ? `Handover emitted successfully for ${selectedDates.length} dates. Locked distributions: ${emittedCount}.`
+          : `Handover emitted successfully for ${selectedDates[0]}. Locked distributions: ${emittedCount}.`,
+      );
+
+      await fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null);
+    } catch (error) {
+      console.error('[Handovers] Failed to emit handover:', error);
+      alert('Emit failed. Please try again.');
+    } finally {
+      setEmittingHandover(false);
+    }
+  }, [
+    emittingHandover,
+    fetchJobs,
+    selectedPrintCertDates,
+    selectedProject?.currencyCode,
+    selectedProjectUuid,
+  ]);
+
   const printDateOptions = useMemo<PrintDateOption[]>(() => {
     const byDate = new Map<string, PrintDateOption>();
     sortedJobs.forEach((job) => {
@@ -1367,6 +1477,22 @@ export function HandoversTable() {
               title="Refresh jobs"
             >
               <RefreshCw className={`h-4 w-4 ${loadingJobs ? 'animate-spin' : ''}`} />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEmitHandover}
+              disabled={!selectedProjectUuid || selectedPrintCertDates.size === 0 || emittingHandover}
+              title={
+                !selectedProjectUuid
+                  ? 'Select a project first'
+                  : selectedPrintCertDates.size === 0
+                  ? 'Open Printable Form dialog and select Cert. Date checkbox(es) first'
+                  : 'Lock non-emitted distributions for selected cert date(s)'
+              }
+            >
+              {emittingHandover ? 'Emitting...' : 'Emit Handover'}
             </Button>
 
             {/* Export All - Multi-sheet XLSX */}
