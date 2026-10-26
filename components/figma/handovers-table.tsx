@@ -57,6 +57,8 @@ type HandoverJob = Job & {
   debitNominal: number;
   debitGel: number | null;
   totalGel: number | null;
+  hasEmittedDistributions: boolean;
+  hasNonEmittedDistributions: boolean;
 };
 
 type HandoverProject = {
@@ -129,6 +131,12 @@ type PrintDateOption = {
   gelCount: number;
 };
 
+function toDateKey(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? null;
+}
+
 export function HandoversTable() {
   // ── Project / Job state ──────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
@@ -151,6 +159,7 @@ export function HandoversTable() {
   const [isPrintExportDialogOpen, setIsPrintExportDialogOpen] = useState(false);
   const [selectedPrintCertDate, setSelectedPrintCertDate] = useState<string>('');
   const [selectedPrintCertDates, setSelectedPrintCertDates] = useState<Set<string>>(new Set());
+  const [selectedJobUuids, setSelectedJobUuids] = useState<Set<string>>(new Set());
   const [downloadingPrintableFormat, setDownloadingPrintableFormat] = useState<PrintDownloadFormat | null>(null);
   
   // ── Export data cache ────────────────────────────────────────────────────
@@ -232,6 +241,10 @@ export function HandoversTable() {
     () => projects.find(p => p.projectUuid === selectedProjectUuid) ?? null,
     [projects, selectedProjectUuid],
   );
+
+  const isJobEmitSelectable = useCallback((job: HandoverJob) => {
+    return Boolean(toDateKey(job.liftCertDate ?? null)) && job.hasNonEmittedDistributions;
+  }, []);
 
   // ── Computed: Is all data fully loaded? ──────────────────────────────────
   const isTableFullyLoaded = useMemo(() => {
@@ -534,6 +547,7 @@ export function HandoversTable() {
         // Calculate Paid Nominal and Paid GEL: directly sum income distributions by job
         const paidNominalByJob = new Map<string, number>();
         const paidGelByJob = new Map<string, number>();
+        const emissionStatusByJob = new Map<string, { hasEmitted: boolean; hasNonEmitted: boolean }>();
 
         let distributionsData: any[] = [];
         
@@ -542,6 +556,20 @@ export function HandoversTable() {
           distributionsData = Array.isArray(distData) ? distData : [];
           if (Array.isArray(distData)) {
             distData.forEach((dist: any) => {
+              if (dist?.job_uuid) {
+                const jobKey = String(dist.job_uuid);
+                const current = emissionStatusByJob.get(jobKey) ?? {
+                  hasEmitted: false,
+                  hasNonEmitted: false,
+                };
+                if (dist?.emission_uuid) {
+                  current.hasEmitted = true;
+                } else {
+                  current.hasNonEmitted = true;
+                }
+                emissionStatusByJob.set(jobKey, current);
+              }
+
               // Only include distributions for income payments
               if (!dist?.payment_id || !incomePaymentIds.has(String(dist.payment_id))) return;
               if (!dist?.job_uuid) return;
@@ -642,6 +670,8 @@ export function HandoversTable() {
               console.log(`[Handovers] Job ${job.jobUuid} totalGel: ${paidGel} + ${debitGel} = ${total}`);
               return total;
             })(),
+            hasEmittedDistributions: emissionStatusByJob.get(String(job.jobUuid))?.hasEmitted ?? false,
+            hasNonEmittedDistributions: emissionStatusByJob.get(String(job.jobUuid))?.hasNonEmitted ?? false,
             _rowKey: String(job.jobUuid ?? idx),
           })),
         );
@@ -660,6 +690,11 @@ export function HandoversTable() {
     fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProjectUuid, selectedProject?.currencyCode]);
+
+  useEffect(() => {
+    // Reset selections when changing project or reloading jobs list
+    setSelectedJobUuids(new Set());
+  }, [selectedProjectUuid, jobs.length]);
 
   const projectOptions = useMemo(
     () => {
@@ -1204,16 +1239,31 @@ export function HandoversTable() {
   const handleEmitHandover = useCallback(async () => {
     if (!selectedProjectUuid || emittingHandover) return;
 
-    const selectedDates = Array.from(selectedPrintCertDates).sort((a, b) => a.localeCompare(b));
-    if (selectedDates.length === 0) {
-      alert('Select at least one Cert. Date before emitting handover.');
+    const selectedJobs = sortedJobs.filter((job) => selectedJobUuids.has(job.jobUuid));
+    if (selectedJobs.length === 0) {
+      alert('Select at least one job row using the checkbox column before emitting handover.');
       return;
     }
 
+    const selectedDates = Array.from(
+      new Set(
+        selectedJobs
+          .map((job) => toDateKey(job.liftCertDate ?? null))
+          .filter((date): date is string => Boolean(date)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+
+    if (selectedDates.length === 0) {
+      alert('Selected job(s) have no Cert. Date. Please select rows with non-empty Cert. Date.');
+      return;
+    }
+
+    const selectedJobUuidsArray = selectedJobs.map((job) => job.jobUuid);
+
     const confirmed = window.confirm(
       selectedDates.length > 1
-        ? `Emit handover for ${selectedDates.length} selected dates? This will lock non-emitted distributions only for the selected cert dates.`
-        : `Emit handover for cert date ${selectedDates[0]}? This will lock non-emitted distributions only for the selected cert date.`,
+        ? `Emit handover for ${selectedJobs.length} selected jobs across ${selectedDates.length} cert dates? This will lock non-emitted distributions for those selected jobs/dates.`
+        : `Emit handover for ${selectedJobs.length} selected jobs on cert date ${selectedDates[0]}? This will lock non-emitted distributions for those selected jobs/dates.`,
     );
     if (!confirmed) return;
 
@@ -1225,6 +1275,7 @@ export function HandoversTable() {
         credentials: 'include',
         body: JSON.stringify({
           projectUuid: selectedProjectUuid,
+          jobUuids: selectedJobUuidsArray,
           certDates: selectedDates,
           certDate: selectedDates[0],
         }),
@@ -1239,11 +1290,12 @@ export function HandoversTable() {
       const emittedCount = Number(payload?.emitted_count ?? 0);
       alert(
         selectedDates.length > 1
-          ? `Handover emitted successfully for ${selectedDates.length} dates. Locked distributions: ${emittedCount}.`
-          : `Handover emitted successfully for ${selectedDates[0]}. Locked distributions: ${emittedCount}.`,
+          ? `Handover emitted successfully for ${selectedJobs.length} jobs across ${selectedDates.length} dates. Locked distributions: ${emittedCount}.`
+          : `Handover emitted successfully for ${selectedJobs.length} jobs on ${selectedDates[0]}. Locked distributions: ${emittedCount}.`,
       );
 
       await fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null);
+      setSelectedJobUuids(new Set());
     } catch (error) {
       console.error('[Handovers] Failed to emit handover:', error);
       alert('Emit failed. Please try again.');
@@ -1253,9 +1305,10 @@ export function HandoversTable() {
   }, [
     emittingHandover,
     fetchJobs,
-    selectedPrintCertDates,
+    selectedJobUuids,
     selectedProject?.currencyCode,
     selectedProjectUuid,
+    sortedJobs,
   ]);
 
   const printDateOptions = useMemo<PrintDateOption[]>(() => {
@@ -1483,17 +1536,21 @@ export function HandoversTable() {
               variant="outline"
               size="sm"
               onClick={handleEmitHandover}
-              disabled={!selectedProjectUuid || selectedPrintCertDates.size === 0 || emittingHandover}
+              disabled={!selectedProjectUuid || selectedJobUuids.size === 0 || emittingHandover}
               title={
                 !selectedProjectUuid
                   ? 'Select a project first'
-                  : selectedPrintCertDates.size === 0
-                  ? 'Open Printable Form dialog and select Cert. Date checkbox(es) first'
-                  : 'Lock non-emitted distributions for selected cert date(s)'
+                  : selectedJobUuids.size === 0
+                  ? 'Select job checkbox(es) first'
+                  : 'Lock non-emitted distributions for selected jobs/cert dates'
               }
             >
               {emittingHandover ? 'Emitting...' : 'Emit Handover'}
             </Button>
+
+            <span className="text-sm text-muted-foreground">
+              Selected jobs: {selectedJobUuids.size}
+            </span>
 
             {/* Export All - Multi-sheet XLSX */}
             <Button
@@ -1624,6 +1681,29 @@ export function HandoversTable() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="bg-muted/50 w-10">
+                      <Checkbox
+                        checked={Boolean(
+                          paginatedJobs.filter((job) => isJobEmitSelectable(job)).length > 0 &&
+                          paginatedJobs
+                            .filter((job) => isJobEmitSelectable(job))
+                            .every((job) => selectedJobUuids.has(job.jobUuid)),
+                        )}
+                        onCheckedChange={(checked) => {
+                          setSelectedJobUuids((prev) => {
+                            const next = new Set(prev);
+                            const eligibleJobs = paginatedJobs.filter((job) => isJobEmitSelectable(job));
+                            if (checked === true) {
+                              eligibleJobs.forEach((job) => next.add(job.jobUuid));
+                            } else {
+                              eligibleJobs.forEach((job) => next.delete(job.jobUuid));
+                            }
+                            return next;
+                          });
+                        }}
+                        aria-label="Select all emittable jobs on this page"
+                      />
+                    </TableHead>
                     {visibleColumns.map(column => (
                       <TableHead
                         key={column.key}
@@ -1725,7 +1805,7 @@ export function HandoversTable() {
                   {loadingJobs ? (
                     <TableRow>
                       <TableCell
-                        colSpan={visibleColumns.length + 1}
+                        colSpan={visibleColumns.length + 2}
                         className="text-center py-8 text-muted-foreground"
                       >
                         Loading jobs…
@@ -1734,7 +1814,7 @@ export function HandoversTable() {
                   ) : paginatedJobs.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={visibleColumns.length + 1}
+                        colSpan={visibleColumns.length + 2}
                         className="text-center py-8 text-muted-foreground"
                       >
                         {sortedJobs.length === 0 && !searchTerm && activeFilterCount === 0
@@ -1745,7 +1825,30 @@ export function HandoversTable() {
                   ) : (
                     <>
                       {paginatedJobs.map(job => (
-                        <TableRow key={job._rowKey}>
+                        <TableRow
+                          key={job._rowKey}
+                          className={(() => {
+                            const certDateKey = toDateKey(job.liftCertDate ?? null);
+                            if (!certDateKey) return '';
+                            if (job.hasNonEmittedDistributions || !job.hasEmittedDistributions) return 'bg-red-50/70';
+                            return 'bg-green-50/70';
+                          })()}
+                        >
+                          <TableCell className="w-10">
+                            <Checkbox
+                              checked={selectedJobUuids.has(job.jobUuid)}
+                              disabled={!isJobEmitSelectable(job)}
+                              onCheckedChange={(checked) => {
+                                setSelectedJobUuids((prev) => {
+                                  const next = new Set(prev);
+                                  if (checked === true) next.add(job.jobUuid);
+                                  else next.delete(job.jobUuid);
+                                  return next;
+                                });
+                              }}
+                              aria-label={`Select job ${job.jobName}`}
+                            />
+                          </TableCell>
                           {visibleColumns.map(col => (
                             <TableCell
                               key={col.key}
@@ -1805,6 +1908,7 @@ export function HandoversTable() {
                         if (!hasFloors && !hasPrice && !hasPaidNominal && !hasPaidGel && !hasDebitNominal && !hasDebitGel && !hasTotalGel) return null;
                         return (
                           <TableRow className="bg-muted/40 font-semibold border-t-2">
+                            <TableCell className="w-10" />
                             {visibleColumns.map(col => (
                               <TableCell
                                 key={col.key}

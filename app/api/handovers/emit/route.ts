@@ -20,6 +20,10 @@ function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 /**
  * POST /api/handovers/emit
  * Emit (finalize and lock) all non-emitted distributions for a project.
@@ -31,7 +35,7 @@ function isIsoDate(value: string): boolean {
  * - All emissions remain in audit trail permanently
  * - UI should display the most recent emission by emission_date
  *
- * Request body: { projectUuid: string, certDate?: string, certDates?: string[] }
+ * Request body: { projectUuid: string, certDate?: string, certDates?: string[], jobUuids?: string[] }
  * Response: { success: true, emission: {...}, emitted_count: number, records: [...] }
  */
 export async function POST(req: NextRequest) {
@@ -42,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { projectUuid, certDate, certDates } = body;
+    const { projectUuid, certDate, certDates, jobUuids } = body;
 
     if (!projectUuid) {
       return NextResponse.json(
@@ -62,9 +66,24 @@ export async function POST(req: NextRequest) {
       ),
     );
 
+    const requestedJobUuids = Array.from(
+      new Set(
+        (Array.isArray(jobUuids) ? jobUuids : [])
+          .map((value) => (typeof value === 'string' ? value.trim() : ''))
+          .filter(Boolean),
+      ),
+    );
+
     if (requestedDates.some((value) => !isIsoDate(value))) {
       return NextResponse.json(
         { error: 'certDates must use YYYY-MM-DD format' },
+        { status: 400 },
+      );
+    }
+
+    if (requestedJobUuids.some((value) => !isUuid(value))) {
+      return NextResponse.json(
+        { error: 'jobUuids must be valid UUID strings' },
         { status: 400 },
       );
     }
@@ -74,12 +93,13 @@ export async function POST(req: NextRequest) {
       emission_uuid: null,
     };
 
+    if (requestedJobUuids.length > 0) {
+      emitWhere.job_uuid = { in: requestedJobUuids };
+    }
+
     if (requestedDates.length > 0) {
       const nonEmittedJobs = await prisma.payments_jobs.findMany({
-        where: {
-          project_uuid: projectUuid,
-          emission_uuid: null,
-        },
+        where: emitWhere,
         select: { job_uuid: true },
         distinct: ['job_uuid'],
       });
@@ -163,6 +183,7 @@ export async function POST(req: NextRequest) {
           created_by: emission.created_by,
         },
         cert_dates: requestedDates,
+        selected_job_count: requestedJobUuids.length,
         emitted_count: updated.count,
         records: nonEmittedRecords.map(r => ({
           uuid: r.uuid,

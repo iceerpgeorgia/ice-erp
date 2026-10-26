@@ -340,6 +340,8 @@ When waybill items are bound to different projects, item-level binding should ta
 - The grid supports advanced table features: column resizing (drag resize handle), column reordering (drag column headers), column visibility toggle (Columns dropdown), filtering (filterable columns have filter icon), sorting (sortable columns have sort icon), and global search (search bar filters all visible columns).
 - Column configuration is persisted to localStorage (`handovers-job-distributions-columns`) including width, visibility, and user-dragged order; the restore path normalizes saved layouts without resetting the order on reload.
 - The Handovers project dropdown prioritizes projects that have cert dates with non-emitted distributions: those projects are shown at the top and highlighted with a red background plus a pending-emission count label.
+- The Handovers jobs table includes an emission-selection checkbox column. Checkboxes are enabled only for jobs that have a non-empty `liftCertDate` and at least one non-emitted distribution row; the header checkbox selects/deselects emittable jobs on the current page.
+- The Handovers jobs table uses row-level emission status colors: light red for cert-dated jobs with pending/non-emitted state, and light green for cert-dated jobs that are fully emitted.
 - The Job Distribution action appears only in the bank-transactions-style grid as a briefcase icon; the income payments grid does not show a distribution action.
 - The distribution dialog supports only two modes: All (default) and Manual. All uses weighted distribution by job selling price and applies both nominal and account-currency amounts; Manual allows user edits.
 - Manual mode includes a per-row Fill button that applies the bundle distribution percent for the payment's financial code to the job selling price, subtracts allocations already saved for the same `payment_uuid` (excluding the current raw/batch), and clamps to the remaining payment amount.
@@ -510,9 +512,9 @@ Both columns A (labels) and B (values) must be populated for formulas to resolve
 
 ### Handover Emission Feature
 When a user emits a handover, all current (non-emitted) job distributions are locked and marked with an `emission_uuid`, creating an immutable audit trail. Multiple emissions are supported, with the latest emission taking priority for display:
-- **UI trigger**: The Handovers toolbar includes an **Emit Handover** button that posts to `/api/handovers/emit` for the selected project and selected cert date(s), then refreshes page data after success.
-- **Date-scoped emission rule**: emissions must be scoped by selected handover cert date(s). The API accepts `certDate`/`certDates[]` and locks only rows whose `job_uuid` belongs to jobs with matching `liftCertDate` (earliest of operational lift certificate or inspection interim report).
-- **Emission Process**: User selects one or more cert dates and clicks "Emit Handover" → API creates `handover_emissions` record → Updates only non-emitted `payments_jobs` for jobs matching selected cert date(s) with `emission_uuid` and `emission_date` → Returns emission details.
+- **UI trigger**: The Handovers toolbar includes an **Emit Handover** button that posts to `/api/handovers/emit` for the selected project and selected job rows (checkbox column), then refreshes page data after success.
+- **Date-scoped emission rule**: emissions remain scoped by handover cert date(s), but dates are derived from selected job rows. A selected job must have `liftCertDate` and non-emitted distributions.
+- **Emission Process**: User selects one or more emittable jobs and clicks "Emit Handover" → UI derives unique cert date(s) from selected jobs → API creates `handover_emissions` record → Updates only non-emitted `payments_jobs` for selected jobs/dates with `emission_uuid` and `emission_date` → Returns emission details.
 - **Multiple Emissions**: Same project can emit multiple times; each emission gets a unique UUID. After an emission, new distributions can be added and emitted again. All emissions are permanently recorded.
 - **Display Priority**: UI shows emission status based on the most recent `emission_date` for the project. Historical emissions remain in the audit trail for reference.
 - **Immutability**: Database triggers prevent UPDATE and DELETE on records with `emission_uuid IS NOT NULL`. Projects and jobs with emitted distributions cannot be deleted.
@@ -520,7 +522,7 @@ When a user emits a handover, all current (non-emitted) job distributions are lo
 - **API guard**: single-row delete/update attempts against an emitted distribution must fail, while replace/delete/auto-distribute/recalculate flows must only touch non-emitted rows (`emission_uuid IS NULL`) and leave emitted snapshots intact.
 - **UI lock state**: the Job Distribution dialog opens in read-only mode (no save/clear/edit/fill/recalculate actions) when a transaction scope has only emitted snapshot rows and no live rows.
 - **Schema**: New table `handover_emissions` (uuid, created_at, created_by, description). New columns on `payments_jobs`: `emission_uuid` (FK), `emission_date`.
-- **API**: `POST /api/handovers/emit` accepts `{ projectUuid }`, returns emission UUID, timestamp, count, and list of emitted records. Only targets non-emitted distributions.
+- **API**: `POST /api/handovers/emit` accepts `{ projectUuid, certDate?, certDates[]?, jobUuids[]? }`, returns emission UUID, timestamp, count, and list of emitted records. It always targets only non-emitted distributions and can additionally scope by selected jobs.
 - **Audit Trail**: `emission_uuid` groups all records in a single emission; `created_by` records user email; `handover_emissions.created_at` records timestamp.
 - **Future**: Emission history view, reversal capability (superuser only), bulk emission, notifications.
 
