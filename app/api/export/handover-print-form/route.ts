@@ -162,7 +162,7 @@ const handoverTableHeaders = (currencyCode: string): string[] => [
   'ლიფტის #',
   'ამწეობა (კგ)',
   'სართ.',
-  'სერტიფიკატის #',
+  'სერტ. #',
   `თანხა ${currencyCode}`,
   'თანხა ₾',
 ];
@@ -863,11 +863,88 @@ async function buildPdfPrintable(data: PrintableData): Promise<Buffer> {
     totals.gelCount > 0 ? formatMoney(totals.gel) : '-',
   ];
 
-  // Use the same fixed template proportions as DOCX so fallback PDF keeps A4 parity.
-  const colWidths = TABLE_COLUMN_WIDTHS.map((pct) => Math.floor((tableWidth * pct) / 100));
-  const widthDelta = Math.floor(tableWidth) - colWidths.reduce((a, b) => a + b, 0);
-  if (widthDelta !== 0 && colWidths.length > 0) {
-    colWidths[colWidths.length - 1] += widthDelta;
+  // Auto-size columns by max content width (header/body/total), then fit the result into A4.
+  // This keeps columns responsive to long values while preserving printability.
+  const sizingRows = rows.length === 0 ? [headers, ...bodyCellRows] : [headers, ...bodyCellRows, totalCells];
+  const CELL_PADDING_X = 12;
+  const minColWidths = TABLE_COLUMN_WIDTHS.map((pct) =>
+    Math.max(22, Math.floor(((tableWidth * pct) / 100) * 0.58)),
+  );
+  const preferredWidths = headers.map((_, colIndex) => {
+    let maxWidth = 0;
+    for (const row of sizingRows) {
+      maxWidth = Math.max(maxWidth, mixedLineWidth(row[colIndex] ?? '', TABLE_FONT));
+    }
+    return Math.ceil(maxWidth) + CELL_PADDING_X;
+  });
+
+  const colWidths = preferredWidths.map((w, i) => Math.max(w, minColWidths[i] ?? 22));
+  let totalWidth = colWidths.reduce((a, b) => a + b, 0);
+  const targetWidth = Math.floor(tableWidth);
+
+  if (totalWidth > targetWidth) {
+    const overflowInitial = totalWidth - targetWidth;
+    const flexRoom = colWidths.map((w, i) => w - (minColWidths[i] ?? 22));
+    let flexSum = flexRoom.reduce((a, b) => a + b, 0);
+
+    if (flexSum > 0) {
+      let remainingOverflow = overflowInitial;
+      colWidths.forEach((w, i) => {
+        if (remainingOverflow <= 0) return;
+        const minW = minColWidths[i] ?? 22;
+        const room = Math.max(0, w - minW);
+        if (room <= 0 || flexSum <= 0) return;
+        const cut = Math.min(room, Math.floor((remainingOverflow * room) / flexSum));
+        colWidths[i] -= cut;
+        remainingOverflow -= cut;
+        flexSum -= room;
+      });
+
+      while (remainingOverflow > 0) {
+        let cutApplied = false;
+        for (let i = 0; i < colWidths.length && remainingOverflow > 0; i += 1) {
+          const minW = minColWidths[i] ?? 22;
+          if (colWidths[i] > minW) {
+            colWidths[i] -= 1;
+            remainingOverflow -= 1;
+            cutApplied = true;
+          }
+        }
+        if (!cutApplied) break;
+      }
+    }
+
+    totalWidth = colWidths.reduce((a, b) => a + b, 0);
+    if (totalWidth > targetWidth) {
+      const scale = targetWidth / totalWidth;
+      for (let i = 0; i < colWidths.length; i += 1) {
+        const minW = minColWidths[i] ?? 22;
+        colWidths[i] = Math.max(minW, Math.floor(colWidths[i] * scale));
+      }
+    }
+  }
+
+  totalWidth = colWidths.reduce((a, b) => a + b, 0);
+  let widthDelta = targetWidth - totalWidth;
+  if (widthDelta !== 0) {
+    // Bias extra/deficit pixels toward wider text columns to stabilize wrapping.
+    const rebalanceOrder = [1, 2, 3, 7, 8, 6, 4, 5, 0];
+    let pos = 0;
+    while (widthDelta !== 0) {
+      const idx = rebalanceOrder[pos % rebalanceOrder.length];
+      if (widthDelta > 0) {
+        colWidths[idx] += 1;
+        widthDelta -= 1;
+      } else {
+        const minW = minColWidths[idx] ?? 22;
+        if (colWidths[idx] > minW) {
+          colWidths[idx] -= 1;
+          widthDelta += 1;
+        }
+      }
+      pos += 1;
+      if (pos > 5000) break;
+    }
   }
 
   let y = doc.y;
