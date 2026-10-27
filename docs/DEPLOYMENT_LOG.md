@@ -1,5 +1,25 @@
 # Deployment Log
 
+## 2026-10-27 Deployment #448 (Fix: Job Distribution Account-Currency Reconciliation)
+- Commit: cbb397e (deploy/2026-06-16-emission-insider)
+- Production: https://ice-h3760cu9u-iceerp.vercel.app
+- Summary: Fixed Job Distributions vs Handovers Jobs Paid GEL drift by enforcing transaction-level reconciliation in distribution writes.
+- Changes:
+  - `app/api/payments-jobs/auto-distribute/route.ts`:
+    - Added exact source-total resolution for transaction scope (`batch_partition_uuid` first, otherwise `raw_record_uuid`) before write.
+    - Reconciles nominal and account-currency remnants to one row so persisted sums match source bank transaction amounts.
+    - Added post-reconciliation guard (<= 0.01 tolerance) that fails write if totals still diverge.
+    - Uses dynamic raw table discovery via `getSourceTables()` instead of hardcoded table names.
+  - `app/api/payments-jobs/route.ts`:
+    - Replaced hardcoded raw-table lookup for validation with dynamic source-table lookup (`getSourceTables()`) for complete coverage across active accounts.
+  - `AGENTS.md`:
+    - Documented the transaction-total reconciliation rule as a critical invariant for `payments_jobs` writes.
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only, no failures)
+  - `pnpm build` ✅
+- Status: ✅ Live
+
 ## 2026-10-27 Deployment #447 (Fix: Handovers Income Payments Counteragent Warning Icon Parity)
 - Commit: 29295d7 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-jxuf9xm49-iceerp.vercel.app
