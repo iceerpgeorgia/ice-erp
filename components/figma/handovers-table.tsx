@@ -43,8 +43,8 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
-import { HandoverPaymentsGrid } from './handover-payments-grid';
-import { HandoverJobDistributionsGrid } from './handover-job-distributions-grid';
+import { HandoverPaymentsGrid, type HandoverPaymentsGridHandle } from './handover-payments-grid';
+import { HandoverJobDistributionsGrid, type HandoverJobDistributionsGridHandle } from './handover-job-distributions-grid';
 import { ErrorBoundary } from './error-boundary';
 import { exportMultiSheetsToXlsx, exportRowsToXlsx } from '@/lib/export-xlsx';
 import { toGenitiveCase } from '@/lib/georgian-genitive';
@@ -53,6 +53,7 @@ type ColumnKey = keyof HandoverJob;
 
 type HandoverJob = Job & {
   paidNominal: number;
+  paidPercent: number | null;
   paidGel: number;
   debitNominal: number;
   debitGel: number | null;
@@ -93,6 +94,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'weight', label: 'Weight (kg)', width: 110, visible: true, sortable: true, filterable: true },
   { key: 'sellingPrice', label: 'Selling Price', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
   { key: 'paidNominal', label: 'Paid Nominal', width: 140, visible: true, sortable: true, filterable: false, format: 'number' },
+  { key: 'paidPercent', label: 'Paid %', width: 110, visible: true, sortable: true, filterable: false, format: 'percent' },
   { key: 'paidGel', label: 'Paid GEL', width: 140, visible: true, sortable: true, filterable: false, format: 'number' },
   { key: 'debitNominal', label: 'Debit Nominal', width: 140, visible: true, sortable: true, filterable: false, format: 'number' },
   { key: 'debitGel', label: 'Debit GEL', width: 140, visible: true, sortable: true, filterable: false, format: 'number' },
@@ -103,7 +105,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 const STORAGE_KEY = 'handovers-table-columns';
-const STORAGE_VERSION = '4';
+const STORAGE_VERSION = '5';
 
 type Project = HandoverProject;
 type InsiderOption = { value: string; label: string; keywords?: string };
@@ -267,8 +269,8 @@ export function HandoversTable() {
   const rateCacheRef = useRef<Map<string, number | null>>(new Map());
 
   // ── Grid refs for global export ────────────────────────────────────────────
-  const paymentsGridRef = useRef<any>(null);
-  const distributionsGridRef = useRef<any>(null);
+  const paymentsGridRef = useRef<HandoverPaymentsGridHandle | null>(null);
+  const distributionsGridRef = useRef<HandoverJobDistributionsGridHandle | null>(null);
 
   // ── Retry logic for exchange rate fetches ──────────────────────────────────
   const fetchWithRetry = useCallback(
@@ -644,6 +646,12 @@ export function HandoversTable() {
             liftCertDate: liftCertMap[job.jobUuid]?.date ?? null,
             liftCertDocNo: liftCertMap[job.jobUuid]?.docNo ?? null,
             paidNominal: paidNominalByJob.get(String(job.jobUuid)) ?? 0,
+            paidPercent: (() => {
+              const price = job.sellingPrice != null ? Number(job.sellingPrice) : 0;
+              if (!price) return null;
+              const paidNominal = paidNominalByJob.get(String(job.jobUuid)) ?? 0;
+              return Number(((paidNominal / price) * 100).toFixed(2));
+            })(),
             paidGel: paidGelByJob.get(String(job.jobUuid)) ?? 0,
             debitNominal: (job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0),
             debitGel: (() => {
@@ -690,6 +698,121 @@ export function HandoversTable() {
     fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProjectUuid, selectedProject?.currencyCode]);
+
+  const refreshDerivedJobValues = useCallback(async () => {
+    if (!selectedProjectUuid) return;
+
+    try {
+      const [paymentsRes, distRes] = await Promise.all([
+        fetch(`/api/payments-report?projectUuid=${encodeURIComponent(selectedProjectUuid)}`, { credentials: 'include' }),
+        fetch(`/api/payments-jobs?project_uuid=${encodeURIComponent(selectedProjectUuid)}`, { credentials: 'include' }),
+      ]);
+
+      if (!paymentsRes.ok || !distRes.ok) return;
+
+      const paymentsData = await paymentsRes.json();
+      const distData = await distRes.json();
+
+      const incomePaymentIds = new Set<string>();
+      (Array.isArray(paymentsData) ? paymentsData : []).forEach((payment: any) => {
+        if (payment?.financialCodeIsIncome && payment?.paymentId) {
+          incomePaymentIds.add(String(payment.paymentId));
+        }
+      });
+
+      const paidNominalByJob = new Map<string, number>();
+      const paidGelByJob = new Map<string, number>();
+      const emissionStatusByJob = new Map<string, { hasEmitted: boolean; hasNonEmitted: boolean }>();
+
+      if (Array.isArray(distData)) {
+        distData.forEach((dist: any) => {
+          if (dist?.job_uuid) {
+            const jobKey = String(dist.job_uuid);
+            const current = emissionStatusByJob.get(jobKey) ?? {
+              hasEmitted: false,
+              hasNonEmitted: false,
+            };
+            if (dist?.emission_uuid) {
+              current.hasEmitted = true;
+            } else {
+              current.hasNonEmitted = true;
+            }
+            emissionStatusByJob.set(jobKey, current);
+          }
+
+          if (!dist?.payment_id || !incomePaymentIds.has(String(dist.payment_id))) return;
+          if (!dist?.job_uuid) return;
+
+          const jobKey = String(dist.job_uuid);
+          paidNominalByJob.set(jobKey, (paidNominalByJob.get(jobKey) ?? 0) + Number(dist.amount ?? 0));
+          paidGelByJob.set(jobKey, (paidGelByJob.get(jobKey) ?? 0) + Number(dist.amount_account_curr ?? 0));
+        });
+      }
+
+      const certDates = Array.from(
+        new Set(
+          jobs
+            .map((job) => (job.liftCertDate ? String(job.liftCertDate).split('T')[0] : null))
+            .filter((date): date is string => Boolean(date)),
+        ),
+      );
+
+      const rateByDate = new Map<string, number | null>();
+      await Promise.all(
+        certDates.map(async (date) => {
+          const rate = await lookupNbgRate(date, selectedProject?.currencyCode ?? null);
+          rateByDate.set(date, rate);
+        }),
+      );
+
+      setJobs((prevJobs) =>
+        prevJobs.map((job) => {
+          const paidNominal = paidNominalByJob.get(String(job.jobUuid)) ?? 0;
+          const paidGel = paidGelByJob.get(String(job.jobUuid)) ?? 0;
+          const sellingPrice = job.sellingPrice != null ? Number(job.sellingPrice) : 0;
+          const debitNominal = sellingPrice - paidNominal;
+
+          const certDate = job.liftCertDate ? String(job.liftCertDate).split('T')[0] : null;
+          const rate = certDate ? rateByDate.get(certDate) : null;
+          const debitGel = certDate && rate != null ? Number((debitNominal * rate).toFixed(2)) : null;
+          const totalGel = certDate && rate != null ? Number((paidGel + (debitGel ?? 0)).toFixed(2)) : null;
+
+          return {
+            ...job,
+            paidNominal,
+            paidPercent: sellingPrice ? Number(((paidNominal / sellingPrice) * 100).toFixed(2)) : null,
+            paidGel,
+            debitNominal,
+            debitGel,
+            totalGel,
+            hasEmittedDistributions: emissionStatusByJob.get(String(job.jobUuid))?.hasEmitted ?? false,
+            hasNonEmittedDistributions: emissionStatusByJob.get(String(job.jobUuid))?.hasNonEmitted ?? false,
+          };
+        }),
+      );
+    } catch (error) {
+      console.error('[Handovers] Failed to refresh derived job values:', error);
+    }
+  }, [jobs, lookupNbgRate, selectedProject?.currencyCode, selectedProjectUuid]);
+
+  const handleCrossTableDataChange = useCallback(
+    async (source: 'jobs' | 'income-payments' | 'job-distributions') => {
+      if (!selectedProjectUuid) return;
+
+      if (source !== 'jobs') {
+        await refreshDerivedJobValues();
+      }
+
+      if (source !== 'income-payments') {
+        await paymentsGridRef.current?.refreshData?.();
+      }
+
+      if (source !== 'job-distributions') {
+        await distributionsGridRef.current?.refreshData?.();
+      }
+    },
+    [refreshDerivedJobValues, selectedProjectUuid],
+  );
 
   useEffect(() => {
     // Reset selections when changing project or reloading jobs list
@@ -803,6 +926,7 @@ export function HandoversTable() {
       });
       if (res.ok) {
         await fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null);
+        void handleCrossTableDataChange('jobs');
         setIsEditDialogOpen(false);
         setEditingJob(null);
       }
@@ -821,6 +945,10 @@ export function HandoversTable() {
         return <span className="text-sm">{formatted}</span>;
       case 'paidNominal':
         return <span>{formatMoney(job.paidNominal)}</span>;
+      case 'paidPercent':
+        return job.paidPercent == null
+          ? <span className="text-muted-foreground text-sm">—</span>
+          : <span>{job.paidPercent.toFixed(2)}%</span>;
       case 'paidGel':
         return <span>{formatMoney(job.paidGel)}</span>;
       case 'debitNominal':
@@ -880,6 +1008,7 @@ export function HandoversTable() {
       weight: job.weight ?? '',
       sellingPrice: job.sellingPrice ?? 0,
       paidNominal: job.paidNominal ?? 0,
+      paidPercent: job.paidPercent ?? 0,
       paidGel: job.paidGel ?? 0,
       debitNominal: job.debitNominal ?? 0,
       debitGel: job.debitGel ?? 0,
@@ -900,6 +1029,7 @@ export function HandoversTable() {
         { key: 'weight', label: 'Weight (kg)', visible: true },
         { key: 'sellingPrice', label: 'Selling Price', visible: true, format: 'currency' },
         { key: 'paidNominal', label: 'Paid Nominal', visible: true, format: 'currency' },
+        { key: 'paidPercent', label: 'Paid %', visible: true, format: 'percent' },
         { key: 'paidGel', label: 'Paid GEL', visible: true, format: 'currency' },
         { key: 'debitNominal', label: 'Debit Nominal', visible: true, format: 'currency' },
         { key: 'debitGel', label: 'Debit GEL', visible: true, format: 'currency' },
@@ -1129,6 +1259,7 @@ export function HandoversTable() {
       weight: job.weight ?? '',
       sellingPrice: job.sellingPrice ?? 0,
       paidNominal: job.paidNominal ?? 0,
+      paidPercent: job.paidPercent ?? 0,
       paidGel: job.paidGel ?? 0,
       debitNominal: job.debitNominal ?? 0,
       debitGel: job.debitGel ?? 0,
@@ -1154,6 +1285,7 @@ export function HandoversTable() {
         { key: 'weight', label: 'Weight (kg)', visible: true, format: 'number' },
         { key: 'sellingPrice', label: 'Selling Price', visible: true, format: 'currency' },
         { key: 'paidNominal', label: 'Paid Nominal', visible: true, format: 'currency' },
+        { key: 'paidPercent', label: 'Paid %', visible: true, format: 'percent' },
         { key: 'paidGel', label: 'Paid GEL', visible: true, format: 'currency' },
         { key: 'debitNominal', label: 'Debit Nominal', visible: true, format: 'currency' },
         { key: 'debitGel', label: 'Debit GEL', visible: true, format: 'currency' },
@@ -1726,6 +1858,7 @@ export function HandoversTable() {
                           column.key === 'weight' ||
                           column.key === 'sellingPrice' ||
                           column.key === 'paidNominal' ||
+                          column.key === 'paidPercent' ||
                           column.key === 'paidGel' ||
                           column.key === 'debitNominal' ||
                           column.key === 'debitGel' ||
@@ -1858,6 +1991,7 @@ export function HandoversTable() {
                                 col.key === 'weight' ||
                                 col.key === 'sellingPrice' ||
                                 col.key === 'paidNominal' ||
+                                col.key === 'paidPercent' ||
                                 col.key === 'paidGel' ||
                                 col.key === 'debitNominal' ||
                                 col.key === 'debitGel' ||
@@ -1894,6 +2028,7 @@ export function HandoversTable() {
                         const totalFloors = sortedJobs.reduce((s, j) => s + (j.floors ?? 0), 0);
                         const totalPrice = sortedJobs.reduce((s, j) => s + (j.sellingPrice ?? 0), 0);
                         const totalPaidNominal = sortedJobs.reduce((s, j) => s + (j.paidNominal ?? 0), 0);
+                        const totalPaidPercent = totalPrice !== 0 ? (totalPaidNominal / totalPrice) * 100 : null;
                         const totalPaidGel = sortedJobs.reduce((s, j) => s + (j.paidGel ?? 0), 0);
                         const totalDebitNominal = sortedJobs.reduce((s, j) => s + (j.debitNominal ?? 0), 0);
                         const totalDebitGel = sortedJobs.reduce((s, j) => s + (j.debitGel ?? 0), 0);
@@ -1901,11 +2036,12 @@ export function HandoversTable() {
                         const hasFloors = visibleColumns.some(c => c.key === 'floors');
                         const hasPrice = visibleColumns.some(c => c.key === 'sellingPrice');
                         const hasPaidNominal = visibleColumns.some(c => c.key === 'paidNominal');
+                        const hasPaidPercent = visibleColumns.some(c => c.key === 'paidPercent');
                         const hasPaidGel = visibleColumns.some(c => c.key === 'paidGel');
                         const hasDebitNominal = visibleColumns.some(c => c.key === 'debitNominal');
                         const hasDebitGel = visibleColumns.some(c => c.key === 'debitGel');
                         const hasTotalGel = visibleColumns.some(c => c.key === 'totalGel');
-                        if (!hasFloors && !hasPrice && !hasPaidNominal && !hasPaidGel && !hasDebitNominal && !hasDebitGel && !hasTotalGel) return null;
+                        if (!hasFloors && !hasPrice && !hasPaidNominal && !hasPaidPercent && !hasPaidGel && !hasDebitNominal && !hasDebitGel && !hasTotalGel) return null;
                         return (
                           <TableRow className="bg-muted/40 font-semibold border-t-2">
                             <TableCell className="w-10" />
@@ -1919,6 +2055,7 @@ export function HandoversTable() {
                                   col.key === 'weight' ||
                                   col.key === 'sellingPrice' ||
                                   col.key === 'paidNominal' ||
+                                  col.key === 'paidPercent' ||
                                   col.key === 'paidGel' ||
                                   col.key === 'debitNominal' ||
                                   col.key === 'debitGel' ||
@@ -1937,6 +2074,8 @@ export function HandoversTable() {
                                   <span>{totalPrice.toLocaleString()}</span>
                                 ) : col.key === 'paidNominal' ? (
                                   <span>{formatMoney(totalPaidNominal)}</span>
+                                ) : col.key === 'paidPercent' ? (
+                                  <span>{totalPaidPercent == null ? '—' : `${totalPaidPercent.toFixed(2)}%`}</span>
                                 ) : col.key === 'paidGel' ? (
                                   <span>{formatMoney(totalPaidGel)}</span>
                                 ) : col.key === 'debitNominal' ? (
@@ -2006,7 +2145,13 @@ export function HandoversTable() {
             </button>
           </div>
         )}>
-          <HandoverPaymentsGrid ref={paymentsGridRef} projectUuid={selectedProjectUuid} />
+          <HandoverPaymentsGrid
+            ref={paymentsGridRef}
+            projectUuid={selectedProjectUuid}
+            onDataChanged={() => {
+              void handleCrossTableDataChange('income-payments');
+            }}
+          />
         </ErrorBoundary>
       )}
 
@@ -2029,7 +2174,7 @@ export function HandoversTable() {
               ref={distributionsGridRef}
               projectUuid={selectedProjectUuid}
               onDistributionsSaved={() => {
-                fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null);
+                void handleCrossTableDataChange('job-distributions');
               }}
             />
           </ErrorBoundary>

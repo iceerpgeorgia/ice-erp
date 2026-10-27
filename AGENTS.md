@@ -352,6 +352,7 @@ When waybill items are bound to different projects, item-level binding should ta
 ## Handovers Job Distribution UI & Emission
 - The Job Distributions grid on Handovers renders bank-transaction-style rows (date, account, CA account, amount, nominal amount, financial code, nom ISO, payment ID, batch ID, description, ID1, ID2) from `/api/bank-transactions`, filtered by `project_uuid` and limited to payment IDs from income payments (`financialCodeIsIncome`).
 - The Handovers jobs table shows calculated columns for Paid Nominal, Paid GEL, Debit Nominal, Debit GEL, and Total GEL, and its footer totals the numeric business columns that are actually displayed as totals (for example Floors and the money columns, but not Weight). Paid GEL is summed from `payments_jobs.amount_account_curr`, while Debit GEL/Total GEL are computed from nominal amounts using the job's `liftCertDate` and the project currency's NBG rate lookup by date. The `liftCertDate` is determined by the earliest date among: ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტი) (operational acceptance certificate) and შემოწმების შუალედური აქტი (ლიფტი) (inspection interim report) documents attached to the job.
+- The Handovers jobs table includes `Paid %` computed as `paid_nominal / selling_price * 100` (row-level and footer aggregate ratio), with null-safe handling when `selling_price` is empty/zero.
 - The grid supports advanced table features: column resizing (drag resize handle), column reordering (drag column headers), column visibility toggle (Columns dropdown), filtering (filterable columns have filter icon), sorting (sortable columns have sort icon), and global search (search bar filters all visible columns).
 - Column configuration is persisted to localStorage (`handovers-job-distributions-columns`) including width, visibility, and user-dragged order; the restore path normalizes saved layouts without resetting the order on reload.
 - The Handovers project dropdown prioritizes projects that have cert dates with non-emitted distributions: those projects are shown at the top and highlighted with a red background plus a pending-emission count label.
@@ -534,6 +535,14 @@ Both columns A (labels) and B (values) must be populated for formulas to resolve
   - `GET /api/brands` no longer selects optional/non-critical columns for Handovers bootstrap; this reduces schema-drift 500s on environments with lagging migrations.
   - `GET /api/payments-report` now falls back to a ledger-only query if the primary cross-table bank-union query fails, returning income rows instead of HTTP 500.
   - Handovers initial-load project mapping debug spam (`[Handovers] Mapping project`) was removed from the client component to keep production console noise low.
+
+### Handovers Cross-Table Live Refresh
+- Handovers keeps the three grids (Jobs, Income Payments, Job Distributions) synchronized after mutations without reloading the whole page.
+- Source-of-change propagation rules:
+  - Income Payments mutation (payment edit, add ledger, confirm/deconfirm) refreshes Jobs derived metrics and Job Distributions grid.
+  - Job Distributions save/clear/auto actions refresh Jobs derived metrics and Income Payments grid.
+  - Jobs edit refreshes Income Payments and Job Distributions grids.
+- Jobs derived metrics refresh is incremental: recalculates paid/debit fields (including `Paid %`) from `/api/payments-report` + `/api/payments-jobs` and updates current jobs state in place.
 
 ### Handover Emission Feature
 When a user emits a handover, all current (non-emitted) job distributions are locked and marked with an `emission_uuid`, creating an immutable audit trail. Multiple emissions are supported, with the latest emission taking priority for display:

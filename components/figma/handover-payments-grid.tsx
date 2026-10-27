@@ -101,12 +101,18 @@ type ExportColumn = {
   format?: ColumnFormat;
 };
 
-type HandoverPaymentsGridHandle = {
+export type HandoverPaymentsGridHandle = {
   getExportData: () => {
     rows: Record<string, any>[];
     columns: ExportColumn[];
     sheetName: string;
   } | null;
+  refreshData: () => Promise<void>;
+};
+
+type HandoverPaymentsGridProps = {
+  projectUuid: string;
+  onDataChanged?: () => void;
 };
 
 // ── Column definitions ────────────────────────────────────────────────────────
@@ -145,8 +151,8 @@ function fmtVal(value: any, format?: ColumnFormat, key?: string): string {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, { projectUuid: string }>(
-  ({ projectUuid }, ref) => {
+export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, HandoverPaymentsGridProps>(
+  ({ projectUuid, onDataChanged }, ref) => {
     // ── Data ──────────────────────────────────────────────────────────────────
     const [incomeRows, setIncomeRows] = useState<IncomePaymentRow[]>([]);
     const [loading, setLoading] = useState(false);
@@ -411,7 +417,10 @@ export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, { pro
         sheetName: 'Income Payments',
       };
     },
-  }), [incomeRows, visibleColumns]);
+    refreshData: async () => {
+      await fetchIncomePayments(projectUuid);
+    },
+  }), [fetchIncomePayments, incomeRows, projectUuid, visibleColumns]);
 
   const toggleColVisibility = (key: IncomeColKey) =>
     setColumns(cols => cols.map(c => (c.key === key ? { ...c, visible: !c.visible } : c)));
@@ -616,7 +625,8 @@ export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, { pro
         return;
       }
       setIsEditOpen(false);
-      fetchIncomePayments(projectUuid);
+      await fetchIncomePayments(projectUuid);
+      onDataChanged?.();
     } catch {
       setEditError('Failed to update payment.');
     } finally {
@@ -661,7 +671,8 @@ export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, { pro
         return;
       }
       setIsAddLedgerOpen(false);
-      fetchIncomePayments(projectUuid);
+      await fetchIncomePayments(projectUuid);
+      onDataChanged?.();
     } catch {
       setAddLedgerError('Failed to create ledger entry.');
     } finally {
@@ -704,6 +715,7 @@ export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, { pro
         throw new Error(err.error || 'Failed to confirm payments');
       }
       await fetchIncomePayments(projectUuid);
+      onDataChanged?.();
       setIsConfirmOpen(false);
       setSelectedIds(new Set());
     } catch (e: any) {
@@ -728,6 +740,7 @@ export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, { pro
         throw new Error(err.error || 'Failed to de-confirm payments');
       }
       await fetchIncomePayments(projectUuid);
+      onDataChanged?.();
       setIsDeconfirmOpen(false);
       setSelectedIds(new Set());
     } catch (e: any) {

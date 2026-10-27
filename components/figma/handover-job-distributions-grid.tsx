@@ -89,6 +89,7 @@ export type HandoverJobDistributionsGridHandle = {
     columns: ExportColumn[];
     sheetName: string;
   } | null;
+  refreshData: () => Promise<void>;
 };
 
 type ExportColumn = {
@@ -674,7 +675,10 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
         sheetName: 'Job Distributions',
       };
     },
-  }), [distributionMap, paymentIdMap, paymentMap, sortedData, visibleColumns]);
+    refreshData: async () => {
+      await fetchData();
+    },
+  }), [distributionMap, fetchData, paymentIdMap, paymentMap, sortedData, visibleColumns]);
 
   // Export functionality moved to parent HandoversTable for global XLSX export
   // This component now exposes data via props callback if needed
