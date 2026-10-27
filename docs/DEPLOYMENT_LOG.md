@@ -1,408 +1,77 @@
 # Deployment Log
 
+## 2026-10-27 Deployment #447 (Fix: Handovers Income Payments Counteragent Warning Icon Parity)
+- Commit: 29295d7 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-jxuf9xm49-iceerp.vercel.app
+- Summary: Handovers Income Payments now matches Payments Report behavior for the counteragent statement little-man icon. The icon turns red when the counteragent has unbound transactions (missing `payment_id`) and remains blue otherwise.
+- Changes:
+  - `components/figma/handover-payments-grid.tsx`:
+    - Added `hasUnboundCounteragentTransactions` to `IncomePaymentRow` and mapped it from `/api/payments-report` response.
+    - Updated counteragent statement icon styling to red warning state (`text-red-600`, red hover) when `hasUnboundCounteragentTransactions=true`.
+    - Updated tooltip to warning text when unbound transactions exist.
+  - `AGENTS.md`: documented Handovers Income Payments warning-icon parity rule.
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
+## 2026-10-27 Deployment #446 (Fix: Remove Signature Boxes in Printable DOCX/PDF)
+- Commit: e3dfbfc (deploy/2026-06-16-emission-insider)
+- Production: https://ice-m628uwv2h-iceerp.vercel.app
+- Summary: Removed visible signature boxes/borders in printable handover form for both DOCX and PDF renderers while preserving signature text, spacing, and two-column layout.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - DOCX: signature section cell borders switched to no-border style.
+    - PDF fallback: removed rectangle stroke in signature area render path.
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
+## 2026-10-27 Deployment #445 (Fix: Printable PDF Auto-Sized Columns + Short Certificate Header)
+- Commit: f872489 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-glomjx0u9-iceerp.vercel.app
+- Summary: Printable PDF fallback now auto-adjusts table column widths by maximum text length while constraining output to A4 width. Also shortened the certificate header label.
+- Changes:
+  - `app/api/export/handover-print-form/route.ts`:
+    - PDF fallback table width logic now measures max text width per column (header/body/total), applies minimum widths, then rebalances/scales to fit A4.
+    - Header label changed from `სერტიფიკატის #` to `სერტ. #`.
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
+- Status: ✅ Live
+
 ## 2026-10-27 Deployment #444 (Fix: Printable PDF Table Overlap + A4 Parity Diagnostics)
 - Commit: d61ec25 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-h1da8524g-iceerp.vercel.app
-- Summary: Improved printable-form PDF table stability and diagnosability. Reduced fallback PDF table text pressure and switched row-height measurement to wrapped text height to prevent layovers in narrow columns. Also added renderer diagnostics so each PDF response indicates whether it came from CloudConvert conversion or pdfkit fallback.
+- Summary: Improved printable-form PDF table stability and diagnosability. Reduced fallback PDF table text pressure and switched row-height measurement to wrapped text height to prevent layovers in narrow columns. Added renderer diagnostics so each PDF response indicates whether it came from CloudConvert conversion or pdfkit fallback.
 - Changes:
   - `app/api/export/handover-print-form/route.ts`:
     - PDF fallback table tuning: set `TABLE_FONT=10` (body text remains 11), raised minimum row height, and use `heightOfString` for left-aligned wrapped cells to prevent overlap.
-    - A4 parity: keep DOCX and pdfkit fallback on the same fixed template column proportions (`TABLE_COLUMN_WIDTHS`) and fixed DOCX table widths.
-    - Diagnostics: add `X-Printable-Pdf-Renderer` response header (`cloudconvert` or `pdfkit-fallback`; ZIP may contain comma-separated values).
-    - Runtime logs now emit the renderer path used for PDF generation.
+    - A4 parity: keep DOCX and pdfkit fallback on fixed template column proportions (`TABLE_COLUMN_WIDTHS`) and fixed DOCX table widths.
+    - Diagnostics: added `X-Printable-Pdf-Renderer` response header (`cloudconvert` or `pdfkit-fallback`; ZIP may contain comma-separated values).
+    - Runtime logs now emit renderer path used for PDF generation.
   - `AGENTS.md`: documented A4 table-fit parity rule and PDF overlap guard + diagnostics header behavior.
 - Validation:
   - `pnpm exec tsc --noEmit --pretty false` ✅
   - `pnpm lint` ✅ (warnings only, no errors)
-  - `pnpm build` ✅ (using isolated local TEMP/TMP to avoid Windows EPERM temp-scan issue)
+  - `pnpm build` ✅ (using isolated local TEMP/TMP due to Windows EPERM temp-scan issue)
   - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
 - Status: ✅ Live
 
 ## 2026-10-27 Deployment #443 (Feat: Printable PDF via DOCX→PDF Conversion for Word-Identical Output)
 - Commit: a1fa59d (deploy/2026-06-16-emission-insider)
 - Production: https://ice-ikrb132le-iceerp.vercel.app
-- Summary: The handover printable-form PDF is now produced by converting the generated DOCX to PDF (LibreOffice engine via CloudConvert), so the PDF is visually identical to the DOCX (fonts, tables, spacing). Falls back to the built-in pdfkit renderer when conversion is unavailable or fails, so PDF export never breaks.
+- Summary: The printable handover PDF can be produced by converting generated DOCX to PDF (LibreOffice engine via CloudConvert), enabling Word-identical visual output when conversion is available.
 - Changes:
-  - `lib/export/docx-to-pdf.ts` (new): `convertDocxToPdf(buffer)` + `isPdfConversionConfigured()`. Uses CloudConvert v2 jobs API (import/base64 → convert libreoffice → export/url), polls to completion (max ~55s), downloads the resulting PDF.
-  - `app/api/export/handover-print-form/route.ts`: `buildPrintableBuffer` now, for PDF, builds the DOCX and converts it when `CLOUDCONVERT_API_KEY` is set; on any failure it logs and falls back to `buildPdfPrintable` (pdfkit). Added `export const maxDuration = 60`. Removed the now-dead `resolveCityLabel` helper and its call sites.
-  - `.env.example`: documented `CLOUDCONVERT_API_KEY`.
-  - `AGENTS.md`: documented the DOCX-first PDF strategy and fallback.
-- **ACTION REQUIRED to activate conversion:** add `CLOUDCONVERT_API_KEY` to Vercel env (and `.env.local` for local). Get a key at https://cloudconvert.com/dashboard/api/v2/keys with `task.read` + `task.write` scopes. Until the key is set, PDF export continues to use the pdfkit renderer (no behavior change).
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - `pnpm build` ✅ (clean rebuild, 127/127 pages, compiled successfully)
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live (conversion dormant until `CLOUDCONVERT_API_KEY` is configured)
-
-## 2026-10-27 Deployment #442 (Fix: Printable Handover Form Typography — Remove City, Unify Font Size to 11)
-- Commit: c601bf5 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-l6rwz708p-iceerp.vercel.app
-- Summary: Simplified printable handover form (DOCX/PDF) typography and layout. Removed city label (ბათუმი/თბილისი) from header, leaving only the certification date. Unified all document text to consistent size 11 (22 half-points in DOCX).
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`:
-    - DOCX: Changed all text sizes to 22 half-points (11pt) — title, date line, intro paragraphs, table headers/body/totals, notes, and signature box.
-    - DOCX: Removed `cityLabel` from date line, now shows only `certDateDisplay`.
-    - PDF: Changed all text sizes to 11 — title, date line, intro, table (TABLE_FONT), notes, signature box, and page numbers.
-    - PDF: Removed `cityLabel` from date line, now shows only `certDateDisplay`.
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live
-
-## 2026-10-26 Deployment #441 (Fix: Printable Handover Form Layout — Autofit Table, Uniform Font, Bigger Signatures)
-- Commit: a9311b7 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-hb4x5k1nd-iceerp.vercel.app
-- Summary: Improved printable handover form (DOCX/PDF) table and signature layout. Tables now fit to content instead of stretching to full page width, all table text uses a consistent font size (18 for DOCX, 9 for PDF), and signature boxes are now visibly larger with proper borders and layout.
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`:
-    - DOCX table: switched from FIXED layout to AUTOFIT, allowing automatic column sizing based on content; set all table text to uniform size 18 (headers, body, totals).
-    - DOCX signatures: increased row height to 1.7″, added cell padding and margins, formatted with larger role titles and spacer before signature line.
-    - PDF table: changed column width calculation to fit-to-content measurement (width of widest cell per column), auto-scales down only if total exceeds printable area; set all table text to uniform size 9.
-    - PDF signatures: replaced bare text lines with two large bordered boxes (130px tall × table width, 18px gap between), each containing role title, entity, director, and signature line.
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - `pnpm build` ✅ (127/127 pages)
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live
-
-## 2026-10-26 Deployment #440 (Fix: Georgian Genitive Date Format)
-- Commit: 798f026 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-5rdpvtaan-iceerp.vercel.app
-- Summary: Fixed Georgian genitive date rendering in printable handover forms (DOCX/PDF). The contract date on the form now correctly displays in genitive format as `YYYY წლის D month` (for example `2026 წლის 26 ოქტომბერი`) instead of nominative format `D month YYYY`. This aligns with Georgian grammar rules where dates in genitive case place the year first.
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`:
-    - updated `formatGeorgianDate()` to return genitive dates in the correct order: `${year} წლის ${day} ${months[month - 1]}` instead of `${day} ${months[month - 1]} ${year}`
+  - `lib/export/docx-to-pdf.ts` (new): CloudConvert conversion helper + configuration guard.
+  - `app/api/export/handover-print-form/route.ts`: PDF path prefers DOCX conversion and falls back to pdfkit on any conversion error.
+  - `.env.example`: documented `CLOUDCONVERT_API_KEY` setup.
+  - `AGENTS.md`: documented DOCX-first PDF strategy and fallback behavior.
 - Validation:
   - `pnpm exec tsc --noEmit --pretty false` ✅
   - `pnpm build` ✅
   - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live
-
-## 2026-10-26 Deployment #439 (Fix: Printable Handover Form Matches Template)
-- Commit: 2bf1c21 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-9t9oi21iw-iceerp.vercel.app
-- Summary: Aligned the generated Printable Form (DOCX/PDF) with the shared Handover XLSX template. The generated document previously used English table headers (`Job Name`, `Brand`, `Weight`, `Floors`, `Doc. No`), an English `Total` label, and omitted the template's legal notes paragraph, so the download looked different from the template. It now mirrors the template's Georgian column headers, `ჯამი` total, and notes block, with the factory-number column labeled `ლიფტის #`.
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`:
-    - replaced English table headers with the template's Georgian labels (`#`, `კონტ. #`, `მწარმოებელი`, `ლიფტის #`, `ამწეობა (კგ)`, `სართ.`, `სერტიფიკატის #`, `თანხა {currency}`, `თანხა ₾`) via a shared `handoverTableHeaders` helper used by both DOCX and PDF paths
-    - changed the totals label from `Total` to `ჯამი` in both DOCX and PDF
-    - added the verbatim template notes paragraph (`HANDOVER_NOTES`) after the table in both DOCX and PDF, with PDF page-break safety
-    - data mapping unchanged (values already sit in the correct template column positions)
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - `pnpm build` ✅
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live
-
-## 2026-10-26 Deployment #438 (Fix: Handover Export Lift Label)
-- Commit: e32c0e1 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-beut8dsiz-iceerp.vercel.app
-- Summary: Kept the attached handover template content unchanged and updated export output to use the lift-number label `ლიფტის #` instead of `Factory No` in the relevant handover export flows.
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`:
-    - updated printable DOCX/PDF jobs header label from `Factory No` to `ლიფტის #`
-  - `app/api/export/handover-template/route.ts`:
-    - updated template export jobs payload key from `Factory No` to `ლიფტის #`
-  - `lib/export-handover-template.ts`:
-    - updated jobs header label from `Factory No` to `ლიფტის #`
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - `pnpm lint` ✅ (warnings only)
-  - `pnpm build` ✅
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live
-
-## 2026-10-26 Deployment #437 (Fix: Auto-Attach Uses Certificate Issue Date)
-- Commit: a68e4aa (deploy/2026-06-16-emission-insider)
-- Production: https://ice-ioykyb841-iceerp.vercel.app
-- Summary: Updated Handovers certificate auto-attach so certificate `document_date` uses parsed issue date (`სერტ. გაცემის თარიღი`) first, with inspection date as fallback. This prevents false handover cert-date grouping when inspection date differs from certificate issue date.
-- Changes:
-  - `components/figma/project-attachments.tsx`:
-    - changed auto-attach date priority to `issueDate || inspectionDate` for attached and result-preview rows
-  - `AGENTS.md`:
-    - documented the auto-attach document-date rule: issue date first, inspection date fallback
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - `pnpm lint` ✅ (warnings only)
-  - `pnpm build` ✅
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live
-
-## 2026-10-26 Deployment #436 (Fix: Auto-Attach Lift Number Extraction Prefers Serial IDs)
-- Commit: 3ad3cb8 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-ok4v99xwp-iceerp.vercel.app
-- Summary: Fixed Handovers certificate auto-attach false negatives where OCR picked manufacturer words (for example `DELFAR`) instead of the actual elevator serial (for example `D022360E`). Lift-number extraction now prefers serial-like candidates that contain digits, and filename fallback is removed.
-- Changes:
-  - `components/figma/project-attachments.tsx`:
-    - updated lift-number parser to collect `ლიფტი/LIFT` candidates and prefer candidates containing digits
-    - removed filename-based lift-number fallback entirely
-    - kept project-scoped `factory_no` matching behavior unchanged
-  - `AGENTS.md`:
-    - documented the updated extraction rule (prefer digit-containing serials) and explicit no-filename-fallback policy
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - `pnpm lint` ✅ (warnings only)
-  - `pnpm build` ✅
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live
-
-## 2026-10-26 Deployment #435 (Feature: Handovers Certificate Bulk Auto-Attach via OCR)
-- Commit: 45ae5df (deploy/2026-06-16-emission-insider)
-- Production: https://ice-owyeod1op-iceerp.vercel.app
-- Summary: Added bulk certificate upload directly in the Handovers Project Attachments dialog. The flow OCR-parses each uploaded certificate (including image-based PDFs), auto-matches by lift identifier to job factory number, uploads matched files as job attachments, and pre-fills certificate metadata.
-- Changes:
-  - `components/figma/project-attachments.tsx`:
-    - added bulk Auto-Attach Certificates section in Project Attachments dialog
-    - introduced OCR parse pipeline per file via `/api/payments/attachments/ocr`
-    - implemented field extraction (lift identifier, document number/date, reporting dates, permitted load, installer)
-    - implemented deterministic auto-match rule: normalized OCR lift number -> normalized job `factory_no`
-    - uploads and confirms matched files via existing signed-upload job attachment flow
-    - added per-file result reporting (attached, skipped no match, skipped ambiguous match, parse/upload errors)
-  - `AGENTS.md`:
-    - documented Handovers auto-attach capability and matching rule
-    - documented support for image-based PDF certificates through OCR
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - `pnpm lint` ✅ (warnings only)
-  - `pnpm build` ✅
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live
-
-## 2026-10-26 Deployment #434 (Feature: Jobs-Table Handover Emission Selection + Row Status Colors)
-- Commit: 965bc85 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-jfslamrkx-iceerp.vercel.app
-- Summary: Switched Handovers emission UX to direct Jobs table selection via checkboxes, added row-level emitted/pending coloring, and extended emission API to support optional selected-job scoping while preserving cert-date-based locking.
-- Changes:
-  - `components/figma/handovers-table.tsx`:
-    - added checkbox column for emission selection (including page-level select-all for emittable rows)
-    - enabled selection only for rows with cert date + non-emitted distributions
-    - changed Emit Handover flow to derive unique cert dates from selected jobs and send `jobUuids[]` + `certDates[]`
-    - added row-status coloring: light red for pending/non-emitted cert-dated jobs, light green for fully emitted cert-dated jobs
-  - `app/api/handovers/emit/route.ts`:
-    - accepts optional `jobUuids[]` alongside `projectUuid`, `certDate`, `certDates[]`
-    - validates `jobUuids[]` as UUID strings
-    - scopes emission candidates by selected jobs before cert-date filtering
-    - returns `selected_job_count` in response
-  - `AGENTS.md`:
-    - documented new jobs-checkbox emission workflow and row coloring rules
-    - updated emission API contract with optional `jobUuids[]`
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - `pnpm lint` ✅ (warnings only)
-  - `pnpm build` ✅
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-- Status: ✅ Live
-
-## 2026-10-26 Deployment #433 (Feature: Date-scoped Handover Emission + Pending Cert-Date Project Indicator)
-- Commit: bd6865c (deploy/2026-06-16-emission-insider)
-- Production: https://ice-4vbbsba09-iceerp.vercel.app
-- Summary: Added date-scoped handover emission and surfaced pending emission backlog directly in the Handovers project dropdown. Emission now locks only distributions tied to selected cert date(s), and projects with non-emitted cert dates are prioritized/highlighted in red.
-- Changes:
-  - `app/api/handovers/emit/route.ts`:
-    - accepts `certDate` and `certDates[]`
-    - validates ISO date format (`YYYY-MM-DD`)
-    - resolves job cert dates via `getJobLiftCertInfo`
-    - locks only non-emitted `payments_jobs` rows for jobs matching selected cert date(s)
-    - includes selected `cert_dates` in response and emission description
-  - `app/api/handovers/projects-emission-status/route.ts`:
-    - new endpoint returning per-project emission backlog (`missingEmissionCount`, `certDatesWithoutEmission`, `hasMissingEmissions`)
-    - computes backlog from non-emitted `payments_jobs` + lift cert dates
-  - `components/figma/handovers-table.tsx`:
-    - `Emit Handover` now requires selected cert date checkbox(es)
-    - sends selected dates to `/api/handovers/emit`
-    - project dropdown now sorts projects with pending cert-date emissions to the top
-    - pending projects show warning label and red-highlighted dropdown rows
-  - `components/ui/combobox.tsx`:
-    - added per-option `itemClassName` support to enable custom dropdown row styling
-  - `AGENTS.md`:
-    - documented date-scoped emission rule and project-dropdown pending-emission indicator
-- Validation:
-  - `pnpm exec tsc --noEmit --pretty false` ✅
-  - `pnpm lint` ✅ (warnings only)
-  - `pnpm build` ✅
-  - Manual prod deploy: `npx vercel --prod --yes` (single deploy) ✅
-  - Alias updated: `ice-erp.vercel.app` → `https://ice-4vbbsba09-iceerp.vercel.app` ✅
-- Status: ✅ Live
-
-## 2026-10-25 Deployment #432 (Fix: Printable PDF Numbers Not Rendering)
-- Commit: dd1d431 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-eu58zkq7t-iceerp.vercel.app
-- Summary: Numbers (and other non-Georgian glyphs) were missing entirely from printable PDFs because the vendored Georgian font subset contains no Latin/digit/punctuation glyphs, and PDFKit performs no automatic font fallback. Implemented per-script font switching so Georgian letters use the Georgian font and digits/Latin/punctuation use the Latin font.
-- Root cause: `noto-sans-georgian-georgian-400-normal.woff` has Georgian glyphs only (digits/punctuation = `.notdef` → blank); `noto-sans-georgian-latin-400-normal.woff` has digits/Latin only.
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`:
-    - Added `splitScriptRuns` + `drawMixedLine` (manual-aligned single line) and `drawMixedLeft` (wrapping, left) helpers that render each run with the font that actually contains its glyphs.
-    - Replaced all table, header, intro, signature, title, and page-number text drawing with the mixed-script renderers.
-    - Manual alignment used for centered/right content because PDFKit mis-positions `continued` multi-font runs under `align`.
-- Validation:
-  - Local: `pnpm exec tsc --noEmit`, `pnpm build`, and a standalone render confirming both font subsets embed (two `Tf` resources) with digits present.
-  - Live authenticated `POST /api/export/handover-print-form` (PDF) → 200, `application/pdf`; output size increased (digits now embedded).
-- Status: ✅ Live
-
-## 2026-10-25 Deployment #431 (Hotfix: Printable PDF Numeric Font Legibility)
-- Commit: 81674a1 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-6tobeku2t-iceerp.vercel.app
-- Summary: Improved numeric rendering quality in printable PDF exports by introducing a dedicated Latin subset font for numeric-heavy cells and page numbering while preserving Georgian text rendering.
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`:
-    - Added route-local Latin font loading (`noto-sans-georgian-latin-400-normal.woff`) as Buffer.
-    - Registered `Latin` font and applied it selectively to numeric columns (index, weight, floors, amount columns) and footer page numbering.
-    - Kept primary Georgian font (`Geo`) for narrative and non-numeric text.
-  - `app/api/export/handover-print-form/fonts/noto-sans-georgian-latin-400-normal.woff`:
-    - Added vendored Latin subset font asset used by the PDF renderer.
-  - `AGENTS.md`:
-    - Documented numeric rendering rule for printable PDF route.
-- Validation:
-  - Local: `pnpm exec tsc --noEmit --pretty false`, `pnpm build`
-  - Live authenticated check: `POST /api/export/handover-print-form` (PDF) -> 200, `application/pdf`, non-empty binary.
-- Status: ✅ Live
-
-## 2026-10-24 Deployment #430 (Hotfix: Printable PDF Runtime Font Resolution)
-- Commit: 58830d6 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-fsvfb7shr-iceerp.vercel.app
-- Summary: Fixed production `POST /api/export/handover-print-form` runtime failure (`Cannot find module ... standard-fonts/Helvetica.cjs`) by removing fragile serverless tracing dependency and forcing PDFKit startup to use a vendored Georgian font as the default constructor font.
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`:
-    - switched font source to a vendored route-local file: `app/api/export/handover-print-form/fonts/noto-sans-georgian-georgian-400-normal.woff`
-    - loads font as `Buffer` and passes it to `new PDFDocument({ font: geoFontBuffer })` so PDFKit does not initialize standard Helvetica aliases at startup
-    - keeps registered `Geo` font usage for document rendering
-  - `app/api/export/handover-print-form/fonts/noto-sans-georgian-georgian-400-normal.woff`:
-    - added deterministic in-repo font asset to avoid symlinked `node_modules` packaging edge cases in serverless output
-  - `next.config.js`:
-    - removed experimental output file tracing globs that previously caused Vercel `invalid deployment package for a Serverless Function` errors
-  - `AGENTS.md`:
-    - updated printable-form serverless guidance to require constructor-level custom font strategy and avoid route-level tracing globs for pdfkit standard fonts
-- Validation:
-  - Local: `pnpm exec tsc --noEmit --pretty false`, `pnpm build`
-  - Live authenticated checks (Handovers session):
-    - `GET /api/projects` → 200
-    - `GET /api/projects-v2` → 200
-    - `POST /api/export/handover-print-form` (PDF) → 200 (`application/pdf`, non-empty binary)
-- Status: ✅ Live
-
-## 2026-10-24 Deployment #429 (Fix: Printable Export Runtime + Multi-date ZIP + Projects UNION UUID Safety)
-- Commit: 6a87426 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-fz1b27r4t-iceerp.vercel.app
-- Summary: Resolved production runtime/API failures and completed handover printable export enhancements: fixed pdfkit runtime module loading issue, added multi-date Cert. Date export with ZIP output, improved DOCX/PDF printable formatting/pagination, and fixed `raw_record_uuid` UNION type mismatch in projects aggregation routes.
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`: 
-    - fixed strict typing issues that blocked build (`chunk` type, alignment value type, date array narrowing)
-    - switched PDF document construction to runtime CJS import (`require('pdfkit')`) to avoid module alias resolution failure in production
-    - added robust font fallback behavior (`Geo` when available, otherwise `Helvetica`)
-    - added multi-date request handling (`certDates[]`) and ZIP generation path (automatic when multiple dates or `zip=true`)
-    - improved output formatting: fixed DOCX table layout/borders/shading, dynamic PDF row-height pagination, repeated PDF table headers on page breaks, explicit page numbering
-    - kept RFC 5987-safe `Content-Disposition` handling for downloadable filenames
-  - `components/figma/handovers-table.tsx`:
-    - printable dialog now supports multi-date selection (Select All / Clear)
-    - sends `{ certDates, zip, certDate, format }` payload
-    - updates action labels for ZIP downloads when multiple dates are selected
-  - `app/api/projects-v2/route.ts`: cast adjustment union placeholder to `NULL::uuid as raw_record_uuid` (from `NULL::text`)
-  - `app/api/projects/route.ts`: cast both adjustment union placeholders to `NULL::uuid as raw_record_uuid` (from `NULL::text`)
-  - `AGENTS.md`: documented multi-date printable export API contract and `raw_record_uuid` UNION type-safety rule
-- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), `pnpm test`, and `pnpm build` completed before deploy.
-- Status: ✅ Live
-
-## 2026-10-24 Deployment #428 (Feature: Downloadable Handovers Printable DOCX/PDF)
-- Commit: 80f81e0 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-jy73zbgvb-iceerp.vercel.app
-- Summary: Added server-generated downloadable printable handover forms in DOCX/PDF, with mandatory unique Cert. Date selection, portrait orientation, clean output (no browser header/footer artifacts), and explicit page numbering.
-- Changes:
-  - `app/api/export/handover-print-form/route.ts`: new POST export route that validates `{ projectUuid, certDate, format }`, loads handover data scoped to selected cert date, and returns DOCX/PDF binary response with RFC 5987-safe download headers.
-  - `components/figma/handovers-table.tsx`: added “Printable Form (DOCX/PDF)” flow with cert-date selection dialog and format-specific download actions; kept existing print preview as separate action.
-  - `components/figma/ui/radio-group.tsx`: fixed Radix import path to package module name.
-  - `package.json` / `pnpm-lock.yaml`: added export dependencies (`docx`, `pdfkit`, `@fontsource/noto-sans-georgian`, `@radix-ui/react-radio-group`, `@types/pdfkit`).
-  - `e2e/smoke.spec.ts`, `e2e/dictionaries-countries.spec.ts`: updated stale Playwright assertions to current auth-gated behavior.
-  - `AGENTS.md`: documented printable DOCX/PDF export requirements and constraints.
-- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), `pnpm test`, `pnpm test:e2e` (with `EXPORT_SERVER_LOGS=false`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`), and `pnpm build` all completed before deploy.
-- Status: ✅ Live
-
-## 2026-10-24 Deployment #427 (Feature: App-side Handovers Print Form)
-- Commit: 86e03fd (deploy/2026-06-16-emission-insider)
-- Production: https://ice-hiotj44ux-iceerp.vercel.app
-- Summary: Added native app-side printable handover form and wired it into Handovers "More Exports" as "Print Form".
-- Changes:
-  - `app/handovers/print/page.tsx`: New print route that fetches project/jobs/payments/distributions/lift-cert data, computes row totals, and renders browser-printable handover document.
-  - `components/figma/handovers-table.tsx`: Added `handleOpenPrintForm` and "Print Form" action to open `/handovers/print?projectUuid=...` in a new tab.
-  - `AGENTS.md`: Documented print-form behavior, data parity expectations, and Next.js Suspense requirement for `useSearchParams`.
-- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), and `pnpm build` completed before deploy.
-- Status: ✅ Live
-
-## 2026-10-24 Deployment #426 (Feature: Handover Template Workbook Refresh)
-- Commit: 7b2274e (deploy/2026-06-16-emission-insider)
-- Production: https://ice-oq7yrhggp-iceerp.vercel.app
-- Summary: Updated handover template workbooks with the provided exported file content while preserving formula-driven Handover sheet behavior required by template export.
-- Changes:
-  - `public/Handover Tamplate New.xlsx`: refreshed workbook data sheets from provided handovers file and preserved formula-enabled Handover sheet.
-  - `public/Handover Tamplate New CLEANED.xlsx`: same refresh and formula-preservation update for cleaned fallback template.
-  - `app/__tests__/home.test.tsx`: aligned heading expectation with current landing page title (`ICE ERP`).
-  - `lib/__tests__/handover-job-distributions.test.ts`: aligned expected payment info object with current resolver output (`financialCodeUuid` present).
-- Validation: `pnpm test` (all passing), `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), and `pnpm build` all completed before deploy.
-- Status: ✅ Live
-
-## 2026-10-23 Deployment #425 (Fix: Doc Attachments ZIP Unicode Header Runtime Error)
-- Commit: 9afbc45 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-1bhg5isya-iceerp.vercel.app
-- Summary: Fixed runtime 500 in `POST /api/export/handover-job-doc-attachments` caused by raw Unicode characters in `Content-Disposition` header values (Undici ByteString conversion failure).
-- Changes:
-  - `app/api/export/handover-job-doc-attachments/route.ts`: switched ZIP download header to RFC 5987 format using `filename*` with UTF-8 percent-encoding plus ASCII-safe `filename` fallback.
-  - `AGENTS.md`: documented mandatory non-ASCII-safe `Content-Disposition` policy for Doc. No ZIP exports.
-- Validation: `pnpm exec tsc --noEmit --pretty false`, `pnpm lint` (warnings only), `pnpm build` all completed before deploy.
-- Status: ✅ Live
-
-## 2026-10-23 Deployment #424 (Feature: Handovers Doc. No Attachments ZIP Export)
-- Commit: eab2fd2 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-9to4kgynv-iceerp.vercel.app
-- Summary: Added bulk ZIP export for Handovers Jobs table Doc. No source attachments and placed the action in More Exports. ZIP includes one file per selected job using required filename format: Job Name_Factory No_Doc. No, with extension preserved and collision-safe numeric suffixes.
-- Selection Rules:
-  - Only rows with non-empty document_no are included
-  - Source attachment per job is the earliest active attachment among lift-certificate and interim-inspection document types
-- Changes:
-  - app/api/export/handover-job-doc-attachments/route.ts: Added POST endpoint that resolves eligible attachments, downloads from Supabase storage, and returns a ZIP archive with metadata headers for added/skipped counts
-  - components/figma/handovers-table.tsx: Added "Doc. No Attachments ZIP" action under More Exports and wired client download flow
-  - AGENTS.md: Documented ZIP export behavior, selection logic, and filename requirements
-- Build/Deploy Note: Vercel type-checking rejected direct typed-array response bodies in this route. Final compatibility fix returns a fresh ArrayBuffer copy before NextResponse construction.
-- Status: ✅ Live
-
-## 2026-10-22 Deployment #423 (Fix: Jobs Table Totals — Direct Distribution Aggregation)
-- Commit: 50dfe65 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-aphaw0502-iceerp.vercel.app
-- Summary: Fixed root cause of jobs table showing wrong Paid Nominal / Paid GEL / Total GEL. The previous approach stored distributions in a bank-transaction-keyed map (`batch:UUID` / `raw:UUID`) and only counted them when a matching bank transaction was returned by the project-filtered bank-tx API. This silently dropped all distributions whose underlying bank transaction had a different or null `project_uuid` on the raw table. Fixed by directly aggregating `paidNominalByJob` and `paidGelByJob` from income distributions by `job_uuid` — the `incomePaymentIds` filter already scopes to this project's income payments. Also removed the unnecessary `/api/bank-transactions` fetch from the jobs loading `Promise.all`, saving one network request.
-- DB evidence: Project 808bf640 (Chkondideli Repair 21 UNITS, USD), 21 jobs, 92 income distributions (58 batch + 34 non-batch), total paid nominal = 908,780 USD, total account_curr = 2,457,608 GEL. Expected debit nominal = 175,340 USD (1,084,120 − 908,780). Previous totals were wrong because most distributions were never counted.
-- Changes:
-  - `components/figma/handovers-table.tsx`: Replaced bank-transaction-matching loop with direct `distData.forEach()` aggregation by `job_uuid`. Removed `bankTxRes` from `Promise.all`, removed `distributionsByBankTx` and `unmappedDistributions` maps (−75 lines).
-- Status: ✅ Live
-
-## 2026-10-22 Deployment #422 (Fix: Batch Transactions Excluded from Jobs Table Totals)
-- Commit: b7d9d37 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-5b4abpos9-iceerp.vercel.app
-- Summary: Fixed jobs table totals not including batch transaction distributions. Root cause: jobs table `fetchJobs` was filtering bank transactions using `row.project_uuid` directly, but batch transactions have `batch_project_uuid` set with `project_uuid` NULL. Applied COALESCE pattern used in bottom grid: `(row.batch_project_uuid || row.project_uuid) === projectUuid`. This ensures batch transactions are included in Paid Nominal, Paid GEL, Debit GEL, and Total GEL calculations.
-- Changes:
-  - `components/figma/handovers-table.tsx`: Line 547 changed to use `const effectiveProjectUuid = row.batch_project_uuid || row.project_uuid;` before project UUID comparison
-  - Comment updated to clarify COALESCE pattern is applied (matching bottom grid behavior)
-- Example: Batch BTC_DEBEAD_EB_12BB48 (project 808bf640-8295-46a9-a083-c43472345717) distributions now correctly contribute to jobs table totals.
-- Impact: Jobs showing correct Paid and Debit amounts after distribution save; batch transactions no longer filtered out due to NULL project_uuid.
-- Status: ✅ Live
-
-## 2026-10-22 Deployment #421 (Fix: Handovers Jobs Table Totals After Distribution Save)
-- Commit: 885aa59 (deploy/2026-06-16-emission-insider)
-- Production: https://ice-1erf96e33-iceerp.vercel.app
-- Summary: Fixed batch transaction distributions not appearing in Handovers jobs table totals after save/clear operations. Root cause: parent jobs table was not refreshing after child JobDistributionGrid saved distributions. Implemented callback chain from JobDistributionGrid.onSave() → HandoverJobDistributionsGrid.onDistributionsSaved() → HandoversTable.fetchJobs() to trigger parent recalculation.
-- Changes:
-  - `components/figma/job-distribution-grid.tsx`: Removed duplicate onSave() callback invocations in handleSave() and handleClear(). Now single onSave callback triggers once per operation.
-  - `components/figma/handover-job-distributions-grid.tsx`: Added optional `onDistributionsSaved` callback prop. Invoked in handleSave after distribution fetch completes, alongside fetchData().
-  - `components/figma/handovers-table.tsx`: Wired onDistributionsSaved callback to HandoverJobDistributionsGrid, passes `fetchJobs(selectedProjectUuid, currency)` to trigger parent totals recalculation (Paid Nominal, Paid GEL, Debit GEL, Total GEL columns).
-  - `AGENTS.md`: Updated Handovers architecture notes on callback wiring and refresh guarantees.
-- Example: Batch BTC_DEBEAD_EB_12BB48 (project 808bf640-8295-46a9-a083-c43472345717) with 2 partitions and 16 job distributions now correctly updates totals immediately on save without page reload.
-- Status: ✅ Live
-
-## 2026-09-10 Deployment #416 (Feature: Inspection Interim Report as Lift Cert Alternative)
-- Commit: 1dd49fc (deploy/2026-06-16-emission-insider)
-- Production: https://ice-pdc1lkcgi-iceerp.vercel.app
-- Summary: Handovers liftCertDate now considers both "ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტი)" (operational acceptance certificate) and "შემოწმების შუალედური აქტი (ლიფტი)" (inspection interim report) documents. Uses the earliest date among both types for Debit GEL and Total GEL calculations. Previously only operational certificate was considered.
-- Changes:
-  - `lib/attachments.ts`: Modified `getJobLiftCertInfo()` to query both document types (UUIDs: `77e8c811-3b1c-409d-a1e4-7cc40e1b0132` for certificate, `5eee6b9e-97b2-4a78-b442-355af1e9920c` for inspection report) and return the earliest document_date. Updated SQL WHERE clause to use IN with both UUIDs instead of single document_type_uuid match.
-  - `AGENTS.md`: Updated documentation to clarify that `liftCertDate` is determined by earliest date among both document types
-- Impact: Jobs now correctly use inspection interim report date if uploaded before operational acceptance certificate, improving Debit GEL calculations accuracy
 - Status: ✅ Live
 
 ## 2026-08-18 Deployment #415 (Fix: Currency rule in counteragent statement)
