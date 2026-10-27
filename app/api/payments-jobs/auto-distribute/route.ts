@@ -1,11 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { applyAccountCurrencyRate, resolveAccountCurrencyRate } from '@/lib/payments-jobs-rate';
+import { getSourceTables } from '@/lib/source-tables';
 
 export const dynamic = 'force-dynamic';
+
+const round2 = (value: number) => Math.round(value * 100) / 100;
+
+async function resolveExpectedTransactionTotals(
+  batchPartitionUuid?: string | null,
+  rawRecordUuid?: string | null,
+): Promise<{ nominal: number; accountCurr: number; source: 'batch' | 'raw' | 'fallback' }> {
+  if (batchPartitionUuid) {
+    const batchPartition = await prisma.bank_transaction_batches.findUnique({
+      where: { uuid: batchPartitionUuid },
+    });
+
+    if (!batchPartition) {
+      throw new Error(`Batch partition ${batchPartitionUuid} not found`);
+    }
+
+    return {
+      nominal: Number(batchPartition.nominal_amount || batchPartition.partition_amount || 0),
+      accountCurr: Number(batchPartition.partition_amount || 0),
+      source: 'batch',
+    };
+  }
+
+  if (rawRecordUuid) {
+    const sourceTables = await getSourceTables();
+    if (sourceTables.length > 0) {
+      const unions = sourceTables.map((name) =>
+        Prisma.sql`SELECT nominal_amount::numeric as nominal_amount, account_currency_amount::numeric as account_currency_amount FROM ${Prisma.raw(`"${name}"`)} WHERE uuid::text = ${rawRecordUuid}::text`,
+      );
+
+      const sql = Prisma.sql`
+        SELECT nominal_amount, account_currency_amount
+        FROM (${Prisma.join(unions, ' UNION ALL ')}) tx
+        LIMIT 1
+      `;
+
+      const rows = await prisma.$queryRaw<{ nominal_amount: unknown; account_currency_amount: unknown }[]>(sql);
+      const row = Array.isArray(rows) ? rows[0] : null;
+
+      if (row) {
+        return {
+          nominal: Number(row.nominal_amount || 0),
+          accountCurr: Number(row.account_currency_amount || 0),
+          source: 'raw',
+        };
+      }
+    }
+  }
+
+  return { nominal: 0, accountCurr: 0, source: 'fallback' };
+}
 
 // POST /api/payments-jobs/auto-distribute
 // Distributes a payment across all jobs in a project based on selling price weights
@@ -97,18 +150,55 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Correct for rounding errors - apply remnant to first job to ensure exact match
-    const totalDistributed = distributions.reduce((sum, d) => sum + d.amount, 0);
-    const nominalRemnant = Math.round((payment_amount - totalDistributed) * 100) / 100;
+    // Reconcile to the exact source transaction totals (batch partition / raw tx) to prevent drift.
+    let expectedNominal = round2(Number(payment_amount || 0));
+    let expectedAccountCurr = round2(Number(applyAccountCurrencyRate(expectedNominal, null, resolvedRate) || 0));
+
+    const expected = await resolveExpectedTransactionTotals(batch_partition_uuid, raw_record_uuid);
+    if (expected.source === 'batch' || expected.source === 'raw') {
+      expectedNominal = round2(expected.nominal);
+      expectedAccountCurr = round2(expected.accountCurr);
+    }
+
+    const totalDistributedNominal = distributions.reduce((sum, d) => sum + d.amount, 0);
+    const nominalRemnant = round2(expectedNominal - totalDistributedNominal);
 
     const totalDistributedAccountCurr = distributions.reduce((sum, d) => sum + d.amount_account_curr, 0);
-    const totalPaymentAccountCurr = Math.round(applyAccountCurrencyRate(payment_amount, null, resolvedRate) * 100) / 100;
-    const accountCurrRemnant = Math.round((totalPaymentAccountCurr - totalDistributedAccountCurr) * 100) / 100;
+    const accountCurrRemnant = round2(expectedAccountCurr - totalDistributedAccountCurr);
 
-    // Apply corrections to first job - add remnant directly WITHOUT rounding again to maintain exact match
+    // Apply corrections to the last row so the persisted sums exactly match transaction totals.
     if (distributions.length > 0 && (Math.abs(nominalRemnant) > 0.001 || Math.abs(accountCurrRemnant) > 0.001)) {
-      distributions[0].amount = Number((distributions[0].amount + nominalRemnant).toFixed(2));
-      distributions[0].amount_account_curr = Number((distributions[0].amount_account_curr + accountCurrRemnant).toFixed(2));
+      const lastIdx = distributions.length - 1;
+      distributions[lastIdx].amount = round2(distributions[lastIdx].amount + nominalRemnant);
+      distributions[lastIdx].amount_account_curr = round2(distributions[lastIdx].amount_account_curr + accountCurrRemnant);
+
+      console.log('[payments-jobs/auto-distribute] Applied rounding correction', {
+        payment_uuid,
+        batch_partition_uuid: batch_partition_uuid || null,
+        raw_record_uuid: raw_record_uuid || null,
+        expected_source: expected.source,
+        nominal_remnant: nominalRemnant,
+        account_curr_remnant: accountCurrRemnant,
+        applied_to_row_index: lastIdx,
+      });
+    }
+
+    const finalNominal = round2(distributions.reduce((sum, d) => sum + d.amount, 0));
+    const finalAccountCurr = round2(distributions.reduce((sum, d) => sum + d.amount_account_curr, 0));
+
+    if (Math.abs(finalNominal - expectedNominal) > 0.01 || Math.abs(finalAccountCurr - expectedAccountCurr) > 0.01) {
+      return NextResponse.json(
+        {
+          error: 'Auto-distribution reconciliation failed',
+          details: {
+            expected_nominal: expectedNominal,
+            final_nominal: finalNominal,
+            expected_account_curr: expectedAccountCurr,
+            final_account_curr: finalAccountCurr,
+          },
+        },
+        { status: 400 },
+      );
     }
 
     // Replace all existing distributions with new auto-weighted ones

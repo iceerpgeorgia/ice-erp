@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { applyAccountCurrencyRate, resolveAccountCurrencyRate } from '@/lib/payments-jobs-rate';
+import { getSourceTables } from '@/lib/source-tables';
 
 export const dynamic = 'force-dynamic';
 
@@ -229,19 +231,26 @@ export async function POST(req: NextRequest) {
       expectedNominal = Number(batchPartition.nominal_amount || batchPartition.partition_amount || 0);
       expectedAccountCurr = Number(batchPartition.partition_amount || 0);
     } else if (raw_record_uuid) {
-      // Get from raw bank transaction tables
-      // Try both tables
-      let rawTx: any = await prisma.$queryRaw`
-        SELECT nominal_amount, account_currency_amount FROM "GE78BG0000000893486000_BOG_GEL"
-        WHERE uuid::text = ${raw_record_uuid}::text
-        UNION ALL
-        SELECT nominal_amount, account_currency_amount FROM "GE65TB7856036050100002_TBC_GEL"
-        WHERE uuid::text = ${raw_record_uuid}::text
-        LIMIT 1
-      `;
-      if (rawTx && rawTx.length > 0) {
-        expectedNominal = Number(rawTx[0].nominal_amount || 0);
-        expectedAccountCurr = Number(rawTx[0].account_currency_amount || 0);
+      // Get from active raw bank transaction tables (dynamic discovery)
+      const sourceTables = await getSourceTables();
+      if (sourceTables.length > 0) {
+        const unions = sourceTables.map((name) =>
+          Prisma.sql`SELECT nominal_amount::numeric as nominal_amount, account_currency_amount::numeric as account_currency_amount FROM ${Prisma.raw(`"${name}"`)} WHERE uuid::text = ${raw_record_uuid}::text`,
+        );
+
+        const sql = Prisma.sql`
+          SELECT nominal_amount, account_currency_amount
+          FROM (${Prisma.join(unions, ' UNION ALL ')}) tx
+          LIMIT 1
+        `;
+
+        const rawTx = await prisma.$queryRaw<{ nominal_amount: unknown; account_currency_amount: unknown }[]>(sql);
+        const row = Array.isArray(rawTx) ? rawTx[0] : null;
+
+        if (row) {
+          expectedNominal = Number(row.nominal_amount || 0);
+          expectedAccountCurr = Number(row.account_currency_amount || 0);
+        }
       }
     }
 

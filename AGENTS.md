@@ -207,6 +207,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - `raw_record_uuid` references the UUID from raw bank account tables (NOT consolidated_bank_accounts)
 - When verifying distribution integrity, always check raw tables (e.g., `GE65TB7856036050100002_TBC_GEL`) not consolidated table
 - The `/api/payments-jobs/auto-distribute` endpoint receives `raw_record_uuid` from bank transaction UI and stores it in `payments_jobs` records
+- **Transaction-total reconciliation rule (critical):** distribution writes must reconcile to the exact source transaction totals (`nominal_amount` and account-currency amount) for the targeted scope (`batch_partition_uuid` first, otherwise `raw_record_uuid`). The save flow applies any small remnant to one distribution row so persisted `payments_jobs.amount_account_curr` sums exactly match the bank transaction amount shown in Job Distributions.
 
 ### Investigation Guidelines
 - **NEVER** search `consolidated_bank_accounts` to verify `raw_record_uuid` references
