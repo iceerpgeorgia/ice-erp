@@ -1,5 +1,30 @@
 # Deployment Log
 
+## 2026-10-27 Deployment #449 (Fix: Enforce Payment-Bind Project/Financial-Code Sync + Backfill)
+- Commit: 59e8635 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-2k05f62ku-iceerp.vercel.app
+- Summary: Eliminated the case where a bank transaction could have a bound `payment_id` but missing `project_uuid` / `financial_code_uuid`.
+- Changes:
+  - `app/api/bank-transactions/[id]/route.ts`:
+    - Added hard-fail validation on bind when payment is missing or payment currency is null (HTTP 400).
+    - Synced `project_uuid` and `financial_code_uuid` from payment on bind when not explicitly overridden.
+  - `app/api/bank-transactions/bulk-bind/route.ts`:
+    - Added hard-fail validation on bind when payment is missing or payment currency is null (HTTP 400).
+    - Synced `project_uuid` and `financial_code_uuid` from payment in bulk bind updates.
+  - `scripts/backfill-bank-transactions-project-from-payment.js` (new):
+    - Added one-time historical remediation across active raw source tables.
+    - Uses `FOR UPDATE SKIP LOCKED` row-batches.
+    - Temporarily disables and re-enables `trg_recompute_bank_balances` per table in a `finally` path.
+    - Final verification result: total remaining mismatches = 0.
+  - `AGENTS.md`:
+    - Documented bind validation requirements and historical remediation procedure.
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only, no failures)
+  - `pnpm build` ✅
+  - Manual production deploy: `npx vercel --prod --yes` ✅ (single deploy)
+- Status: ✅ Live
+
 ## 2026-10-27 Deployment #448 (Fix: Job Distribution Account-Currency Reconciliation)
 - Commit: cbb397e (deploy/2026-06-16-emission-insider)
 - Production: https://ice-h3760cu9u-iceerp.vercel.app
