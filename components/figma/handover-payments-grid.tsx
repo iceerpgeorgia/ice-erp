@@ -88,6 +88,7 @@ type IncomePaymentRow = {
   isActive: boolean;
   label: string | null;
   confirmed: boolean;
+  hasUnboundCounteragentTransactions?: boolean;
   isBundleAggregate?: boolean;
 };
 
@@ -311,6 +312,7 @@ export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, { pro
           isActive: r.isActive ?? true,
           label: r.label || null,
           confirmed: Boolean(r.confirmed),
+          hasUnboundCounteragentTransactions: Boolean(r.hasUnboundCounteragentTransactions),
         })),
       );
       if (incomeOnly.length > 0) {
@@ -1079,11 +1081,17 @@ export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, { pro
                             rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
                             className={`inline-block p-1 rounded transition-colors ${
                               row.counteragentUuid
-                                ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+                                ? row.hasUnboundCounteragentTransactions
+                                  ? 'text-red-600 hover:text-red-800 hover:bg-red-50'
+                                  : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
                                 : 'text-gray-400'
                             }`}
                             aria-disabled={!row.counteragentUuid}
-                            title="View counteragent statement (opens in new tab)"
+                            title={
+                              row.hasUnboundCounteragentTransactions
+                                ? 'Counteragent has transactions without payment ID'
+                                : 'View counteragent statement (opens in new tab)'
+                            }
                             onClick={e => { if (!row.counteragentUuid) e.preventDefault(); }}
                           >
                             <User className="w-4 h-4" />
