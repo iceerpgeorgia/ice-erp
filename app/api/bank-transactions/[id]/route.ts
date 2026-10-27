@@ -461,32 +461,63 @@ export async function PATCH(
       // When payment changes, update nominal currency and recalculate amount
       if (normalizedPaymentId) {
         try {
-          // Get payment's currency
+          // Pull payment attributes used to keep transaction fields aligned.
           const payment = await prisma.payments.findUnique({
             where: { payment_id: normalizedPaymentId },
-            select: { currency_uuid: true, counteragent_uuid: true }
-          });
-          
-          if (payment && payment.currency_uuid) {
-            // Update nominal currency to match payment currency
-            updateData.nominalCurrencyUuid = payment.currency_uuid;
-            changes.push(`nominal_currency: ${current.nominal_currency_uuid} → ${payment.currency_uuid} (from payment)`);
-            
-            // Calculate exchange rate and nominal amount
-            const result = await calculateExchangeRateAndAmount(
-              current.account_currency_uuid,
-              payment.currency_uuid,
-              current.account_currency_amount,
-              current.transaction_date,
-              effectiveCorrectionDateIso ?? current.correction_date
-            );
-            
-            if (result) {
-              updateData.exchangeRate = result.exchangeRate;
-              updateData.nominalAmount = result.nominalAmount;
-              changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()}`);
-              changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (recalculated)`);
+            select: {
+              currency_uuid: true,
+              counteragent_uuid: true,
+              project_uuid: true,
+              financial_code_uuid: true,
             }
+          });
+
+          if (!payment) {
+            return NextResponse.json(
+              { error: `Payment not found: ${normalizedPaymentId}` },
+              { status: 400 }
+            );
+          }
+
+          if (!payment.currency_uuid) {
+            return NextResponse.json(
+              { error: `Payment currency is missing for: ${normalizedPaymentId}` },
+              { status: 400 }
+            );
+          }
+          
+          // Keep project/financial code synced from payment unless explicitly overridden.
+          if (project_uuid === undefined && payment.project_uuid !== current.project_uuid) {
+            updateData.projectUuid = payment.project_uuid;
+            changes.push(`project_uuid: ${current.project_uuid} → ${payment.project_uuid} (from payment)`);
+          }
+
+          if (
+            financial_code_uuid === undefined &&
+            payment.financial_code_uuid !== current.financial_code_uuid
+          ) {
+            updateData.financialCodeUuid = payment.financial_code_uuid;
+            changes.push(`financial_code_uuid: ${current.financial_code_uuid} → ${payment.financial_code_uuid} (from payment)`);
+          }
+
+          // Update nominal currency to match payment currency.
+          updateData.nominalCurrencyUuid = payment.currency_uuid;
+          changes.push(`nominal_currency: ${current.nominal_currency_uuid} → ${payment.currency_uuid} (from payment)`);
+          
+          // Calculate exchange rate and nominal amount.
+          const result = await calculateExchangeRateAndAmount(
+            current.account_currency_uuid,
+            payment.currency_uuid,
+            current.account_currency_amount,
+            current.transaction_date,
+            effectiveCorrectionDateIso ?? current.correction_date
+          );
+          
+          if (result) {
+            updateData.exchangeRate = result.exchangeRate;
+            updateData.nominalAmount = result.nominalAmount;
+            changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()}`);
+            changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (recalculated)`);
           }
 
           const shouldAutoAssignCounteragent =

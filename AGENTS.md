@@ -224,10 +224,24 @@ When a payment is assigned to a bank transaction via `PATCH /api/bank-transactio
   - **NEW (2026-06-10)**: `financial_code_uuid` is synced from the payment's `financial_code_uuid` (unless explicitly overridden in request)
   - `counteragent_uuid` is auto-assigned from payment if transaction has no counteragent yet
   - `parsing_lock` is set to `true` to prevent re-processing
+- **Validation (hard fail):**
+  - Bind must return HTTP 400 when `payment_id` does not exist in `payments`.
+  - Bind must return HTTP 400 when the target payment has `currency_uuid = NULL`.
+  - Rationale: avoid partial binds that set `payment_id` but cannot safely recalculate nominal currency/rates.
 - **When payment is cleared:**
   - All above fields are reset: `project_uuid`, `financial_code_uuid`, `nominal_currency_uuid` revert to defaults
   - `parsing_lock` is set to `false`
 - **Rationale**: Handovers job distribution grid filters by `project_uuid` and income `financial_code_uuid`. Without this sync, manually editing a transaction with an existing payment would orphan it from the handovers view.
+
+### Historical Repair for Payment-Bound Transactions
+- One-time remediation script: `scripts/backfill-bank-transactions-project-from-payment.js`
+- Scope: all active raw source tables discovered from `bank_accounts.raw_table_name`.
+- Fix condition: transaction has `payment_id`, payment has non-null `project_uuid` and/or `financial_code_uuid`, but transaction has null in corresponding field.
+- Update behavior: fill only missing `project_uuid` / `financial_code_uuid` from payment (never overwrite non-null transaction values).
+- Runtime safety:
+  - Processes rows in bounded batches with `FOR UPDATE SKIP LOCKED`.
+  - Temporarily disables `trg_recompute_bank_balances` per table during the backfill, then re-enables it in a `finally` path.
+  - Emits per-table before/updated/after counts for verification.
 
 ## Project Value Scaling
 - When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.

@@ -142,16 +142,35 @@ export async function PATCH(req: NextRequest) {
     const normalizedPaymentId = payment_uuid || null;
     let paymentCurrencyUuid: string | null = null;
     let paymentCounteragentUuid: string | null = null;
+    let paymentProjectUuid: string | null = null;
+    let paymentFinancialCodeUuid: string | null = null;
 
     if (normalizedPaymentId) {
       const payment = await prisma.payments.findUnique({
         where: { payment_id: normalizedPaymentId },
-        select: { currency_uuid: true, counteragent_uuid: true },
+        select: {
+          currency_uuid: true,
+          counteragent_uuid: true,
+          project_uuid: true,
+          financial_code_uuid: true,
+        },
       });
-      if (payment) {
-        paymentCurrencyUuid = payment.currency_uuid;
-        paymentCounteragentUuid = payment.counteragent_uuid;
+      if (!payment) {
+        return NextResponse.json(
+          { error: `Payment not found: ${normalizedPaymentId}` },
+          { status: 400 }
+        );
       }
+      if (!payment.currency_uuid) {
+        return NextResponse.json(
+          { error: `Payment currency is missing for: ${normalizedPaymentId}` },
+          { status: 400 }
+        );
+      }
+      paymentCurrencyUuid = payment.currency_uuid;
+      paymentCounteragentUuid = payment.counteragent_uuid;
+      paymentProjectUuid = payment.project_uuid;
+      paymentFinancialCodeUuid = payment.financial_code_uuid;
     }
 
     /* ── 4. Process each table ── */
@@ -297,16 +316,21 @@ export async function PATCH(req: NextRequest) {
           const counteragentUuid =
             row.counteragent_uuid || paymentCounteragentUuid || null;
 
+          const projectUuid = paymentProjectUuid ?? row.project_uuid ?? null;
+          const financialCodeUuid = paymentFinancialCodeUuid ?? row.financial_code_uuid ?? null;
+
           valueFragments.push(
-            `($${pi}::bigint, $${pi + 1}::numeric, $${pi + 2}::numeric, $${pi + 3}::uuid)`
+            `($${pi}::bigint, $${pi + 1}::numeric, $${pi + 2}::numeric, $${pi + 3}::uuid, $${pi + 4}::uuid, $${pi + 5}::uuid)`
           );
           valueParams.push(
             row.id,
             exchangeRate.toString(),
             nominalAmount.toString(),
-            counteragentUuid
+            counteragentUuid,
+            projectUuid,
+            financialCodeUuid
           );
-          pi += 4;
+          pi += 6;
         }
 
         // 4e. Single UPDATE … FROM (VALUES …).
@@ -321,9 +345,11 @@ export async function PATCH(req: NextRequest) {
               exchange_rate    = data.er,
               nominal_amount   = data.na,
               counteragent_uuid = data.ca,
+              project_uuid = data.project_uuid,
+              financial_code_uuid = data.financial_code_uuid,
               updated_at       = NOW()
           FROM (VALUES ${valueFragments.join(",")})
-            AS data(id, er, na, ca)
+            AS data(id, er, na, ca, project_uuid, financial_code_uuid)
           WHERE t.id = data.id
           RETURNING t.id
         `;
