@@ -1,5 +1,30 @@
 # Deployment Log
 
+## 2026-10-27 Deployment #450 (Feat: Handovers Paid % + Cross-Table Live Refresh)
+- Commit: 381a6b5 (deploy/2026-06-16-emission-insider)
+- Production: https://ice-a8qn19h2s-iceerp.vercel.app
+- Summary: Added `Paid %` to the Handovers Jobs table and implemented cross-table live refresh so Jobs, Income Payments, and Job Distributions stay synchronized after source mutations without reloading the whole page.
+- Changes:
+  - `components/figma/handovers-table.tsx`:
+    - Added `paidPercent` to the jobs model and table column set.
+    - Computes row `Paid %` as `paidNominal / sellingPrice * 100` with null-safe handling for empty/zero selling price.
+    - Computes footer `Paid %` as aggregate ratio `totalPaidNominal / totalSellingPrice * 100`.
+    - Added cross-table orchestration callbacks so mutations in one grid refresh dependent data in sibling grids.
+    - Added in-place jobs derived-metrics refresh path (including `Paid %`) to avoid full page reload.
+  - `components/figma/handover-payments-grid.tsx`:
+    - Exported imperative handle with `refreshData()` for parent-triggered synchronization.
+    - Added `onDataChanged` callback so payment/ledger mutations notify parent to refresh dependent grids.
+  - `components/figma/handover-job-distributions-grid.tsx`:
+    - Added imperative handle `refreshData()` for parent-triggered synchronization after save/auto/recalculate flows.
+  - `AGENTS.md`:
+    - Documented Handovers `Paid %` rule and cross-table live refresh behavior.
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only, no failures)
+  - `pnpm build` ✅
+  - Manual prod deploy: `npx vercel --prod --yes` ✅ (single deploy)
+- Status: ✅ Live
+
 ## 2026-10-27 Deployment #449 (Fix: Enforce Payment-Bind Project/Financial-Code Sync + Backfill)
 - Commit: 59e8635 (deploy/2026-06-16-emission-insider)
 - Production: https://ice-2k05f62ku-iceerp.vercel.app
