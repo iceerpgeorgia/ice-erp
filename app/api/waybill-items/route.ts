@@ -264,8 +264,8 @@ export async function GET(req: NextRequest) {
 
     const where: Prisma.rs_waybills_in_itemsWhereInput = 
       conditions.length > 0 
-        ? { AND: conditions }
-        : {};
+        ? { AND: [...conditions, { insider_uuid: insider.insiderUuid }] }
+        : { insider_uuid: insider.insiderUuid };
 
     // Build order by
     const orderBy: any = {};
@@ -373,11 +373,38 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth();
-  if (isAuthError(auth)) return auth;
   try {
-    const insider = await getRequiredInsider();
     const body = await req.json().catch(() => ({}));
+    
+    // Check if this is a query request (when GET URL is too long)
+    if (body.limit !== undefined || body.offset !== undefined) {
+      // Build query parameters from body to reuse GET handler logic
+      const params = new URLSearchParams();
+      
+      if (body.limit !== undefined) params.set('limit', String(body.limit));
+      if (body.offset !== undefined) params.set('offset', String(body.offset));
+      if (body.search) params.set('search', body.search);
+      if (body.sortColumn) params.set('sortColumn', body.sortColumn);
+      if (body.sortDirection) params.set('sortDirection', body.sortDirection);
+      if (body.filters) params.set('filters', JSON.stringify(body.filters));
+      if (body.advancedFilters) params.set('advancedFilters', JSON.stringify(body.advancedFilters));
+      
+      // Create a GET request with query parameters to avoid URL length limits
+      const url = new URL(req.url);
+      url.search = params.toString();
+      const getRequest = new NextRequest(url, { 
+        method: 'GET',
+        headers: req.headers,
+      });
+      
+      return GET(getRequest);
+    }
+
+    // Otherwise, this is a creation request
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    
+    const insider = await getRequiredInsider();
     const { errors, payload } = validatePayload(body);
 
     if (Object.keys(errors).length > 0) {
