@@ -1,5 +1,28 @@
 # Deployment Log
 
+## 2026-10-28 Deployment #392 (Feature: Add Waybills Check Column)
+- Commit: eedd403
+- Production: https://ice-dkqftv5no-iceerp.vercel.app
+- Summary: Added synthesized Check column to waybills table with conditional red background for visual alerts.
+- Changes:
+  - Added Check column as first visible column in waybills table
+  - Column displays "Yes" when project_uuid, financial_code_uuid, or corresponding_account is filled
+  - Column displays "No" and applies bright red background (bg-red-600) when all three fields are empty
+  - Column is sortable and filterable for advanced data management
+  - Extends existing conditional formatting pattern used for counteragent identification
+- Files Modified:
+  - `components/figma/waybills-table.tsx` - Added synthesized Check column with computation logic (3 changes):
+    1. Added `check?: boolean` property to Waybill type definition
+    2. Added check column entry to defaultColumns configuration
+    3. Added checkPassed computation and conditional red row background to row rendering
+- Impact:
+  - ✅ Users can quickly identify waybills missing project/financial-code/account assignments
+  - ✅ Bright red visual alert (bg-red-600) highlights rows requiring attention
+  - ✅ Column is sortable to group problem rows together
+  - ✅ Column is filterable for focused data review
+  - ✅ No breaking changes to existing functionality
+- Status: ✅ Deployed
+
 ## 2026-07-16 Deployment #391 (Fix: Waybill Items Page Structure)
 - Commit: d4af309
 - Production: https://ice-4b0ykilb9-iceerp.vercel.app
