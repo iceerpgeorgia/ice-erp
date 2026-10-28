@@ -65,6 +65,8 @@ type Waybill = {
   date?: string | null;
   period?: string | null;
   insiderName?: string | null;
+  // Synthesized column
+  check?: boolean;
 };
 
 type ColumnKey = keyof Waybill;
@@ -80,6 +82,7 @@ type ColumnConfig = {
 };
 
 const defaultColumns: ColumnConfig[] = [
+  { key: 'check', label: 'Check', visible: true, sortable: true, filterable: true, format: 'boolean', width: 80 },
   { key: 'waybill_no', label: 'Waybill', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'state', label: 'Status', visible: true, sortable: true, filterable: true, width: 120 },
   { key: 'condition', label: 'Condition', visible: true, sortable: true, filterable: true, width: 140 },
@@ -1211,6 +1214,8 @@ export function WaybillsTable() {
       const row = paginatedData[virtualRow.index];
       if (!row) return null;
       const hasIdentifiedCounteragent = Boolean(row.counteragent_uuid);
+      // Compute check: true if project_uuid, financial_code_uuid, or corresponding_account is filled
+      const checkPassed = Boolean(row.project_uuid || row.financial_code_uuid || row.corresponding_account);
       const canPrefillCounteragent = Boolean(
         (row.counteragent_name && String(row.counteragent_name).trim()) ||
         (row.counteragent && String(row.counteragent).trim()) ||
@@ -1226,7 +1231,7 @@ export function WaybillsTable() {
           key={row.id}
           data-index={virtualRow.index}
           ref={rowVirtualizer.measureElement}
-          className={`border-t ${!hasIdentifiedCounteragent ? 'bg-red-50/50' : ''}`}
+          className={`border-t ${!hasIdentifiedCounteragent ? 'bg-red-50/50' : ''} ${!checkPassed ? 'bg-red-600' : ''}`}
           style={{
             position: 'absolute',
             top: 0,
@@ -1251,12 +1256,16 @@ export function WaybillsTable() {
               <div
                 className="truncate"
                 title={String(
-                  col.key === 'counteragent_name'
+                  col.key === 'check'
+                    ? (checkPassed ? 'Yes' : 'No')
+                    : col.key === 'counteragent_name'
                     ? row.counteragent_name || row.counteragent || ''
                     : formatCell(getCellValue(row, col.key), col.format)
                 )}
               >
-                {col.key === 'waybill_no' ? (
+                {col.key === 'check'
+                  ? (checkPassed ? 'Yes' : 'No')
+                  : col.key === 'waybill_no' ? (
                   <div className="flex items-center gap-1">
                     <button
                       type="button"

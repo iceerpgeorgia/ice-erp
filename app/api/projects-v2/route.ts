@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
             SUM(nominal_amount) as total_payment
           FROM (
             SELECT
-              cba.payment_id,
+              cba.payment_id::text as payment_id,
               cba.nominal_amount,
               cba.raw_record_uuid,
               cba.account_currency_amount
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
             SELECT
               pa.payment_id::text as payment_id,
               COALESCE(pa.nominal_amount, pa.amount) as nominal_amount,
-              NULL::uuid as raw_record_uuid,
+              NULL::text as raw_record_uuid,
               NULL::numeric as account_currency_amount
             FROM payment_adjustments pa
             WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
