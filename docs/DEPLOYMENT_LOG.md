@@ -1,5 +1,27 @@
 # Deployment Log
 
+## 2026-10-28 Deployment #393 (Fix: Waybill Items API Insider Filter & Query Handling)
+- Commit: 709e481
+- Production: https://ice-9vv26uma0-iceerp.vercel.app
+- Summary: Fixed waybill-items API to properly scope data by insider and handle long query URLs.
+- Changes:
+  - Added `insider_uuid` filter to GET route WHERE clause to scope waybill items by insider
+  - Updated POST route to detect query requests (limit/offset params) and delegate to GET handler
+  - Converts POST body to URL query parameters to handle URLs exceeding 2000 characters
+  - Pattern matches waybills API design for consistency
+- Files Modified:
+  - `app/api/waybill-items/route.ts` - Added insider filter and query POST handling (2 changes)
+- Root Cause:
+  - GET route was missing insider scoping filter despite items being stored with insider_uuid
+  - POST route only handled item creation, not query requests when GET URL exceeded length limit
+  - Result: waybill-items page returned no records despite 39,344 records in database
+- Impact:
+  - ✅ Waybill items page now displays all items for current insider
+  - ✅ Filtering, sorting, and searching now work correctly
+  - ✅ Handles large queries via POST request conversion
+  - ✅ API behavior now consistent with other insider-scoped endpoints
+- Status: ✅ Deployed
+
 ## 2026-10-28 Deployment #392 (Feature: Add Waybills Check Column)
 - Commit: eedd403
 - Production: https://ice-dkqftv5no-iceerp.vercel.app
