@@ -1,5 +1,37 @@
 # Deployment Log
 
+## 2026-11-05 Deployment #394 (Feature: TBC BIS Automated Import Flow)
+- Commit: 505e3df
+- Production: https://ice-9sq6qx7dv-iceerp.vercel.app
+- Summary: Added TBC BIS integration flow mirroring BOG with statement mapping, import endpoints, and cron automation.
+- Changes:
+  - Added TBC BIS client with insider-aware credential map, optional mTLS transport, token acquisition, and API request wrapper.
+  - Added TBC BIS statement mapper to normalize BIS payloads (JSON/XML) into canonical TBC XML consumed by `processTBC`.
+  - Added integration endpoints:
+    - `GET /api/integrations/tbc-bis/test`
+    - `GET /api/integrations/tbc-bis/statements` (preview/import modes)
+  - Added cron endpoints:
+    - `GET /api/cron/tbc-import-last-3-days`
+    - `POST /api/cron/tbc-import-backfill`
+  - Added daily cron schedule for `/api/cron/tbc-import-last-3-days` in `vercel.json`.
+  - Added TBC BIS environment variable documentation in `.env.example`.
+  - Updated `AGENTS.md` integration documentation with TBC BIS architecture and flow.
+- Files Modified:
+  - `lib/integrations/tbc-bis/client.ts`
+  - `lib/integrations/tbc-bis/statement-mapper.ts`
+  - `app/api/integrations/tbc-bis/test/route.ts`
+  - `app/api/integrations/tbc-bis/statements/route.ts`
+  - `app/api/cron/tbc-import-last-3-days/route.ts`
+  - `app/api/cron/tbc-import-backfill/route.ts`
+  - `vercel.json`
+  - `.env.example`
+  - `AGENTS.md`
+- Validation:
+  - `pnpm exec tsc --noEmit --pretty false` ✅
+  - `pnpm lint` ✅ (warnings only, no blocking errors)
+  - `pnpm build` ✅
+- Status: ✅ Deployed
+
 ## 2026-10-28 Deployment #393 (Fix: Waybill Items API Insider Filter & Query Handling)
 - Commit: 709e481
 - Production: https://ice-9vv26uma0-iceerp.vercel.app
