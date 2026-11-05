@@ -189,6 +189,37 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
 
+## TBC BIS Integration Flow (Mirrors BOG Flow)
+
+### API Surface
+- `GET /api/integrations/tbc-bis/test`:
+  - Token smoke test when called without `path`.
+  - Token + API ping when `?path=/...` is provided.
+- `GET /api/integrations/tbc-bis/statements`:
+  - `import=0` (default): fetches BIS response, maps it to TBC XML shape, returns preview.
+  - `import=1&accountUuid=...`: fetches BIS response, maps to XML, imports through `processTBC`.
+- `GET /api/cron/tbc-import-last-3-days`:
+  - Daily cron import for TBC accounts by date-window (Tbilisi timezone), same authorization model as BOG cron.
+- `POST /api/cron/tbc-import-backfill`:
+  - Historical re-import by explicit date range (`startDate`, `endDate`) or `daysBack`.
+
+### Client and Mapping Rules
+- `lib/integrations/tbc-bis/client.ts` implements:
+  - Insider-aware credentials via `TBC_BIS_CREDENTIALS_MAP`.
+  - Legacy fallback credentials (`TBC_BIS_CLIENT_ID`/`TBC_BIS_CLIENT_SECRET`).
+  - Static token fallback (`TBC_BIS_ACCESS_TOKEN`).
+  - Optional mTLS transport (`TBC_BIS_MTLS_*`).
+- `lib/integrations/tbc-bis/statement-mapper.ts` normalizes BIS payloads (JSON or XML) into canonical TBC XML:
+  - Required identifiers: `DocumentNumber` + `TransactionId` (synthetic keys are rejected).
+  - Output XML root is `<AccountStatement><Head/><Records><Record/>...</Records></AccountStatement>`.
+  - Resulting XML is consumed by `processTBC` for the same three-phase processing pipeline used by uploaded TBC XML files.
+
+### Path Template and Cron Behavior
+- Statement fetch path is template-driven via `TBC_BIS_STATEMENT_PATH_TEMPLATE` with placeholders:
+  - `{accountNumber}`, `{currencyCode}`, `{fromDate}`, `{toDate}`.
+- Default template is `/bab/v1/accounts/movements?...`; override per tenant/bank contract if BIS endpoint differs.
+- Cron routes iterate account/day, skip empty days, and import only when mapped statement has records.
+
 ## Bank Transactions Data Architecture
 
 **PRIMARY DATA SOURCE**: Raw bank account tables (e.g., `GE65TB7856036050100002_TBC_GEL`, `GE78BG0000000893486000_BOG_GEL`, etc.) are the **active** source of truth for all bank transactions.
