@@ -1,5 +1,24 @@
 # Deployment Log
 
+## 2026-11-05 Deployment #394 (Fix: Export Rounding Accuracy & Build Error)
+- Commit: cbcf308
+- Production: https://ice-flv55w7sr-iceerp.vercel.app
+- Summary: Fixed export file rounding discrepancies and build error preventing production deployment.
+- Changes:
+  - `components/figma/handover-job-distributions-grid.tsx`: Modified `buildDistributionExportRows()` to use actual database amounts (`dist.amount`, `dist.amountAccountCurr`) instead of recalculating from allocation percentage. Export now reflects exact database values with residual correction already applied.
+  - `app/api/handovers/projects-emission-status/route.ts`: Added `export const dynamic = 'force-dynamic'` to allow `request.cookies` usage in static route.
+- Root Cause:
+  - Export was recalculating distributed amounts as `nominalAmount * (percentage / 100)`, which re-introduced rounding errors
+  - Database stores amounts with residual correction applied to last row to ensure exact sum
+  - Example: 60,401.98 payment distributed to 4 jobs showed 60,408.02 (+6.04 overage) in export despite database being correct
+  - Build was failing with "Dynamic server usage" error on projects-emission-status route
+- Impact:
+  - ✅ Export file now shows exact database amounts with no rounding discrepancies
+  - ✅ Distributed amount columns sum exactly to transaction nominal amount
+  - ✅ Production build succeeds without errors
+  - ✅ Deployment possible again
+- Status: ✅ Deployed
+
 ## 2026-10-28 Deployment #393 (Fix: Waybill Items API Insider Filter & Query Handling)
 - Commit: 709e481
 - Production: https://ice-9vv26uma0-iceerp.vercel.app
