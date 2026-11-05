@@ -3,6 +3,8 @@ import { prisma, withRetry } from '@/lib/prisma';
 import { getJobLiftCertInfo } from '@/lib/attachments';
 import { resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
+export const dynamic = 'force-dynamic';
+
 function toDateKey(value: string | Date | null | undefined): string | null {
   if (!value) return null;
   if (typeof value === 'string') {

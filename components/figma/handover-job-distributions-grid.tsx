@@ -255,12 +255,10 @@ function buildDistributionExportRows(
     }
 
     distributions.forEach((dist) => {
-      // Calculate distributed amounts
-      const allocationPercent = Number(dist.percentage ?? 0) / 100;
-      const nominalAmount = Number(row.nominal_amount ?? 0);
-      const amount = Number(row.account_currency_amount ?? 0);
-      const distributedAmount = nominalAmount * allocationPercent;
-      const distributedAmountAccountCurr = amount * allocationPercent;
+      // Use actual database amounts directly to ensure exact reconciliation
+      // Do NOT recalculate from percentage - this reintroduces rounding errors
+      const distributedAmount = Number(dist.amount ?? 0);
+      const distributedAmountAccountCurr = Number(dist.amountAccountCurr ?? 0);
 
       exportRows.push({
         date: row.transaction_date ?? '',
