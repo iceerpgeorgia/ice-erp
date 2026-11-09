@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-11-09 Deployment #395 (Fix: UNION Type Mismatch & Date Parsing Errors)
+- Commit: 2e605a4
+- Production: https://ice-af8vv3r2o-iceerp.vercel.app
+- Summary: Fixed critical production errors preventing API calls.
+- Changes:
+  - `app/api/projects-v2/route.ts`: Fixed UNION query type mismatch by casting NULL as `NULL::uuid` instead of `NULL::text` in payment_adjustments branch. This ensures all UNION branches have matching uuid type for raw_record_uuid column.
+  - `lib/attachments.ts`: Fixed date parsing error by adding normalizeToIsoDate import and converting document dates from DD.MM.YYYY frontend format to ISO YYYY-MM-DD format before database insert. Changed SQL cast from `::timestamp` to `::date`.
+- Root Cause:
+  - Error 1: Payment adjustments UNION branch was casting NULL as text while other branches used uuid type, causing Postgres type mismatch error in projects-v2 API.
+  - Error 2: Client was sending dates in DD.MM.YYYY format (e.g., "23.09.26") directly to database, which couldn't parse the format as a timestamp.
+- Impact:
+  - ✅ GET /projects-v2 API now works without "UNION types uuid and text cannot be matched" error
+  - ✅ POST /api/jobs/attachments/confirm now properly parses document dates in all formats
+  - ✅ Both APIs now functional in production
+- Status: ✅ Deployed
+
 ## 2026-11-05 Deployment #394 (Fix: Export Rounding Accuracy & Build Error)
 - Commit: cbcf308
 - Production: https://ice-flv55w7sr-iceerp.vercel.app
