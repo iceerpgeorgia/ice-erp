@@ -1,5 +1,6 @@
 import { prisma, withRetry } from '@/lib/prisma';
 import { getSupabaseServer } from '@/lib/supabase';
+import { normalizeToIsoDate } from '@/lib/date-normalization';
 
 export type AttachmentDto = {
   uuid: string;
@@ -743,6 +744,9 @@ export async function createJobAttachment(params: {
     throw new Error('Job not found');
   }
 
+  // Normalize documentDate to ISO format (YYYY-MM-DD) to prevent date parsing errors
+  const normalizedDate = normalizeToIsoDate(documentDate);
+
   const attachmentResult = await prisma.$queryRawUnsafe<Array<{ uuid: string }>>(
     `INSERT INTO attachments (
        uuid, document_type_uuid, document_date, document_no, document_value,
@@ -750,13 +754,13 @@ export async function createJobAttachment(params: {
        file_name, mime_type, file_size_bytes, metadata, uploaded_by_user_id,
        is_active, created_at, updated_at
      ) VALUES (
-       gen_random_uuid(), $1::uuid, $2::timestamp, $3, $4::decimal,
+       gen_random_uuid(), $1::uuid, $2::date, $3, $4::decimal,
        $5::uuid, 'supabase', $6, $7,
        $8, $9, $10, $11::jsonb, $12,
        true, NOW(), NOW()
      ) RETURNING uuid`,
     documentTypeUuid || null,
-    documentDate || null,
+    normalizedDate || null,
     documentNo || null,
     documentValue ?? null,
     documentCurrencyUuid || null,
