@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
     const selection = await resolveInsiderSelection(req);
     const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
 
-    const rows = await withRetry(() =>
+    // Get jobs with non-emitted distributions (for emission tracking)
+    const rowsWithDistributions = await withRetry(() =>
       prisma.$queryRawUnsafe<Array<{ project_uuid: string; job_uuid: string }>>(
         `SELECT DISTINCT
            pj.project_uuid::text AS project_uuid,
@@ -33,7 +34,29 @@ export async function GET(req: NextRequest) {
       ),
     );
 
-    const allJobUuids = Array.from(new Set(rows.map((r) => r.job_uuid).filter(Boolean)));
+    // Also get all jobs with cert dates (from uploaded attachments), regardless of distributions
+    const allJobsWithCertDates = await withRetry(() =>
+      prisma.$queryRawUnsafe<Array<{ project_uuid: string; job_uuid: string }>>(
+        `SELECT DISTINCT
+           j.project_uuid::text AS project_uuid,
+           j.job_uuid::text AS job_uuid
+         FROM jobs j
+         JOIN projects p ON p.project_uuid = j.project_uuid
+         LEFT JOIN attachment_links al ON al.owner_table = 'jobs' AND al.owner_uuid = j.job_uuid
+         LEFT JOIN attachments a ON a.uuid = al.attachment_uuid
+         WHERE p.insider_uuid IN (${insiderUuidListSql})
+           AND a.document_type_uuid IS NOT NULL
+           AND (
+             a.document_no IS NOT NULL
+             OR a.document_date IS NOT NULL
+           )`,
+      ),
+    );
+
+    // Combine both sets - include projects with non-emitted distributions AND projects with cert dates
+    const combinedRows = [...rowsWithDistributions, ...allJobsWithCertDates];
+    const allJobUuids = Array.from(new Set(combinedRows.map((r) => r.job_uuid).filter(Boolean)));
+    
     if (allJobUuids.length === 0) {
       return NextResponse.json({ projectStatuses: [] });
     }
@@ -41,7 +64,7 @@ export async function GET(req: NextRequest) {
     const liftInfo = await getJobLiftCertInfo(allJobUuids);
 
     const byProject = new Map<string, Set<string>>();
-    for (const row of rows) {
+    for (const row of combinedRows) {
       const dateKey = toDateKey(liftInfo[row.job_uuid]?.date ?? null);
       if (!dateKey) continue;
       const set = byProject.get(row.project_uuid) ?? new Set<string>();
