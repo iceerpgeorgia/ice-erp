@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-11-11 Deployment #396 (Fix: Handovers Project Priority for Cert Dates)
+- Commit: 31379ee
+- Production: https://ice-oof2mw85e-iceerp.vercel.app
+- Summary: Fixed project dropdown on Handovers page to prioritize projects with uploaded certificates even if distributions haven't been created yet.
+- Changes:
+  - `app/api/handovers/projects-emission-status/route.ts`: Added second query to include all jobs with attached certificates (document_no or document_date), not just jobs with non-emitted distributions. Combined results from both queries to flag projects with cert dates as "pending" regardless of distribution status.
+- Root Cause:
+  - Previous logic only flagged projects with non-emitted `payments_jobs` records
+  - Projects with uploaded certificates but no distributions created yet were not being prioritized
+  - Example: Project "ბაუჰაუს ქონსთრაქშენი" had 4 certificates uploaded but wasn't showing in red at top of projects list
+- Impact:
+  - ✅ Projects with uploaded certificates now appear at top of Handovers page in red background
+  - ✅ Shows pending cert-date count for projects awaiting distribution creation
+  - ✅ Covers both emission-pending (non-emitted distributions) and distribution-pending (cert dates without distributions) projects
+- Status: ✅ Deployed
+
 ## 2026-11-09 Deployment #395 (Fix: UNION Type Mismatch & Date Parsing Errors)
 - Commit: 2e605a4
 - Production: https://ice-af8vv3r2o-iceerp.vercel.app
