@@ -1,5 +1,23 @@
 # Deployment Log
 
+## 2026-11-11 Deployment #397 (Fix: Handovers Pending Projects Logic)
+- Commit: 6af3bb4
+- Production: https://ice-18vd1hpyk-iceerp.vercel.app
+- Summary: Fixed handovers project dropdown to properly exclude fully emitted projects from pending/red state.
+- Changes:
+  - `app/api/handovers/projects-emission-status/route.ts`: Refactored pending-state query to identify cert-dated jobs that are truly pending (either have non-emitted distributions OR no distributions yet). Removed two-query pattern and implemented single `pendingRows` query with explicit `EXISTS` checks on attachments and distribution emission status. Fully emitted jobs are now properly excluded from pending project list.
+  - `AGENTS.md`: Updated Handover Emission section to clarify pending project criteria and explicitly state that fully emitted cert-dated jobs must not keep a project in red/pending state.
+- Root Cause:
+  - Previous logic only checked if a job had cert-dated attachments and included ALL such projects in pending list
+  - Projects with cert attachments but ALL distributions fully emitted were incorrectly staying in red/pending
+  - Example: "Calligraphy Hilton" project with all jobs fully emitted was incorrectly flagged as pending due to cert attachments
+- Impact:
+  - ✅ Projects with all distributions emitted no longer appear in red/pending in dropdown
+  - ✅ Only projects with actual pending work (non-emitted distributions or undistributed cert dates) are flagged
+  - ✅ More accurate project prioritization in Handovers workflow
+  - ✅ Repository documentation in sync with implementation
+- Status: ✅ Deployed
+
 ## 2026-11-11 Deployment #396 (Fix: Handovers Project Priority for Cert Dates)
 - Commit: 31379ee
 - Production: https://ice-oof2mw85e-iceerp.vercel.app
