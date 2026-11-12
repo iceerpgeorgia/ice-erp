@@ -1,5 +1,18 @@
 # Deployment Log
 
+## 2026-11-13 Deployment #411 (Rollback: Restore Previous Production UI)
+- Rolled Back From: https://ice-mi3r8mnpv-iceerp.vercel.app
+- Rolled Back To: https://ice-7gdp1vtee-iceerp.vercel.app
+- Production Alias: https://ice-erp.vercel.app
+- Trigger: UI regression after deployment #410 (broken/unstyled main UI as reported by users)
+- Rollback Command:
+  - `npx vercel rollback https://ice-7gdp1vtee-iceerp.vercel.app --yes`
+- Verification:
+  - ✅ Vercel rollback command succeeded
+  - ✅ `vercel inspect` confirms `ice-erp.vercel.app` now aliases to `ice-7gdp1vtee-iceerp.vercel.app`
+  - ✅ Target deployment state is `Ready` and `target=production`
+- Status: ✅ Rolled back to previous stable deployment
+
 ## 2026-11-12 Deployment #410 (Fix: GE21 Counteragent Statement Edit Routing)
 - Commit: 41f3d9d
 - Production: https://ice-mi3r8mnpv-iceerp.vercel.app
