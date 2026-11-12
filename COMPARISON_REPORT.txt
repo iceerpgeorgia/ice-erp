@@ -1,0 +1,203 @@
+============================================================================================
+ALLIANCE HIGHLINE PROJECT - EXCEL FILE VS HANDOVERS DATABASE COMPARISON REPORT
+============================================================================================
+Generated: 2026-11-11
+
+PROJECT INFORMATION:
+---------------------------------------------------------------------------------------------
+Project Name:           Alliance Highline | 1.1.1 | ალიანსი თბილისი
+Project UUID:           dc975886-9bf9-42c8-afbe-87695aa01262
+Project Value:          $2,281,058 USD
+Project Date:           21.01.2022
+Counteragent:           ალიანსი თბილისი
+Currency:               USD
+
+============================================================================================
+SECTION 1: EXCEL FILE SUMMARY (შპს აი-სი-ი 400017245.xlsx)
+============================================================================================
+
+File contains 4 sheets:
+  1. ლიფტები (Lifts) - Master lift list
+  2. L5 13.12.2024 - IPC #1
+  3. L6 02.10.2025 - IPC #2
+  4. L7 02.10.2025 - IPC #3
+
+SHEET 1: L5 (Invoice dated 13.12.2024)
+─────────────────────────────────────────────────────────────────────────────────────────
+Lift Number:            L5
+Factory Number:         B7NZ9757
+Manufacturer:           OTIS Elevator Co.
+Invoice USD Price:      $150,161.28
+Invoice GEL Price:      ₾455,680.75
+Advance VAT:            ₾564,679.57
+Deductible VAT:         ₾117,179.12
+Total GEL (Summary):    ₾3,701,788.31
+
+Payment Breakdown by Block:
+  • L1: 44 floors | Contract: $151,299.20 | Paid: $136,169.28 | Total: $148,948.19
+  • L2: 44 floors | Contract: $151,299.20 | Paid: $136,169.28 | Total: $148,948.19
+  • L3: 44 floors | Contract: $151,028.20 | Paid: $135,925.38 | Total: $148,667.41
+  • L4: 44 floors | Contract: $163,252.20 | Paid: $146,926.98 | Total: $161,125.62
+  • L5 FF: 44 floors | Contract: $140,962.20 | Paid: $126,866.00 | Total: $139,127.84
+  • L6: 37 floors | Contract: $139,947.40 | Paid: $125,952.66 | Total: $137,540.43
+  • L7: 37 floors | Contract: $139,947.40 | Paid: $125,952.66 | Total: $137,540.43
+  • L8: 37 floors | Contract: $139,924.40 | Paid: $125,932.00 | Total: $137,519.33
+  • L9 FF: 37 floors | Contract: $162,214.40 | Paid: $145,993.00 | Total: $160,136.04
+
+SHEET TOTAL PAID (L5):  $359,557.86
+
+SHEET 2: L6 (Invoice dated 02.10.2025)
+─────────────────────────────────────────────────────────────────────────────────────────
+Lift Number:            L6
+Factory Number:         (extracted from row 2)
+Manufacturer:           (extracted from row 2)
+Invoice USD Price:      $148,942.54
+Invoice GEL Price:      ₾426,513.57
+Advance VAT:            ₾564,679.57
+Deductible VAT:         ₾118,547.95
+Total GEL (Summary):    ₾3,701,788.31
+
+Payment Breakdown by Block:
+  (Same 9 block structure as L5 sheet)
+
+SHEET TOTAL PAID (L6):  $361,452.18
+
+SHEET 3: L7 (Invoice dated 02.10.2025)
+─────────────────────────────────────────────────────────────────────────────────────────
+Lift Number:            L7
+Factory Number:         (extracted from row 2)
+Manufacturer:           (extracted from row 2)
+Invoice USD Price:      $147,684.48
+Invoice GEL Price:      ₾423,708.01
+Advance VAT:            ₾564,679.57
+Deductible VAT:         ₾117,692.02
+Total GEL (Summary):    ₾3,701,788.31
+
+Payment Breakdown by Block:
+  (Same 9 block structure as L5 sheet)
+
+SHEET TOTAL PAID (L7):  $1,049.20
+
+EXCEL SUMMARY TOTALS:
+─────────────────────────────────────────────────────────────────────────────────────────
+Total USD Price (3 IPCs):          $446,788.30
+Total GEL Price (3 IPCs):          ₾11,105,364.93
+Total Paid Amount (all sheets):    $722,459.24
+
+============================================================================================
+SECTION 2: HANDOVERS DATABASE SUMMARY
+============================================================================================
+
+Database Project: Alliance Highline
+Total Jobs in Database: 9 (L0001 through L0009)
+
+JOB DETAILS:
+─────────────────────────────────────────────────────────────────────────────────────────
+Job Name    Factory No    Selling Price    Paid GEL    Distributions    Status
+─────────────────────────────────────────────────────────────────────────────────────────
+L0001       B7NZ9753      $159,606.00      ₾225,407.21      2         Active
+L0002       B7NZ9754      $159,606.00      ₾235,407.21      2         Active
+L0003       B7NZ9755      $161,241.00      ₾228,407.21      2         Active
+L0004       B7NZ9756      $159,607.00      ₾231,407.21      2         Active
+L0005       B7NZ9757      $147,661.48      ₾191,627.37      2         Active
+L0006       B7NZ9758      $172,451.28      ₾247,604.76      2         Active
+L0007       B7NZ9759      $159,606.00      ₾225,407.21      2         Active
+L0008       B7NZ9760      $159,606.00      ₾235,407.21      2         Active
+L0009       B7NZ9761      $162,670.71      ₾222,334.90      2         Active
+─────────────────────────────────────────────────────────────────────────────────────────
+
+DATABASE SUMMARY TOTALS:
+─────────────────────────────────────────────────────────────────────────────────────────
+Total Selling Price (all 9 jobs):  $1,422,654.47
+Total Paid GEL (all 9 jobs):       ₾1,993,334.90
+Average per job:                   $158,072.72
+
+============================================================================================
+SECTION 3: COMPARATIVE ANALYSIS
+============================================================================================
+
+KEY FINDINGS:
+─────────────────────────────────────────────────────────────────────────────────────────
+
+1. SCOPE DIFFERENCE:
+   • Excel file (IPCs): Contains data for 3 lifts (L5, L6, L7) only
+   • Database: Contains data for ALL 9 lifts (L0001-L0009)
+   • Relationship: Excel represents a subset (3 of 9 IPCs)
+
+2. PRICE COMPARISON:
+   Excel (3 IPCs):
+   • Total USD Invoice Price:       $446,788.30
+   • Average per IPC:              $148,929.43
+   • Implied per-block average:    ~$16,532.04
+
+   Database (9 jobs):
+   • Total Selling Price:          $1,422,654.47
+   • Average per job:              $158,072.72
+   • Percentage of project value:  62.35%
+
+3. PROJECT VALUE ANALYSIS:
+   • Declared project value:       $2,281,058.00
+   • Database total (9 jobs):      $1,422,654.47
+   • DISCREPANCY:                  -$858,403.53 (MISSING)
+   
+   ⚠️  ALERT: The sum of all 9 job selling prices ($1,422,654.47) is significantly less
+      than the project value ($2,281,058.00). There is approximately $858,403.53 in 
+      unaccounted value.
+
+4. PAYMENT STATUS:
+   • Excel Total Paid (3 IPCs):    $722,459.24
+   • Database Total Paid (9 jobs): ₾1,993,334.90 (needs conversion to USD)
+   • Each job has 2 payment distributions recorded
+
+5. FACTORY NUMBER MAPPING:
+   • L5 (Excel) maps to L0005 (Database): Factory B7NZ9757 ✓ CONFIRMED MATCH
+   • L6 (Excel) appears to map to L0006 (Database)
+   • L7 (Excel) appears to map to L0007 (Database)
+
+============================================================================================
+SECTION 4: DISCREPANCY SUMMARY
+============================================================================================
+
+CRITICAL ISSUE - PROJECT VALUE SHORTFALL:
+─────────────────────────────────────────────────────────────────────────────────────────
+
+   Project Declaration:     $2,281,058.00 USD
+   Database Totals:         $1,422,654.47 USD
+   ─────────────────────────────────────────────
+   DISCREPANCY:            -$858,403.53 USD
+   
+   Percentage Missing:      37.65% of project value is unaccounted for
+
+POSSIBLE EXPLANATIONS:
+1. Additional 6 lifts (L0001-L0004, L0008-L0009) have lower-than-declared prices
+2. Some jobs may not have selling prices assigned
+3. Project value may include elements beyond job prices (labor, materials, overhead)
+4. Data entry errors in either Excel or database
+
+RECOMMENDATION:
+─────────────────────────────────────────────────────────────────────────────────────────
+Please verify:
+1. Are all 9 jobs represented in this project?
+2. Should the project value be equal to the sum of job selling prices?
+3. Are there missing components in the database (jobs without prices)?
+4. Do the 3 IPCs in Excel correlate exactly to jobs L5, L6, L7?
+
+============================================================================================
+MATCHING SUMMARY TABLE
+============================================================================================
+
+Excel Lift → Database Job Mapping:
+
+Excel IPC    Date           USD Price    → DB Job    Factory    Selling Price
+──────────────────────────────────────────────────────────────────────────────
+L5           13.12.2024     $150,161.28  → L0005     B7NZ9757   $147,661.48
+L6           02.10.2025     $148,942.54  → L0006     B7NZ9758   $172,451.28
+L7           02.10.2025     $147,684.48  → L0007     B7NZ9759   $159,606.00
+──────────────────────────────────────────────────────────────────────────────
+
+Note: Factory number B7NZ9757 for L5 matches exactly. L6 and L7 mappings are inferred
+based on sequential numbering and should be verified.
+
+============================================================================================
+END OF REPORT
+============================================================================================
