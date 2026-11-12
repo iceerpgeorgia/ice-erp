@@ -1,5 +1,20 @@
 # Deployment Log
 
+## 2026-11-12 Deployment #398 (Fix: BOG Raw Table Resolution Guard)
+- Commit: bdb8361
+- Production: https://ice-4kbmgbdyo-iceerp.vercel.app
+- Summary: Hardened BOG deconsolidated import table resolution to prevent opaque Supabase 404 failures on stale account metadata.
+- Changes:
+  - `lib/bank-import/import_bank_xml_data_deconsolidated.ts`: Prefer `bank_accounts.raw_table_name` when present, fall back to derived `{account_number}_BOG_{currency}`, then probe target table before import and fail fast with explicit configuration error when table is missing.
+  - `AGENTS.md`: Added "BOG Raw-Table Resolution Guard" documenting resolution order and mandatory fail-fast behavior.
+- Root Cause:
+  - A stale active bank account row with missing/invalid table mapping led the importer to derive a non-existent table name and fail during Supabase reads.
+- Impact:
+  - ✅ Clear actionable error message instead of generic Supabase 404 noise
+  - ✅ Lower risk of hidden import failures caused by stale `bank_accounts` metadata
+  - ✅ Repository documentation aligned with runtime behavior
+- Status: ✅ Deployed
+
 ## 2026-11-11 Deployment #397 (Fix: Handovers Pending Projects Logic)
 - Commit: 6af3bb4
 - Production: https://ice-18vd1hpyk-iceerp.vercel.app
