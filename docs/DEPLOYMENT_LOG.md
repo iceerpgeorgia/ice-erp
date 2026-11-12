@@ -1,5 +1,63 @@
 # Deployment Log
 
+## 2026-11-13 Deployment #412 (Recovery: Alliance Highline Cost Payment Recovery Framework)
+- Commit: b093e9c
+- Production: https://ice-erp.vercel.app
+- Vercel Build: https://vercel.com/iceerp/ice-erp/8rSGhDPM3TL9E3BgzNLkwcCCbZUu
+- Summary: Deployed production-ready cost payment recovery endpoint and comprehensive backup-restore guides for Alliance Highline project (dc975886-9bf9-42c8-afbe-87695aa01262).
+- Problem:
+  - 20 cost payment IDs accidentally cleared in production (waybill-derived accrual/order entries)
+  - User intended to clear only income payment IDs, not cost payments
+  - Only affected Supabase production, local database intact
+- Solution Deployed:
+  - **API Endpoint** (`/api/admin/alliance-recovery`):
+    - POST endpoint protected by `CRON_SECRET` authorization
+    - Two actions: `analyze` (read-only) and `recover` (requires `confirm=true`)
+    - Uses deterministic composite-key + ROW_NUMBER matching algorithm
+    - Matches orphaned cost payments with source waybill payments
+    - Fully reversible via database backups
+  - **Documentation** (3 comprehensive guides):
+    - `ALLIANCE_RECOVERY_GUIDE.md` - Quick recovery via deployed API endpoint
+    - `ALLIANCE_BACKUP_RECOVERY_GUIDE.md` - Manual backup-restore method with step-by-step instructions
+    - `ALLIANCE_RECOVERY_PATHS.md` - Comparison of both recovery options with recommendations
+  - **Support Script**:
+    - `scripts/alliance-recovery-backup-match.ts` - TypeScript tool for matching backup vs. production data
+- Files Changed:
+  - `app/api/admin/alliance-recovery/route.ts` (210 lines) - Production endpoint
+  - `ALLIANCE_RECOVERY_GUIDE.md` - Quick start guide
+  - `ALLIANCE_RECOVERY_DEPLOYMENT.md` - Deployment procedures
+  - `ALLIANCE_RECOVERY_READY.md` - Readiness summary
+  - `ALLIANCE_BACKUP_RECOVERY_GUIDE.md` - Backup restore guide
+  - `ALLIANCE_RECOVERY_PATHS.md` - Recovery options comparison
+  - `scripts/alliance-recovery-backup-match.ts` - Matching script
+- Verification:
+  - ✅ `pnpm exec tsc --noEmit --pretty false` passed
+  - ✅ `pnpm build` succeeded (no errors)
+  - ✅ Manual production deploy completed via `npx vercel --prod --yes`
+  - ✅ Endpoint deployed to https://ice-erp.vercel.app/api/admin/alliance-recovery
+- Recovery Execution:
+  - **Option 1 (Fastest - 30 seconds)**:
+    ```bash
+    # Analyze current state
+    curl -X POST "https://ice-erp.vercel.app/api/admin/alliance-recovery" \
+      -H "Authorization: Bearer $CRON_SECRET" \
+      -d '{"action":"analyze"}'
+    
+    # Execute recovery
+    curl -X POST "https://ice-erp.vercel.app/api/admin/alliance-recovery" \
+      -H "Authorization: Bearer $CRON_SECRET" \
+      -d '{"action":"recover","confirm":true}'
+    ```
+  - **Option 2 (Verify with Backup - 30-45 minutes)**:
+    - Follow `ALLIANCE_BACKUP_RECOVERY_GUIDE.md` steps 1-6
+    - Then execute API endpoint call above
+  - **Recommended**: Use Option 2 (backup verification) first, then Option 1 (API recovery)
+- Prevention:
+  - Added `AGENTS.md` section: "Cost vs. Income Payment Distinction"
+  - Guidelines for distinguishing waybill-derived (cost) vs. manual (income) payments
+  - Safety rules for clearing payment IDs without breaking handovers
+- Status: ✅ Deployed, ready for immediate recovery execution
+
 ## 2026-11-13 Deployment #411 (Rollback: Restore Previous Production UI)
 - Rolled Back From: https://ice-mi3r8mnpv-iceerp.vercel.app
 - Rolled Back To: https://ice-7gdp1vtee-iceerp.vercel.app
