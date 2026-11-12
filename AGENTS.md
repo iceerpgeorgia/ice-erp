@@ -196,6 +196,66 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
 
+## Bank Account Provisioning & Visibility
+
+### Account Visibility Mechanism
+Bank accounts are **dynamically discovered** at query-time via `lib/source-tables.ts` function `getSourceTables()`. An account is visible in all bank transaction queries (counteragent statements, payments report, etc.) when ALL of these conditions are met:
+
+1. **Account exists in `bank_accounts` table** with:
+   - `is_active = true` (explicitly enabled)
+   - `raw_table_name` IS NOT NULL and is not empty (points to physical Supabase table)
+   - `insider_uuid` matches one of the current user's selected insiders (per `resolveInsiderSelection()`)
+
+2. **Physical raw table exists and is queryable** (e.g., `GE21BG0000000611354669_BOG_GEL`)
+   - Table must be in the same Supabase public schema
+   - Table must have standard column structure (uuid, transaction_date, amount, payment_id, etc.)
+
+3. **Transactions in raw table have `payment_id` set** (required to appear in statement filters)
+   - Transactions without `payment_id` are silently skipped by statement endpoints
+   - This is normal during initial data import; payment IDs are assigned via processing rules or manual binding
+
+### Troubleshooting Account Invisibility
+When an account is newly provisioned or stops appearing:
+
+1. **Call diagnostic endpoint** to identify root cause:
+   ```
+   GET /api/debug/account-visibility?accountNumber=GE21BG0000000611354669&showAllAccounts=true
+   ```
+   Response shows: account metadata, is_active status, raw_table_name, insider_uuid match, raw table row counts.
+
+2. **Verify account configuration** using SQL script `scripts/verify-ge21-visibility.sql`:
+   - Run Step 1-4 queries to check metadata, table existence, and discoverability
+   - Step 4 UNCOMMENT ONLY IF NEEDED to auto-fix configuration (ensure account is active, has raw_table_name, matches active BOG insider)
+
+3. **Common fixes**:
+   - **Account not active**: `UPDATE bank_accounts SET is_active = true WHERE account_number = 'GE21...'`
+   - **raw_table_name missing**: `UPDATE bank_accounts SET raw_table_name = 'GE21BG0000000611354669_BOG_GEL' WHERE account_number = 'GE21...'`
+   - **Insider mismatch**: Ensure account's `insider_uuid` matches one of the user's selected insiders (check `User.selected_insider_uuids`)
+   - **Raw table missing**: Create raw table via provisioning script or SQL DDL (table structure must match standard schema)
+   - **No transactions**: Import transactions via BOG XML import or manual data insertion (visibility still works even with empty table)
+   - **No payment_ids**: Transactions will not appear in statements until payment IDs are assigned via processing rules, manual binding, or batch operations
+
+### Provisioning Checklist
+When adding a new bank account (e.g., GE21BG0000000611354669):
+
+1. ✅ Create raw table in Supabase with standard schema (uuid, transaction_date, amount, counteragent_uuid, payment_id, etc.)
+2. ✅ Insert row into `bank_accounts` table with:
+   - Account number and IBAN
+   - `raw_table_name` pointing to physical table
+   - Correct `bank_uuid` (BOG or TBC)
+   - Correct `insider_uuid` (matches one of the active insiders for that bank)
+   - `is_active = true`
+   - Currency UUID (GEL for BOG/TBC)
+3. ✅ Verify account appears in `getSourceTables()` output
+4. ✅ Verify account appears in counteragent statement endpoint
+5. ✅ Import initial transactions via XML or API, assign payment IDs
+6. ✅ Verify transactions appear in Payments Report with correct counteragents/projects
+
+### Key Constraint: Insider UUID
+Each account has exactly ONE `insider_uuid`. Users can only see accounts whose insider matches their selected insiders. Multi-insider deployments use the `RS_CREDENTIALS_MAP` pattern: one set of credentials per insider.
+
+Primary active BOG insider: `2a55debb-261b-4ce9-bae4-296ddea037ab` (appears in 17+ BOG accounts)
+
 ## TBC BIS Integration Flow (Mirrors BOG Flow)
 
 ### API Surface
