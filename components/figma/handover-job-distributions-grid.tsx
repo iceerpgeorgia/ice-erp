@@ -80,6 +80,7 @@ type PaymentMapEntry = PaymentLookupEntry;
 
 type Props = {
   projectUuid: string;
+  onDistributionsSaved?: () => void;
 };
 
 export type HandoverJobDistributionsGridHandle = {
@@ -88,6 +89,7 @@ export type HandoverJobDistributionsGridHandle = {
     columns: ExportColumn[];
     sheetName: string;
   } | null;
+  refreshData: () => Promise<void>;
 };
 
 type ExportColumn = {
@@ -286,7 +288,7 @@ function buildDistributionExportRows(
   return exportRows;
 }
 
-export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsGridHandle, Props>(function HandoverJobDistributionsGrid({ projectUuid }, ref) {
+export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsGridHandle, Props>(function HandoverJobDistributionsGrid({ projectUuid, onDistributionsSaved }, ref) {
   // ── Data ──────────────────────────────────────────────────────────────────
   const [transactions, setTransactions] = useState<BankTransactionRow[]>([]);
   const [paymentMap, setPaymentMap] = useState<Map<string, PaymentMapEntry>>(new Map());
@@ -675,7 +677,10 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
         sheetName: 'Job Distributions',
       };
     },
-  }), [distributionMap, paymentIdMap, paymentMap, sortedData, visibleColumns]);
+    refreshData: async () => {
+      await fetchData();
+    },
+  }), [distributionMap, fetchData, paymentIdMap, paymentMap, sortedData, visibleColumns]);
 
   // Export functionality moved to parent HandoversTable for global XLSX export
   // This component now exposes data via props callback if needed
@@ -918,7 +923,10 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
                                 value={dialogValue}
                                 onChange={() => {}}
                                 readOnly={isReadOnlySnapshot}
-                                onSave={fetchData}
+                                onSave={() => {
+                                  fetchData();
+                                  if (onDistributionsSaved) onDistributionsSaved();
+                                }}
                               />
                             ) : null}
                           </td>

@@ -30,6 +30,8 @@ export type JobDistributionRow = {
   amount: number | string;
   amountAccountCurr: number | string;
   weight?: number;
+  emissionUuid?: string | null;
+  emissionDate?: string | null;
 };
 
 function toNumber(value: number | string | null | undefined): number {
@@ -50,6 +52,7 @@ type JobDistributionGridProps = {
   value: JobDistributionRow[];
   onChange: (distribution: JobDistributionRow[]) => void;
   disabled?: boolean;
+  readOnly?: boolean;
   onSave?: () => void;
 };
 
@@ -66,6 +69,7 @@ export function JobDistributionGrid({
   value,
   onChange,
   disabled = false,
+  readOnly = false,
   onSave,
 }: JobDistributionGridProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -390,6 +394,7 @@ export function JobDistributionGrid({
 
   // Save distributions
   const handleSave = async (dataToSave = adjustedLocalValue) => {
+    if (readOnly) return;
     setSaving(true);
     setSaveError(null);
 
@@ -458,6 +463,7 @@ export function JobDistributionGrid({
 
   // Clear all distributions
   const handleClear = async () => {
+    if (readOnly) return;
     if (!confirm('Clear all job distributions for this payment?')) return;
 
     setSaving(true);
@@ -550,6 +556,7 @@ export function JobDistributionGrid({
                 <Select
                   value={distributionMode}
                   onValueChange={(val: 'all' | 'manual') => {
+                    if (readOnly) return;
                     setDistributionMode(val);
                     if (val === 'all') {
                       handleAutoDistribute();
@@ -583,7 +590,7 @@ export function JobDistributionGrid({
                   <Button
                     type="button"
                     onClick={() => handleAutoDistribute()}
-                    disabled={loading || !projectUuid}
+                    disabled={readOnly || loading || !projectUuid}
                     className="gap-2"
                   >
                     <TrendingUp className="h-4 w-4" />
@@ -625,7 +632,7 @@ export function JobDistributionGrid({
                             value={row.percentage}
                             onChange={(e) => handlePercentageChange(index, e.target.value)}
                             className="text-right"
-                            disabled={distributionMode === 'all'}
+                            disabled={readOnly || distributionMode === 'all'}
                           />
                         </td>
                         <td className="p-2">
@@ -635,7 +642,7 @@ export function JobDistributionGrid({
                             value={row.amount}
                             onChange={(e) => handleAmountChange(index, e.target.value)}
                             className="text-right"
-                            disabled={distributionMode === 'all'}
+                            disabled={readOnly || distributionMode === 'all'}
                           />
                         </td>
                         <td className="p-2 text-center">
@@ -645,6 +652,7 @@ export function JobDistributionGrid({
                             size="sm"
                             onClick={() => handleFillRow(index)}
                             disabled={
+                              readOnly ||
                               distributionMode !== 'manual' ||
                               fillDataLoading ||
                               !bundlePercent ||
@@ -706,7 +714,7 @@ export function JobDistributionGrid({
                   type="button"
                   variant="destructive"
                   onClick={handleClear}
-                  disabled={saving || distributionCount === 0}
+                  disabled={readOnly || saving || distributionCount === 0}
                 >
                   Clear All
                 </Button>
@@ -722,7 +730,7 @@ export function JobDistributionGrid({
                   <Button
                     type="button"
                     onClick={() => handleSave()}
-                    disabled={saving || (distributionMode === 'manual' && !totals.amountValid)}
+                    disabled={readOnly || saving || (distributionMode === 'manual' && !totals.amountValid)}
                   >
                     {saving ? (
                       <>

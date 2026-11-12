@@ -273,9 +273,6 @@ export function BankTransactionsTable({
   const resolvedListBasePath = listBasePath ?? apiBasePath;
   const showFullTable = renderMode !== 'dialog-only';
   
-  console.log('[BankTransactionsTable] currencySummaries:', currencySummaries);
-  console.log('[BankTransactionsTable] currencySummaries[0]:', currencySummaries?.[0]);
-  console.log('[BankTransactionsTable] opening_balance:', currencySummaries?.[0]?.opening_balance);
   
   // Horizontal scroll synchronization
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -428,8 +425,9 @@ export function BankTransactionsTable({
   const [jobSearch, setJobSearch] = useState('');
   const [financialCodeSearch, setFinancialCodeSearch] = useState('');
   const [currencySearch, setCurrencySearch] = useState('');
-  const [exchangeRates, setExchangeRates] = useState<any>(null); // Store exchange rates for transaction date
+  const [exchangeRates, setExchangeRates] = useState<any>(null);
   const [exchangeRateDate, setExchangeRateDate] = useState<string>('');
+  const exchangeRateCacheRef = useRef<Record<string, any>>({});
   const [formData, setFormData] = useState<{
     payment_uuid: string;
     project_uuid: string;
@@ -486,13 +484,17 @@ export function BankTransactionsTable({
       const byUuid = paymentsList.filter((p: any) =>
         String(p.counteragentUuid || '').toLowerCase() === counteragentUuid
       );
-      // Try name match as a secondary fallback (same counteragent, UUID may differ)
-      payments = byUuid.length > 0
-        ? byUuid
-        : paymentsList.filter((p: any) =>
-            String(p.counteragentName || '').toLowerCase() === counteragentName
-          );
-      // Do NOT fall back to all payments â€” counteragent is known, keep the list scoped.
+      if (byUuid.length > 0) {
+        payments = byUuid;
+      } else if (counteragentName) {
+        // Name match fallback is safe only when the transaction has a non-empty counteragent name.
+        payments = paymentsList.filter((p: any) =>
+          String(p.counteragentName || '').toLowerCase() === counteragentName
+        );
+      } else {
+        // UUID exists but does not resolve to any payment; keep scoped list empty.
+        payments = [];
+      }
     } else if (!counteragentName) {
       // No counteragent at all: show everything
       payments = paymentsList;
@@ -611,11 +613,37 @@ export function BankTransactionsTable({
     if (data) setTransactions(data);
   }, [data]);
 
+  // Pre-fetch static reference data on mount so the edit dialog opens instantly
+  useEffect(() => {
+    const prefetchRefData = async () => {
+      try {
+        const [projectsRaw, codesRaw, currenciesRaw] = await Promise.all([
+          fetch('/api/projects?dropdown=true').then(r => r.json()),
+          fetch('/api/financial-codes').then(r => r.json()),
+          fetch('/api/currencies').then(r => r.json()),
+        ]);
+        const projectsData = Array.isArray(projectsRaw) ? projectsRaw : [];
+        setProjectOptions(projectsData.map((p: any) => ({
+          uuid: p.project_uuid,
+          projectIndex: p.project_index,
+          projectName: p.project_name,
+        })));
+        const codesData = Array.isArray(codesRaw) ? codesRaw : (codesRaw?.codes || []);
+        setFinancialCodeOptions(codesData);
+        const currenciesData = Array.isArray(currenciesRaw) ? currenciesRaw : (currenciesRaw?.currencies || []);
+        setCurrencyOptions(currenciesData);
+      } catch (error) {
+        console.error('[BankTransactionsTable] Error pre-fetching reference data:', error);
+      }
+    };
+    prefetchRefData();
+  }, []);
+
   // Fetch all payments on mount
   useEffect(() => {
     const fetchAllPayments = async () => {
       try {
-        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
+        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12');
         if (!response.ok) throw new Error('Failed to fetch payments');
         const paymentsData = await response.json();
         const normalizedPayments = Array.isArray(paymentsData)
@@ -629,12 +657,12 @@ export function BankTransactionsTable({
             }))
           : [];
         setAllPayments(normalizedPayments);
-        console.log('[BankTransactionsTable] Loaded all payments:', normalizedPayments.length);
       } catch (error) {
         console.error('[BankTransactionsTable] Error fetching all payments:', error);
       }
     };
-    fetchAllPayments();
+    // Only fetch payments when edit dialog is opened, not on mount (lazy load 18k items)
+    // fetchAllPayments();
   }, []);
 
   // Fetch due payment IDs from payments report
@@ -1010,9 +1038,10 @@ export function BankTransactionsTable({
   };
 
   const startEdit = async (transaction: BankTransaction) => {
-    console.log('[startEdit] Transaction:', transaction);
     setEditingTransaction(transaction);
     setSaveNotice(null);
+    // Clear payment options when starting a new edit to force re-filtering by the new transaction's counteragent
+    setPaymentOptions([]);
     
     const transactionDateInput = toInputDate(transaction.date);
     const correctionInput = toInputDate(transaction.correctionDate);
@@ -1031,7 +1060,6 @@ export function BankTransactionsTable({
       parsing_lock: Boolean(transaction.parsingLock),
       comment: transaction.comment || '',
     };
-    console.log('[startEdit] Initial formData:', initialFormData);
     setFormData(initialFormData);
     if (!transaction.paymentId) {
       setPaymentDisplayValues({
@@ -1053,64 +1081,62 @@ export function BankTransactionsTable({
     setCurrencySearch('');
     
     try {
-      // Fetch exchange rates for the transaction date upfront
       const effectiveDate = initialFormData.correction_date || transactionDateInput;
-      const ratesResponse = await fetch(`/api/exchange-rates?date=${effectiveDate}`);
-      const ratesData = await ratesResponse.json();
-      const rates = ratesData && ratesData.length > 0 ? ratesData[0] : null;
-      setExchangeRates(rates);
-      setExchangeRateDate(effectiveDate);
-      
-      // Prefer cached payment options; only refresh if we do not have them yet.
-      let freshPayments = allPayments;
-      if (freshPayments.length === 0) {
-        try {
-          const paymentsRes = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
-          if (paymentsRes.ok) {
-            const paymentsData = await paymentsRes.json();
-            freshPayments = Array.isArray(paymentsData)
-              ? paymentsData.map((payment: any) => ({
-                  ...payment,
-                  counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
-                  projectUuid: payment.projectUuid || payment.project_uuid || null,
-                  financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
-                  currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
-                  paymentId: payment.paymentId || payment.payment_id || null,
-                }))
-              : [];
-            setAllPayments(freshPayments);
-          }
-        } catch (err) {
-          console.warn('[startEdit] Failed to refresh payments, using cached:', err);
-        }
-      }
+      const t0 = Date.now();
 
-      updatePaymentOptions(transaction, freshPayments);
-      
-      // Fetch reference data in parallel, using cache when available.
+      // Run all fetches in parallel. Exchange rates are cached by date.
+      // Reduced projectionMonths to 12 (1 year) for dialog performance - full 36 months is expensive
+      const needsRates = !exchangeRateCacheRef.current[effectiveDate];
+      const needsPayments = allPayments.length === 0;
       const needsProjects = projectOptions.length === 0;
       const needsCodes = financialCodeOptions.length === 0;
       const needsCurrencies = currencyOptions.length === 0;
       const needsJobs = Boolean(transaction.projectUuid);
 
-      const [projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
-        needsProjects ? fetch('/api/projects').then(r => r.json()) : null,
-        needsCodes ? fetch('/api/financial-codes').then(r => r.json()) : null,
-        needsCurrencies ? fetch('/api/currencies').then(r => r.json()) : null,
-        needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()) : null,
+      const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
+        needsRates ? fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.json()).catch(e => { console.error('[startEdit] Exchange rates error:', e); return null; }) : null,
+        needsPayments ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12').then(r => r.ok ? r.json() : []).catch(e => { console.error('[startEdit] Payments error:', e); return []; }) : null,
+        needsProjects ? fetch('/api/projects?dropdown=true').then(r => r.json()).catch(e => { console.error('[startEdit] Projects error:', e); return []; }) : null,
+        needsCodes ? fetch('/api/financial-codes').then(r => r.json()).catch(e => { console.error('[startEdit] Codes error:', e); return []; }) : null,
+        needsCurrencies ? fetch('/api/currencies').then(r => r.json()).catch(e => { console.error('[startEdit] Currencies error:', e); return []; }) : null,
+        needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()).catch(e => { console.error('[startEdit] Jobs error:', e); return []; }) : null,
       ]);
+
+      // Exchange rates
+      if (needsRates) {
+        const rates = ratesRaw && ratesRaw.length > 0 ? ratesRaw[0] : null;
+        exchangeRateCacheRef.current[effectiveDate] = rates;
+        setExchangeRates(rates);
+      } else {
+        setExchangeRates(exchangeRateCacheRef.current[effectiveDate]);
+      }
+      setExchangeRateDate(effectiveDate);
+
+      // Payments
+      let freshPayments = allPayments;
+      if (needsPayments && paymentsRaw) {
+        freshPayments = Array.isArray(paymentsRaw)
+          ? paymentsRaw.map((payment: any) => ({
+              ...payment,
+              counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+              projectUuid: payment.projectUuid || payment.project_uuid || null,
+              financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+              currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+              paymentId: payment.paymentId || payment.payment_id || null,
+            }))
+          : [];
+        setAllPayments(freshPayments);
+      }
+      updatePaymentOptions(transaction, freshPayments);
 
       // Projects
       if (needsProjects) {
-        const projectsData = projectsRaw ?? [];
-        const mappedProjects = Array.isArray(projectsData)
-          ? projectsData.map((p: any) => ({
-              uuid: p.project_uuid,
-              projectIndex: p.project_index,
-              projectName: p.project_name,
-            }))
-          : [];
-        setProjectOptions(mappedProjects);
+        const projectsData = Array.isArray(projectsRaw) ? projectsRaw : [];
+        setProjectOptions(projectsData.map((p: any) => ({
+          uuid: p.project_uuid,
+          projectIndex: p.project_index,
+          projectName: p.project_name,
+        })));
       }
 
       // Financial codes
@@ -1150,13 +1176,13 @@ export function BankTransactionsTable({
     }
   }, [autoEditId, transactions]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Update payment options when transaction changes (re-filter by new counteragent)
   useEffect(() => {
     if (!editingTransaction || !isEditDialogOpen) return;
     if (allPayments.length === 0) return;
-    if (paymentOptions.length > 0) return;
+    // Always call updatePaymentOptions when editingTransaction changes to ensure correct filtering by counteragent
     updatePaymentOptions(editingTransaction, allPayments);
-  }, [allPayments.length, editingTransaction, isEditDialogOpen, paymentOptions.length]);
+  }, [editingTransaction, isEditDialogOpen]);
 
   useEffect(() => {
     if (renderMode !== 'dialog-only') return;
@@ -1550,12 +1576,8 @@ export function BankTransactionsTable({
     
     if (!isClearing) {
       try {
-        console.log(`Loading jobs for project: ${projectUuid}`);
         const jobsRes = await fetch(`/api/jobs?projectUuid=${projectUuid}`);
         const jobsData = await jobsRes.json();
-        console.log('Jobs API response:', jobsData);
-        console.log('Is array?', Array.isArray(jobsData));
-        console.log('Jobs count:', Array.isArray(jobsData) ? jobsData.length : 0);
         setJobOptions(Array.isArray(jobsData) ? jobsData : []);
       } catch (err) {
         console.error('Failed to load jobs:', err);

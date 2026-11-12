@@ -310,7 +310,9 @@ export default function CounteragentStatementPage() {
           const financialCode = transaction.financialCode || info.financialCode || tx.financialCode || null;
           const job = info.job || tx.job || null;
           const incomeTax = info.incomeTax ?? tx.incomeTax ?? null;
-          const currency = info.currency || tx.currency || null;
+          const currency = resolvedPaymentId
+            ? (transaction.nominalCurrencyCode || tx.nominalCurrencyCode || transaction.accountCurrencyCode || tx.accountCurrencyCode || null)
+            : (transaction.accountCurrencyCode || tx.accountCurrencyCode || null);
           return {
             ...tx,
             paymentId: resolvedPaymentId,
@@ -1400,6 +1402,8 @@ export default function CounteragentStatementPage() {
         projectIndex: row.project_index || row.projectIndex || null,
         financialCode: row.financial_code || row.financialCode || null,
         paymentId: row.payment_id || row.paymentId || null,
+        sourceTable: row.source_table || row.sourceTable || null,
+        sourceId: row.source_id ?? row.sourceId ?? null,
         nominalCurrencyCode: row.nominal_currency_code || row.nominalCurrencyCode || null,
       }));
       setBankEditData(mapped);

@@ -248,6 +248,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Each raw table has a unique offset to generate synthetic IDs
 - Returns `raw_record_uuid` from the source raw table
 - Batch transactions are resolved from `bank_transaction_batches` table
+- When adding a new bank account raw table, update `app/api/bank-transactions/route.ts` (`SOURCE_TABLES`) and `app/api/bank-transactions/[id]/route.ts` (allowed tables + synthetic offset resolver). Also mirror the table in `app/api/bank-transactions/raw-record/[uuid]/route.ts` and `app/api/bank-transactions/parsing-lock/{route.ts,[id]/route.ts}` allowlists. Missing any of these can cause edit dialogs/raw view/parsing-lock actions to hit the wrong table and show "Unknown" counteragent payments.
 
 ### Job Distribution Linkage
 - `payments_jobs` table links distributions to bank transactions via `raw_record_uuid` or `batch_partition_uuid`

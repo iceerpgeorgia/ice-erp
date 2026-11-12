@@ -53,6 +53,11 @@ const SOURCE_TABLES = [
     isTbc: false,
   },
   {
+    name: "GE21BG0000000611354669_BOG_GEL",
+    offset: 990000000000,
+    isTbc: false,
+  },
+  {
     name: "GE65TB7856036050100002_TBC_GEL",
     offset: 1000000000000,
     isTbc: true,

@@ -16,7 +16,12 @@ const ALLOWED_TABLES = new Set([
   "GE78BG0000000893486000_BOG_KZT",
   "GE78BG0000000893486000_BOG_CNY",
   "GE78BG0000000893486000_BOG_TRY",
+  "GE21BG0000000611354669_BOG_GEL",
   "GE65TB7856036050100002_TBC_GEL",
+  "GE39TB7856036150100001_TBC_USD",
+  "GE39TB7856036150100001_TBC_EUR",
+  "GE79TB7856045067800004_TBC_GEL",
+  "GE52TB7856045067800005_TBC_GEL",
 ]);
 type AllowedTable =
   | "GE78BG0000000893486000_BOG_GEL"
@@ -28,7 +33,12 @@ type AllowedTable =
   | "GE78BG0000000893486000_BOG_KZT"
   | "GE78BG0000000893486000_BOG_CNY"
   | "GE78BG0000000893486000_BOG_TRY"
-  | "GE65TB7856036050100002_TBC_GEL";
+  | "GE21BG0000000611354669_BOG_GEL"
+  | "GE65TB7856036050100002_TBC_GEL"
+  | "GE39TB7856036150100001_TBC_USD"
+  | "GE39TB7856036150100001_TBC_EUR"
+  | "GE79TB7856045067800004_TBC_GEL"
+  | "GE52TB7856045067800005_TBC_GEL";
 
 const BOG_USD_2_OFFSET = 300000000000n;
 const BOG_USD_OFFSET = 500000000000n;
@@ -38,7 +48,12 @@ const BOG_GBP_OFFSET = 800000000000n;
 const BOG_KZT_OFFSET = 900000000000n;
 const BOG_CNY_OFFSET = 950000000000n;
 const BOG_TRY_OFFSET = 980000000000n;
-const TBC_OFFSET = 1000000000000n;
+const BOG_GEL_2_OFFSET = 990000000000n;
+const TBC_GEL_OFFSET = 1000000000000n;
+const TBC_USD_OFFSET = 1010000000000n;
+const TBC_EUR_OFFSET = 1020000000000n;
+const TBC_GEL_2_OFFSET = 1030000000000n;
+const TBC_GEL_3_OFFSET = 1040000000000n;
 const BATCH_OFFSET = 2000000000000n;
 
 const normalizeDateToISO = (value?: string | null): string | null => {
@@ -72,8 +87,23 @@ function resolveSyntheticId(rawId: bigint): { tableName: AllowedTable; recordId:
   if (rawId < 0n) return null;
   if (rawId >= BATCH_OFFSET) {
     const adjusted = rawId - BATCH_OFFSET;
-    if (adjusted >= TBC_OFFSET) {
-      return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: adjusted - TBC_OFFSET, isBatch: true };
+    if (adjusted >= TBC_GEL_3_OFFSET) {
+      return { tableName: "GE52TB7856045067800005_TBC_GEL", recordId: adjusted - TBC_GEL_3_OFFSET, isBatch: true };
+    }
+    if (adjusted >= TBC_GEL_2_OFFSET) {
+      return { tableName: "GE79TB7856045067800004_TBC_GEL", recordId: adjusted - TBC_GEL_2_OFFSET, isBatch: true };
+    }
+    if (adjusted >= TBC_EUR_OFFSET) {
+      return { tableName: "GE39TB7856036150100001_TBC_EUR", recordId: adjusted - TBC_EUR_OFFSET, isBatch: true };
+    }
+    if (adjusted >= TBC_USD_OFFSET) {
+      return { tableName: "GE39TB7856036150100001_TBC_USD", recordId: adjusted - TBC_USD_OFFSET, isBatch: true };
+    }
+    if (adjusted >= TBC_GEL_OFFSET) {
+      return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: adjusted - TBC_GEL_OFFSET, isBatch: true };
+    }
+    if (adjusted >= BOG_GEL_2_OFFSET) {
+      return { tableName: "GE21BG0000000611354669_BOG_GEL", recordId: adjusted - BOG_GEL_2_OFFSET, isBatch: true };
     }
     if (adjusted >= BOG_TRY_OFFSET) {
       return { tableName: "GE78BG0000000893486000_BOG_TRY", recordId: adjusted - BOG_TRY_OFFSET, isBatch: true };
@@ -101,8 +131,23 @@ function resolveSyntheticId(rawId: bigint): { tableName: AllowedTable; recordId:
     }
     return { tableName: "GE78BG0000000893486000_BOG_GEL", recordId: adjusted, isBatch: true };
   }
-  if (rawId >= TBC_OFFSET) {
-    return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: rawId - TBC_OFFSET, isBatch: false };
+  if (rawId >= TBC_GEL_3_OFFSET) {
+    return { tableName: "GE52TB7856045067800005_TBC_GEL", recordId: rawId - TBC_GEL_3_OFFSET, isBatch: false };
+  }
+  if (rawId >= TBC_GEL_2_OFFSET) {
+    return { tableName: "GE79TB7856045067800004_TBC_GEL", recordId: rawId - TBC_GEL_2_OFFSET, isBatch: false };
+  }
+  if (rawId >= TBC_EUR_OFFSET) {
+    return { tableName: "GE39TB7856036150100001_TBC_EUR", recordId: rawId - TBC_EUR_OFFSET, isBatch: false };
+  }
+  if (rawId >= TBC_USD_OFFSET) {
+    return { tableName: "GE39TB7856036150100001_TBC_USD", recordId: rawId - TBC_USD_OFFSET, isBatch: false };
+  }
+  if (rawId >= TBC_GEL_OFFSET) {
+    return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: rawId - TBC_GEL_OFFSET, isBatch: false };
+  }
+  if (rawId >= BOG_GEL_2_OFFSET) {
+    return { tableName: "GE21BG0000000611354669_BOG_GEL", recordId: rawId - BOG_GEL_2_OFFSET, isBatch: false };
   }
   if (rawId >= BOG_TRY_OFFSET) {
     return { tableName: "GE78BG0000000893486000_BOG_TRY", recordId: rawId - BOG_TRY_OFFSET, isBatch: false };
@@ -461,54 +506,69 @@ export async function PATCH(
       // When payment changes, update nominal currency and recalculate amount
       if (normalizedPaymentId) {
         try {
-          // Get payment's currency, project, and financial code
+          // Pull payment attributes used to keep transaction fields aligned.
           const payment = await prisma.payments.findUnique({
             where: { payment_id: normalizedPaymentId },
-            select: { 
-              currency_uuid: true, 
+            select: {
+              currency_uuid: true,
               counteragent_uuid: true,
               project_uuid: true,
-              financial_code_uuid: true
+              financial_code_uuid: true,
             }
           });
-          
-          if (payment && payment.currency_uuid) {
-            // Update nominal currency to match payment currency
-            updateData.nominalCurrencyUuid = payment.currency_uuid;
-            changes.push(`nominal_currency: ${current.nominal_currency_uuid} → ${payment.currency_uuid} (from payment)`);
-            
-            // Calculate exchange rate and nominal amount
-            const result = await calculateExchangeRateAndAmount(
-              current.account_currency_uuid,
-              payment.currency_uuid,
-              current.account_currency_amount,
-              current.transaction_date,
-              effectiveCorrectionDateIso ?? current.correction_date
+
+          if (!payment) {
+            return NextResponse.json(
+              { error: `Payment not found: ${normalizedPaymentId}` },
+              { status: 400 }
             );
-            
-            if (result) {
-              updateData.exchangeRate = result.exchangeRate;
-              updateData.nominalAmount = result.nominalAmount;
-              changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()}`);
-              changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (recalculated)`);
-            }
           }
 
-          // Sync project and financial code from payment (unless already explicitly set in request)
-          if (payment?.project_uuid && project_uuid === undefined) {
+          if (!payment.currency_uuid) {
+            return NextResponse.json(
+              { error: `Payment currency is missing for: ${normalizedPaymentId}` },
+              { status: 400 }
+            );
+          }
+          
+          // Keep project/financial code synced from payment unless explicitly overridden.
+          if (project_uuid === undefined && payment.project_uuid !== current.project_uuid) {
             updateData.projectUuid = payment.project_uuid;
-            changes.push(`project_uuid: ${current.project_uuid ?? 'null'} → ${payment.project_uuid} (from payment)`);
+            changes.push(`project_uuid: ${current.project_uuid} → ${payment.project_uuid} (from payment)`);
           }
 
-          if (payment?.financial_code_uuid && financial_code_uuid === undefined) {
+          if (
+            financial_code_uuid === undefined &&
+            payment.financial_code_uuid !== current.financial_code_uuid
+          ) {
             updateData.financialCodeUuid = payment.financial_code_uuid;
-            changes.push(`financial_code_uuid: ${current.financial_code_uuid ?? 'null'} → ${payment.financial_code_uuid} (from payment)`);
+            changes.push(`financial_code_uuid: ${current.financial_code_uuid} → ${payment.financial_code_uuid} (from payment)`);
+          }
+
+          // Update nominal currency to match payment currency.
+          updateData.nominalCurrencyUuid = payment.currency_uuid;
+          changes.push(`nominal_currency: ${current.nominal_currency_uuid} → ${payment.currency_uuid} (from payment)`);
+          
+          // Calculate exchange rate and nominal amount.
+          const result = await calculateExchangeRateAndAmount(
+            current.account_currency_uuid,
+            payment.currency_uuid,
+            current.account_currency_amount,
+            current.transaction_date,
+            effectiveCorrectionDateIso ?? current.correction_date
+          );
+          
+          if (result) {
+            updateData.exchangeRate = result.exchangeRate;
+            updateData.nominalAmount = result.nominalAmount;
+            changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()}`);
+            changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (recalculated)`);
           }
 
           const shouldAutoAssignCounteragent =
             !current.counteragent_uuid &&
             counteragent_uuid === undefined &&
-            payment?.counteragent_uuid;
+            payment.counteragent_uuid;
 
           if (shouldAutoAssignCounteragent) {
             updateData.counteragentUuid = payment.counteragent_uuid;
