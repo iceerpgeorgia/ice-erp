@@ -1,5 +1,29 @@
 # Deployment Log
 
+## 2026-11-13 Deployment #413 (Fix: Counteragent Payment Selection + Alias Unification)
+- Commit: 3bd8cea
+- Deployed URL: https://ice-52blxuey7-iceerp.vercel.app
+- Deployment ID: dpl_2RVS7EZJT81thbpKRGmo97PNaaKH
+- Summary: Re-deployed main code containing the counteragent statement payment-selection fix set and unified all production aliases to one deployment to prevent split UI behavior.
+- Includes Prior Fixes (code already in main):
+  - `app/api/bank-transactions/route.ts` source table inclusion for `GE21BG0000000611354669_BOG_GEL`
+  - `app/api/bank-transactions/[id]/route.ts` allowlist + synthetic-id resolver coverage
+  - `app/api/bank-transactions/raw-record/[uuid]/route.ts` allowlist coverage
+  - `app/api/bank-transactions/parsing-lock/route.ts` and `app/api/bank-transactions/parsing-lock/[id]/route.ts` allowlist coverage
+  - `app/counteragent-statement/[counteragentUuid]/page.tsx` preserved `sourceTable` and `sourceId`
+  - `components/figma/bank-transactions-table.tsx` safer payment-option fallback (UUID-first scoping)
+- Alias Actions:
+  - `npx vercel alias set https://ice-52blxuey7-iceerp.vercel.app ice-erp.vercel.app`
+  - `npx vercel alias set https://ice-52blxuey7-iceerp.vercel.app ice-erp-iceerp.vercel.app`
+  - `npx vercel alias set https://ice-52blxuey7-iceerp.vercel.app ice-erp-iceerpgeorgia-iceerp.vercel.app`
+- Verification:
+  - ✅ `vercel inspect` for all three aliases resolves to deployment `dpl_2RVS7EZJT81thbpKRGmo97PNaaKH`
+  - ✅ `target=production`, `status=Ready`
+  - ✅ `pnpm exec tsc --noEmit --pretty false` passed
+  - ✅ `pnpm lint` passed (warnings only)
+  - ✅ `pnpm build` completed route generation and optimization
+- Status: ✅ Deployed and aliases unified
+
 ## 2026-11-13 Deployment #412 (Recovery: Alliance Highline Cost Payment Recovery Framework)
 - Commit: b093e9c
 - Production: https://ice-erp.vercel.app
