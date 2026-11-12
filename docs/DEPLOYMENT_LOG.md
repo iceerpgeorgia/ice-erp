@@ -1,5 +1,30 @@
 # Deployment Log
 
+## 2026-11-12 Deployment #388 (Fix: PostgreSQL UNION Type Mismatch)
+- Commit: 23b9f90
+- Production: https://ice-a8uslh4b6-iceerp.vercel.app
+- Summary: Fixed critical PostgreSQL UNION type mismatch in `/api/projects` endpoint that was causing 500 errors and blocking payment editing workflow.
+- Root Cause:
+  - Complex UNION queries in `/api/projects` route mixed incompatible column types
+  - `raw_record_uuid` from bank transaction tables: cast as `text`
+  - `raw_record_uuid` from payment_adjustments table: cast as `uuid`
+  - PostgreSQL error: "UNION types text and uuid cannot be matched" (Code: 42804)
+- Changes:
+  - `app/api/projects/route.ts`:
+    - Fixed line 103: Changed `NULL::uuid` to `NULL::text` in single-project query
+    - Fixed line 212: Changed `NULL::uuid` to `NULL::text` in all-projects query
+    - Both payment_adjustments UNION branches now use consistent `text` type
+- Impact:
+  - ✅ `/api/projects` endpoint returns 200 OK (no more 500 errors)
+  - ✅ `/api/projects?dropdown=true` works correctly
+  - ✅ "Edit Bank Transaction" dialog payment dropdown now populates
+  - ✅ Counteragent name displays correctly (not "Unknown")
+  - ✅ Colleagues can now edit payments from counteragent statement
+- Testing:
+  - ✅ Type consistency verified via grep search (all `NULL::text` matches)
+  - ✅ SQL syntax validated (UNION branches now compatible)
+- Status: ✅ Deployed
+
 ## 2026-06-16 Deployment #387 (Fix: Counteragent Payment Selection Caching)
 - Commit: b4ae5f0
 - Production: https://ice-o9enm8aff-iceerp.vercel.app
