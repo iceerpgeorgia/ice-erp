@@ -1,5 +1,32 @@
 # Deployment Log
 
+## 2026-11-12 Deployment #399 (Debug: Account Visibility Diagnostic Endpoint)
+- Commit: 0ff387c
+- Production: https://ice-erp.vercel.app
+- Summary: Added `/api/debug/account-visibility` endpoint to diagnose why provisioned bank accounts (e.g., GE21BG0000000611354669) aren't appearing in counteragent statements.
+- Changes:
+  - `app/api/debug/account-visibility/route.ts`: New endpoint that queries bank account metadata, checks raw table status, and verifies account inclusion in source tables for the current user's insider selection.
+- Diagnostics Provided:
+  - Account metadata: `is_active`, `raw_table_name`, `insider_uuid`, `currency_uuid`
+  - Visibility check: Whether account is included in `getSourceTables()` for user's insiders
+  - Raw table status: Physical table existence and row counts (with/without `payment_id`)
+  - Reference data: All BOG/TBC accounts (when `?showAllAccounts=true`)
+- Query Parameters:
+  - `?accountNumber=IBAN` (default: GE21BG0000000611354669)
+  - `?showAllAccounts=true` (optional: show all BOG/TBC accounts)
+- Root Cause Being Diagnosed:
+  - GE21 account provisioned in prior session but not appearing in counteragent statements
+  - Possible causes: account not fully activated, insider UUID mismatch, no transactions yet, or visibility mechanism issue
+- Impact:
+  - ✅ Provides clear HTTP endpoint to verify account visibility without direct DB access
+  - ✅ Helps isolate whether issue is account configuration (is_active, raw_table_name) vs. data vs. UI logic
+  - ✅ Can be used to validate future account provisioning operations
+- Usage:
+  ```
+  curl "https://ice-erp.vercel.app/api/debug/account-visibility?accountNumber=GE21BG0000000611354669&showAllAccounts=true"
+  ```
+- Status: ✅ Deployed
+
 ## 2026-11-12 Deployment #398 (Fix: BOG Raw Table Resolution Guard)
 - Commit: bdb8361
 - Production: https://ice-4kbmgbdyo-iceerp.vercel.app
