@@ -1,5 +1,52 @@
 # Deployment Log
 
+## 2026-11-14 Documentation #413 (Alliance Highline Cost Payment Recovery Framework)
+- Type: Documentation & API endpoint deployment
+- Commit: Complete framework (3 recovery paths + 8 guides + supporting scripts)
+- Summary: Comprehensive recovery solution for 20 Alliance Highline cost payment IDs cleared in production (unintended consequence of income payment ID clearing). Framework provides three independent recovery paths with different speed/safety profiles.
+- Problem: Cost payment IDs (`payments.payment_id = NULL`) were accidentally cleared alongside income payment IDs for Alliance Highline project (UUID: dc975886-9bf9-42c8-afbe-87695aa01262). This broke Job Distributions and Handovers UI which rely on payment_id for job allocation tracking.
+- Recovery Paths Deployed:
+  1. **Path 1 (API)**: 30-second production endpoint (`/api/admin/alliance-recovery`) with deterministic composite-key matching algorithm. Authorize with CRON_SECRET, analyze first, then recover with confirmation.
+  2. **Path 2 (Supabase)**: 45-minute manual backup restore workflow using Supabase Dashboard. Restore to temporary project, query original data, export CSVs, match with production using `alliance-recovery-backup-match.ts`, execute recovery SQL.
+  3. **Path 3 (GCP)**: 20-minute direct backup query using provided GCP credentials (Project ID: 375767513481-1av0rviq61cgvvll6khd68p8l7odlm97). Query backup directly without restore wait, export CSVs, match, execute recovery.
+- Files Deployed:
+  - `app/api/admin/alliance-recovery/route.ts` (210 lines) - Production endpoint with authorization, analyze/recover actions, deterministic matching
+  - `ALLIANCE_RECOVERY_COMPLETE.md` - Comprehensive solution overview (12.5 KB)
+  - `ALLIANCE_RECOVERY_GUIDE.md` - Path 1 quick start
+  - `ALLIANCE_BACKUP_RECOVERY_GUIDE.md` - Path 2 step-by-step (Supabase restore)
+  - `ALLIANCE_RECOVERY_GCP_GUIDE.md` - Path 3 step-by-step (GCP backup access)
+  - `ALLIANCE_RECOVERY_GCP_SUMMARY.md` - Path 3 quick reference
+  - `ALLIANCE_RECOVERY_PATHS.md` - Detailed comparison of all three paths
+  - `ALLIANCE_RECOVERY_INDEX.md` - Master documentation index
+  - `ALLIANCE_RECOVERY_ALL_OPTIONS.md` - Decision matrix and quick start guide
+  - `scripts/alliance-recovery-backup-match.ts` - CSV matching & SQL generation (9.7 KB)
+  - `scripts/alliance-recovery-gcp-backup.ts` - GCP credentials validation & planning
+- Algorithm Details:
+  - **Composite Key Matching**: Groups waybill-derived cost payments by (financial_code_uuid, counteragent_uuid)
+  - **Stable Ordering**: Uses ROW_NUMBER() within each group to match source vs. orphaned records at same ordinal position
+  - **Conflict Prevention**: Updates only cost payments (waybill_derived=TRUE), leaves income payments cleared as intended
+  - **Type Safety**: Full TypeScript endpoint, tsc validation passed
+- Production Deployment:
+  - ✅ `pnpm build` passed
+  - ✅ Type-check passed (`tsc --noEmit --pretty false`)
+  - ✅ Deployed via `npx vercel --prod --yes` to https://ice-erp.vercel.app
+  - ✅ Endpoint accessible at `/api/admin/alliance-recovery`
+  - ✅ CRON_SECRET authorization verified
+- Verification:
+  - ✅ Endpoint responds to authorization-valid requests
+  - ✅ Analyze action returns expected 20 records with composite-key grouping
+  - ✅ Matching algorithm deterministic and reproducible
+  - ✅ All three recovery paths documented and ready to execute
+  - ✅ Supporting scripts tested and type-checked
+- Recommended Path: **Path 3 (GCP)** - Balance of speed (20 min), safety (query actual backup), and existing credentials
+- Usage:
+  - **Immediate**: User chooses recovery path from `ALLIANCE_RECOVERY_ALL_OPTIONS.md`
+  - **Path 1**: Execute 2 curl commands with CRON_SECRET (30 sec)
+  - **Path 2**: Follow Supabase guide steps 1-8 (45 min)
+  - **Path 3**: Follow GCP guide steps 1-7 using provided credentials (20 min)
+- Prevention Guidelines: Added to AGENTS.md documenting cost vs. income payment distinction to prevent future incidents
+- Status: ✅ Framework deployed, all three recovery paths ready for user execution
+
 ## 2026-11-13 Deployment #411 (Rollback: Restore Previous Production UI)
 - Rolled Back From: https://ice-mi3r8mnpv-iceerp.vercel.app
 - Rolled Back To: https://ice-7gdp1vtee-iceerp.vercel.app
