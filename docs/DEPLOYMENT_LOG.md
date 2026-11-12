@@ -1,5 +1,38 @@
 # Deployment Log
 
+## 2026-11-12 Deployment #410 (Fix: GE21 Counteragent Statement Edit Routing)
+- Commit: 41f3d9d
+- Production: https://ice-mi3r8mnpv-iceerp.vercel.app
+- Summary: Fixed payment-ID edit flow for new bank account `GE21BG0000000611354669_BOG_GEL` where dialog showed payments for "Unknown" counteragent.
+- Root Cause:
+  - New raw table was not fully mirrored across all bank-transaction routing allowlists and source mappings.
+  - Counteragent statement edit mapping did not consistently preserve `source_table` and `source_id` for PATCH targeting.
+- Changes:
+  - `app/api/bank-transactions/route.ts`:
+    - Added `GE21BG0000000611354669_BOG_GEL` to `SOURCE_TABLES` with synthetic offset.
+  - `app/api/bank-transactions/[id]/route.ts`:
+    - Expanded `ALLOWED_TABLES` and synthetic-id resolver offsets for GE21 and active TBC tables.
+    - Resolved merge-conflict block in payment-sync PATCH logic and kept strict payment validation.
+  - `app/api/bank-transactions/raw-record/[uuid]/route.ts`:
+    - Added GE21 and active TBC tables to lookup allowlist.
+  - `app/api/bank-transactions/parsing-lock/route.ts` and `app/api/bank-transactions/parsing-lock/[id]/route.ts`:
+    - Added GE21 and active TBC tables to allowlists.
+  - `app/counteragent-statement/[counteragentUuid]/page.tsx`:
+    - Preserved `sourceTable` and `sourceId` in mapped edit rows.
+  - `components/figma/bank-transactions-table.tsx`:
+    - Hardened payment option scoping to avoid broad fallback when counteragent UUID is known but unmatched.
+  - `components/figma/handover-job-distributions-grid.tsx` and `components/figma/job-distribution-grid.tsx`:
+    - Kept type/API compatibility (`readOnly`, emission metadata, `onDistributionsSaved`, `refreshData`) required for clean build after merge-resolution.
+  - `AGENTS.md`:
+    - Added guardrail documenting all endpoints that must be updated when onboarding new raw bank-account tables.
+- Verification:
+  - ✅ Merge conflicts fully resolved (`UNMERGED_COUNT=0`)
+  - ✅ `pnpm exec tsc --noEmit --pretty false` passed
+  - ✅ `pnpm lint` passed (warnings only)
+  - ✅ `pnpm build` passed
+  - ✅ Manual production deploy completed via `npx vercel --prod --yes`
+- Status: ✅ Deployed
+
 ## 2026-06-12 Deployment #353 (Fix: Mobile Layout Hydration Mismatch)
 - Commit: 7028002
 - Production: https://ice-jrfyxpouw-iceerp.vercel.app
