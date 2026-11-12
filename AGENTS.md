@@ -37,16 +37,58 @@ The workspace is a single Next.js 14 application (App Router) with co-located AP
 
 - Jobs CRUD now includes `selling_price` support in the Prisma schema, API handlers, and the Jobs table/form UI.
 
+## Project Balance Calculation
+
+### Overview
+Project balance is calculated as: `balance = project.value - total_payments`
+
+Where `total_payments` aggregates all financial activity:
+1. **Bank Transactions**: Amounts from raw bank account tables (GE65TB..., GE78BG...)
+2. **Batch Partitions**: Partitioned amounts from bank_transaction_batches when applicable
+3. **Payment Adjustments**: Manual adjustments from payment_adjustments table (NEW: Deployment #351)
+
+### Implementation
+Calculated in two API routes using identical UNION ALL patterns:
+- **GET /api/projects-v2**: Main endpoint for projects list (preferred)
+- **GET /api/projects**: Legacy endpoint, supports single project by uuid param and main list
+
+### Query Structure
+Both routes aggregate in a LEFT JOIN with a complex subquery:
+```sql
+LEFT JOIN (
+  SELECT payment_id, SUM(nominal_amount) as total_payment
+  FROM (
+    -- Bank transactions (not in batches)
+    SELECT cba.payment_id, cba.nominal_amount ...
+    UNION ALL
+    -- Batch partitions
+    SELECT btb.payment_id, (COALESCE(...) * sign) ...
+    UNION ALL
+    -- Payment adjustments (Deployment #351)
+    SELECT pa.payment_id, COALESCE(pa.nominal_amount, pa.amount) ...
+    WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
+  ) combined
+  WHERE payment_id IS NOT NULL
+  GROUP BY payment_id
+) bank_agg ON p.payment_id = bank_agg.payment_id
+```
+
+### Payment Adjustments Integration
+- **nominal_amount**: Used for face currency conversions (primary amount in payment currency)
+- **amount**: Fallback for legacy direct-mode adjustments
+- **is_deleted filter**: Non-deleted adjustments only (consistent with payment statements)
+- **Deployment #351**: Added UNION ALL clause to include payment_adjustments table
+
+### Design Decisions
+- Adjustments use `nominal_amount` column which is always in payment's currency (already converted)
+- Falls back to `amount` field for legacy adjustments created before currency conversion mode
+- Filter ensures deleted adjustments don't artificially inflate project balances
+- Uses ABS() wrapper to normalize sign (both negative and positive flows supported)
+
 ## BOG GEL Bank Statement Processing - Three-Stage Approach
 
 ### Consolidated Processing Architecture
 All BOG GEL XML import and processing logic is consolidated into `import_bank_xml_data.py`, which implements a three-phase hierarchy:
-
-### BOG Raw-Table Resolution Guard (critical)
-- Deconsolidated BOG imports must resolve the target table in this order:
-  1) `bank_accounts.raw_table_name` when present, otherwise
-  2) derived `{account_number}_BOG_{currency}` fallback.
-- Import must probe the resolved table before processing and fail fast with an explicit configuration error when the table does not exist (for example stale account metadata), instead of continuing with generic Supabase errors.
 
 **Phase 1: Counteragent Identification** (HIGHEST PRIORITY - Cannot be overridden)
 - Extract INN from raw data fields based on transaction direction
@@ -126,7 +168,6 @@ The three-phase hierarchy ensures data integrity:
 - Update `bog_gel_raw_*` table (Supabase) with processing flags
 - Mark counteragent_processed, parsing_rule_processed, payment_id_processed
 - Set is_processed=TRUE when all three phases complete
-- Post-insert safeguard: for the current import batch, run a second payment-match reconciliation pass on unresolved token-like `docinformation` rows (`^[A-Za-z0-9_-]{5,50}$`) using a freshly loaded payments dictionary, then persist any recovered `payment_id`/flags.
 - **Note**: consolidated_bank_accounts table has been **removed** (2026-06-06)
   - Raw bank account tables are now the **only** data source
   - No consolidation step needed - raw tables are queried directly
@@ -196,97 +237,6 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
 
-## Bank Account Provisioning & Visibility
-
-### Account Visibility Mechanism
-Bank accounts are **dynamically discovered** at query-time via `lib/source-tables.ts` function `getSourceTables()`. An account is visible in all bank transaction queries (counteragent statements, payments report, etc.) when ALL of these conditions are met:
-
-1. **Account exists in `bank_accounts` table** with:
-   - `is_active = true` (explicitly enabled)
-   - `raw_table_name` IS NOT NULL and is not empty (points to physical Supabase table)
-   - `insider_uuid` matches one of the current user's selected insiders (per `resolveInsiderSelection()`)
-
-2. **Physical raw table exists and is queryable** (e.g., `GE21BG0000000611354669_BOG_GEL`)
-   - Table must be in the same Supabase public schema
-   - Table must have standard column structure (uuid, transaction_date, amount, payment_id, etc.)
-
-3. **Transactions in raw table have `payment_id` set** (required to appear in statement filters)
-   - Transactions without `payment_id` are silently skipped by statement endpoints
-   - This is normal during initial data import; payment IDs are assigned via processing rules or manual binding
-
-### Troubleshooting Account Invisibility
-When an account is newly provisioned or stops appearing:
-
-1. **Call diagnostic endpoint** to identify root cause:
-   ```
-   GET /api/debug/account-visibility?accountNumber=GE21BG0000000611354669&showAllAccounts=true
-   ```
-   Response shows: account metadata, is_active status, raw_table_name, insider_uuid match, raw table row counts.
-
-2. **Verify account configuration** using SQL script `scripts/verify-ge21-visibility.sql`:
-   - Run Step 1-4 queries to check metadata, table existence, and discoverability
-   - Step 4 UNCOMMENT ONLY IF NEEDED to auto-fix configuration (ensure account is active, has raw_table_name, matches active BOG insider)
-
-3. **Common fixes**:
-   - **Account not active**: `UPDATE bank_accounts SET is_active = true WHERE account_number = 'GE21...'`
-   - **raw_table_name missing**: `UPDATE bank_accounts SET raw_table_name = 'GE21BG0000000611354669_BOG_GEL' WHERE account_number = 'GE21...'`
-   - **Insider mismatch**: Ensure account's `insider_uuid` matches one of the user's selected insiders (check `User.selected_insider_uuids`)
-   - **Raw table missing**: Create raw table via provisioning script or SQL DDL (table structure must match standard schema)
-   - **No transactions**: Import transactions via BOG XML import or manual data insertion (visibility still works even with empty table)
-   - **No payment_ids**: Transactions will not appear in statements until payment IDs are assigned via processing rules, manual binding, or batch operations
-
-### Provisioning Checklist
-When adding a new bank account (e.g., GE21BG0000000611354669):
-
-1. ✅ Create raw table in Supabase with standard schema (uuid, transaction_date, amount, counteragent_uuid, payment_id, etc.)
-2. ✅ Insert row into `bank_accounts` table with:
-   - Account number and IBAN
-   - `raw_table_name` pointing to physical table
-   - Correct `bank_uuid` (BOG or TBC)
-   - Correct `insider_uuid` (matches one of the active insiders for that bank)
-   - `is_active = true`
-   - Currency UUID (GEL for BOG/TBC)
-3. ✅ Verify account appears in `getSourceTables()` output
-4. ✅ Verify account appears in counteragent statement endpoint
-5. ✅ Import initial transactions via XML or API, assign payment IDs
-6. ✅ Verify transactions appear in Payments Report with correct counteragents/projects
-
-### Key Constraint: Insider UUID
-Each account has exactly ONE `insider_uuid`. Users can only see accounts whose insider matches their selected insiders. Multi-insider deployments use the `RS_CREDENTIALS_MAP` pattern: one set of credentials per insider.
-
-Primary active BOG insider: `2a55debb-261b-4ce9-bae4-296ddea037ab` (appears in 17+ BOG accounts)
-
-## TBC BIS Integration Flow (Mirrors BOG Flow)
-
-### API Surface
-- `GET /api/integrations/tbc-bis/test`:
-  - Token smoke test when called without `path`.
-  - Token + API ping when `?path=/...` is provided.
-- `GET /api/integrations/tbc-bis/statements`:
-  - `import=0` (default): fetches BIS response, maps it to TBC XML shape, returns preview.
-  - `import=1&accountUuid=...`: fetches BIS response, maps to XML, imports through `processTBC`.
-- `GET /api/cron/tbc-import-last-3-days`:
-  - Daily cron import for TBC accounts by date-window (Tbilisi timezone), same authorization model as BOG cron.
-- `POST /api/cron/tbc-import-backfill`:
-  - Historical re-import by explicit date range (`startDate`, `endDate`) or `daysBack`.
-
-### Client and Mapping Rules
-- `lib/integrations/tbc-bis/client.ts` implements:
-  - Insider-aware credentials via `TBC_BIS_CREDENTIALS_MAP`.
-  - Legacy fallback credentials (`TBC_BIS_CLIENT_ID`/`TBC_BIS_CLIENT_SECRET`).
-  - Static token fallback (`TBC_BIS_ACCESS_TOKEN`).
-  - Optional mTLS transport (`TBC_BIS_MTLS_*`).
-- `lib/integrations/tbc-bis/statement-mapper.ts` normalizes BIS payloads (JSON or XML) into canonical TBC XML:
-  - Required identifiers: `DocumentNumber` + `TransactionId` (synthetic keys are rejected).
-  - Output XML root is `<AccountStatement><Head/><Records><Record/>...</Records></AccountStatement>`.
-  - Resulting XML is consumed by `processTBC` for the same three-phase processing pipeline used by uploaded TBC XML files.
-
-### Path Template and Cron Behavior
-- Statement fetch path is template-driven via `TBC_BIS_STATEMENT_PATH_TEMPLATE` with placeholders:
-  - `{accountNumber}`, `{currencyCode}`, `{fromDate}`, `{toDate}`.
-- Default template is `/bab/v1/accounts/movements?...`; override per tenant/bank contract if BIS endpoint differs.
-- Cron routes iterate account/day, skip empty days, and import only when mapped statement has records.
-
 ## Bank Transactions Data Architecture
 
 **PRIMARY DATA SOURCE**: Raw bank account tables (e.g., `GE65TB7856036050100002_TBC_GEL`, `GE78BG0000000893486000_BOG_GEL`, etc.) are the **active** source of truth for all bank transactions.
@@ -298,14 +248,12 @@ Primary active BOG insider: `2a55debb-261b-4ce9-bae4-296ddea037ab` (appears in 1
 - Each raw table has a unique offset to generate synthetic IDs
 - Returns `raw_record_uuid` from the source raw table
 - Batch transactions are resolved from `bank_transaction_batches` table
-- **UNION type safety rule**: any UNION/UNION ALL branch that emits `raw_record_uuid` must cast placeholders as `NULL::uuid` (never `NULL::text`) to avoid Postgres runtime errors (`UNION types uuid and text cannot be matched`) in project/payment aggregation routes.
 
 ### Job Distribution Linkage
 - `payments_jobs` table links distributions to bank transactions via `raw_record_uuid` or `batch_partition_uuid`
 - `raw_record_uuid` references the UUID from raw bank account tables (NOT consolidated_bank_accounts)
 - When verifying distribution integrity, always check raw tables (e.g., `GE65TB7856036050100002_TBC_GEL`) not consolidated table
 - The `/api/payments-jobs/auto-distribute` endpoint receives `raw_record_uuid` from bank transaction UI and stores it in `payments_jobs` records
-- **Transaction-total reconciliation rule (critical):** distribution writes must reconcile to the exact source transaction totals (`nominal_amount` and account-currency amount) for the targeted scope (`batch_partition_uuid` first, otherwise `raw_record_uuid`). The save flow applies any small remnant to one distribution row so persisted `payments_jobs.amount_account_curr` sums exactly match the bank transaction amount shown in Job Distributions.
 
 ### Investigation Guidelines
 - **NEVER** search `consolidated_bank_accounts` to verify `raw_record_uuid` references
@@ -322,24 +270,10 @@ When a payment is assigned to a bank transaction via `PATCH /api/bank-transactio
   - **NEW (2026-06-10)**: `financial_code_uuid` is synced from the payment's `financial_code_uuid` (unless explicitly overridden in request)
   - `counteragent_uuid` is auto-assigned from payment if transaction has no counteragent yet
   - `parsing_lock` is set to `true` to prevent re-processing
-- **Validation (hard fail):**
-  - Bind must return HTTP 400 when `payment_id` does not exist in `payments`.
-  - Bind must return HTTP 400 when the target payment has `currency_uuid = NULL`.
-  - Rationale: avoid partial binds that set `payment_id` but cannot safely recalculate nominal currency/rates.
 - **When payment is cleared:**
   - All above fields are reset: `project_uuid`, `financial_code_uuid`, `nominal_currency_uuid` revert to defaults
   - `parsing_lock` is set to `false`
 - **Rationale**: Handovers job distribution grid filters by `project_uuid` and income `financial_code_uuid`. Without this sync, manually editing a transaction with an existing payment would orphan it from the handovers view.
-
-### Historical Repair for Payment-Bound Transactions
-- One-time remediation script: `scripts/backfill-bank-transactions-project-from-payment.js`
-- Scope: all active raw source tables discovered from `bank_accounts.raw_table_name`.
-- Fix condition: transaction has `payment_id`, payment has non-null `project_uuid` and/or `financial_code_uuid`, but transaction has null in corresponding field.
-- Update behavior: fill only missing `project_uuid` / `financial_code_uuid` from payment (never overwrite non-null transaction values).
-- Runtime safety:
-  - Processes rows in bounded batches with `FOR UPDATE SKIP LOCKED`.
-  - Temporarily disables `trg_recompute_bank_balances` per table during the backfill, then re-enables it in a `finally` path.
-  - Emits per-table before/updated/after counts for verification.
 
 ## Project Value Scaling
 - When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.
@@ -362,12 +296,6 @@ All RS.ge credentials are stored in `RS_CREDENTIALS_MAP` (JSON array in `.env.lo
 [{"INSIDER_UUID":"...","RS_API_SU":"iceapi:XXXXXXXXX","RS_API_SP":"..."}]
 ```
 Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/integrations/rsge/client.ts`. Both cron routes and the manual sync endpoint read exclusively from this map — there are no separate `RS_API_SU`/`RS_API_SP` fallback vars.
-
-### Insider Selection Persistence
-- Selected insiders are persisted per user in `User.selected_insider_uuids` (`uuid[]`) and mirrored to the `insider-view-selection` cookie.
-- Resolution precedence in `resolveInsiderSelection`: DB-persisted selection first, then cookie selection, then all available insiders as fallback.
-- `POST /api/insider-selection` validates UUIDs against current insider options, stores the effective list in DB (when authenticated), and refreshes the cookie.
-- This keeps insider-driven views (including Conversions and other insider-filtered APIs) stable across deployments even if browser cookie/domain context changes.
 
 ### VAT Lock Rule
 `vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:
@@ -449,18 +377,10 @@ When waybill items are bound to different projects, item-level binding should ta
 
 ## Handovers Job Distribution UI & Emission
 - The Job Distributions grid on Handovers renders bank-transaction-style rows (date, account, CA account, amount, nominal amount, financial code, nom ISO, payment ID, batch ID, description, ID1, ID2) from `/api/bank-transactions`, filtered by `project_uuid` and limited to payment IDs from income payments (`financialCodeIsIncome`).
-- The Handovers jobs table shows calculated columns for Paid Nominal, Paid GEL, Debit Nominal, Debit GEL, and Total GEL, and its footer totals the numeric business columns that are actually displayed as totals (for example Floors and the money columns, but not Weight). Paid GEL is summed from `payments_jobs.amount_account_curr`, while Debit GEL/Total GEL are computed from nominal amounts using the job's `liftCertDate` and the project currency's NBG rate lookup by date. The `liftCertDate` is determined by the earliest date among: ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტი) (operational acceptance certificate) and შემოწმების შუალედური აქტი (ლიფტი) (inspection interim report) documents attached to the job.
-- The Handovers jobs table includes `Paid %` computed as `paid_nominal / selling_price * 100` (row-level and footer aggregate ratio), with null-safe handling when `selling_price` is empty/zero.
+- The Handovers jobs table shows calculated columns for Paid Nominal, Paid GEL, Debit Nominal, Debit GEL, and Total GEL, and its footer totals the numeric business columns that are actually displayed as totals (for example Floors and the money columns, but not Weight). Paid GEL is summed from `payments_jobs.amount_account_curr`, while Debit GEL/Total GEL are computed from nominal amounts using the job's `liftCertDate` and the project currency's NBG rate lookup by date.
 - The grid supports advanced table features: column resizing (drag resize handle), column reordering (drag column headers), column visibility toggle (Columns dropdown), filtering (filterable columns have filter icon), sorting (sortable columns have sort icon), and global search (search bar filters all visible columns).
 - Column configuration is persisted to localStorage (`handovers-job-distributions-columns`) including width, visibility, and user-dragged order; the restore path normalizes saved layouts without resetting the order on reload.
-- The Handovers project dropdown prioritizes projects that have cert dates and are still pending work: jobs with cert dates are considered pending when they have at least one non-emitted distribution row (`emission_uuid IS NULL`) or no distribution rows yet. Fully emitted jobs (no non-emitted rows and at least one emitted row) must not keep a project in red/pending state. Pending projects are shown at the top with a red background and pending cert-date count.
-- The Handovers jobs table includes an emission-selection checkbox column. Checkboxes are enabled only for jobs that have a non-empty `liftCertDate` and at least one non-emitted distribution row; the header checkbox selects/deselects emittable jobs on the current page.
-- The Handovers jobs table uses row-level emission status colors: light red for cert-dated jobs with pending/non-emitted state, and light green for cert-dated jobs that are fully emitted.
-- The Project Attachments dialog on Handovers supports bulk certificate auto-attach: users can upload multiple certificate files (including image-based PDFs), OCR parses text, extracts lift/certificate fields, and auto-attaches to matched jobs by `factory_no` with prefilled metadata (`document_no`, `document_date`, parsed values in attachment metadata).
-- Auto-attach document-date rule: for certificate uploads, `document_date` uses parsed certificate issue date (`parsedIssueDate`, e.g. `სერტ. გაცემის თარიღი`) first; inspection date is only a fallback when issue date is not found.
-- Auto-attach matching rule: primary key is normalized lift number from OCR (`ლიფტი № ...`) matched against normalized job `factory_no`; lift extraction prefers serial-like candidates that contain digits (for example `D022360E`) to avoid selecting brand/manufacturer words (for example `DELFAR`). Filename-based lift-number fallback is intentionally disabled.
 - The Job Distribution action appears only in the bank-transactions-style grid as a briefcase icon; the income payments grid does not show a distribution action.
-- In Handovers Income Payments, the counteragent statement icon (`User`, little-man) follows Payments Report warning parity: it renders red (`text-red-600`) when `hasUnboundCounteragentTransactions=true` (counteragent has transactions without `payment_id`), otherwise default blue.
 - The distribution dialog supports only two modes: All (default) and Manual. All uses weighted distribution by job selling price and applies both nominal and account-currency amounts; Manual allows user edits.
 - Manual mode includes a per-row Fill button that applies the bundle distribution percent for the payment's financial code to the job selling price, subtracts allocations already saved for the same `payment_uuid` (excluding the current raw/batch), and clamps to the remaining payment amount.
 - Server-side distribution saves and auto-distribute/recalculate paths recompute account-currency amounts using bank transaction rates when stored values are missing or equal to nominal despite a non-1 rate.
@@ -468,193 +388,17 @@ When waybill items are bound to different projects, item-level binding should ta
 - Backfill script `scripts/backfill-payments-jobs-account-curr.js` recalculates historical `payments_jobs.amount_account_curr` using consolidated/raw bank amounts (prefers consolidated when present).
 - The grid now provides an XLSX export action that flattens each payment into one row per job allocation so the exported amount and nominal amount reflect the distribution split.
 - Export rows resolve distributions using the same composite key logic as the grid (batch partition or raw record UUID) so per-transaction allocations populate in Excel.
-## Templates Management System
-
-### Architecture Overview
-The system now uses a dedicated `templates` table for managing XLSX templates for different operations (handover, invoice, certificate, etc.). Each operation must have exactly one active template.
-
-**Key Features:**
-- **Operation-based organization**: Templates are categorized by operation_type (handover, invoice, etc.)
-- **One active per operation**: Database trigger enforces only one active template per operation_type
-- **Archive on update**: When a new template is uploaded and activated, the old one is automatically archived
-- **Supabase storage**: All templates stored in Supabase bucket `templates/`
-- **Graceful fallback**: If database template unavailable, falls back to file system
-
-### Database Schema
-**Table: `templates`**
-- `uuid`: Unique identifier for template
-- `operation_type`: "handover", "invoice", "certificate", etc.
-- `file_name`: Original filename (e.g., "Handover Tamplate New.xlsx")
-- `storage_provider`: Always "supabase"
-- `storage_bucket`: Defaults to "templates"
-- `storage_path`: Path in Supabase bucket (e.g., `templates/handover/1719235200000-Handover.xlsx`)
-- `file_size_bytes`: File size for UI display
-- `file_hash_sha256`: Optional hash for integrity checking
-- `is_active`: Boolean flag - only one TRUE per operation_type (enforced by DB trigger)
-- `archived_at`: Timestamp when archived/deactivated
-- `created_by_user_id`: User email who uploaded
-- `created_at / updated_at`: Audit timestamps
-
-**Indexes:**
-- `(operation_type)` - List templates by operation
-- `(is_active)` - Find active templates
-- `(operation_type, is_active)` - Combined lookup for export routes
-- `(created_at DESC)` - Timeline queries
-
-**Database Trigger:**
-```plpgsql
-enforce_one_active_template_per_operation()
-```
-When `is_active = true` is set on any template, automatically deactivates all other templates for the same operation_type.
-
-### Admin Interface
-**Location:** `/admin/templates`
-
-**Features:**
-1. **Upload Form**
-   - Select operation type (dropdown: handover, invoice, certificate)
-   - Upload XLSX file
-   - Checkbox: "Set as active" (optional - defaults to true)
-   - Submit triggers immediate upload and activation if checked
-
-2. **Templates List (grouped by operation)**
-   - Shows all templates per operation
-   - Indicates which is currently active (green badge)
-   - Shows inactive (blue) and archived (gray) states
-   - File size and upload timestamp
-   - Action buttons: Activate (if inactive), Archive (if not archived)
-
-3. **Status Indicators**
-   - ✓ Active: Used by export routes
-   - ⚠ No active: Cannot export (red warning)
-   - Archived: Not used, kept for audit trail
-
-### API Endpoints
-
-**GET /api/templates?operationType=handover**
-- List all templates, optionally filtered by operation_type
-- Returns: `[{ uuid, operation_type, file_name, file_size_bytes, is_active, archived_at, created_at, created_by_user_id }]`
-
-**POST /api/templates**
-- Upload new template
-- Body (multipart/form-data):
-  - `operationType`: string (required)
-  - `file`: File object (required)
-  - `activate`: "true"|"false" (optional, defaults to true)
-- Side effect: If `activate=true`, automatically archives existing active template for that operation
-- Returns: `{ uuid, operation_type, file_name, file_size_bytes, is_active, created_at }`
-
-**PATCH /api/templates/:uuid**
-- Activate or deactivate template
-- Body: `{ is_active: boolean }`
-- If activating: Archives all other active templates for the same operation_type
-- Returns: Updated template object
-
-**DELETE /api/templates/:uuid**
-- Archive a template (soft delete)
-- Returns 400 if trying to delete the only active template for an operation
-- Sets `is_active=false` and `archived_at=NOW()`
-- Returns: `{ message, template: { uuid, operation_type } }`
-
-### Export Route Integration
-
-**File:** `app/api/export/handover-template/route.ts`
-
-**Template Loading Priority:**
-1. Query `templates` table for `operation_type = 'handover'` AND `is_active = true`
-2. Fetch from Supabase storage using `storage_path`
-3. If failed, fallback to file system `Handover Tamplate New.xlsx` from project root
-
-**Logging:**
-```
-✓ Template loaded from templates table (Supabase), size: XXXXX
-✓ Template loaded from file system, size: XXXXX
-```
-
-**Error Handling:**
-- If no active template and file system fallback unavailable → HTTP 500
-- Error message directs user: "Please upload a template via Admin > Templates..."
-
-### Handover Template Sheet Structure
-The handover template must contain these sheets:
-1. **sheet1.xml (Handover sheet)** - Main document with Georgian form, 63 VLOOKUP formulas, 10 merged ranges, borders
-2. **sheet2.xml (Placeholders sheet)** - Lookup table:
-   - Column A (A1-A19): Label keys: "Project_Department", "Handover_Date", etc.
-   - Column B (B1-B19): Values populated from database during export
-3. **sheet3.xml (Jobs sheet)** - Template for job data table (populated during export)
-4. Optional: Income Payments, Job Distributions sheets
-
-### Placeholder Mapping (A1:B19)
-Export populates B1-B19 with project data:
-- A1: "Project_Department" → B1: project.department
-- A2: "Handover_Date" → B2: project.date (Excel serial)
-- A3-A19: Counteragent, insider, and project fields
-
-### VLOOKUP Formula Pattern
-Handover sheet formulas reference:
-```excel
-=VLOOKUP("Project_Department",Placeholders!A:B,2,FALSE)
-```
-Both columns A (labels) and B (values) must be populated for formulas to resolve.
-
-### Handovers toolbar now supports both export modes: full template export (placeholders + all grids) and separate XLSX exports per table (Jobs, Income Payments, Job Distributions).
-- Handovers toolbar also supports **Doc. No attachment bulk download**: it calls `POST /api/export/handover-job-doc-attachments` and returns one ZIP containing job-level Doc. No source attachments.
-- Handovers toolbar also supports **app-side print form**: "Print Form" opens `/handovers/print?projectUuid=...` in a new tab and renders a browser-printable handover document without relying on Excel formulas.
-- Handovers toolbar also supports **downloadable printable forms**: "Printable Form (DOCX/PDF)" opens a cert-date selector and downloads a generated file from `POST /api/export/handover-print-form`.
-- Print form data parity rules:
-  - Uses the same Handovers data sources (`/api/projects`, `/api/jobs`, `/api/payments-report`, `/api/payments-jobs`, `/api/jobs/attachments`).
-  - Includes only jobs whose lift-certificate effective date equals the project handover date.
-  - Computes GEL totals using NBG exchange rates by lift certificate date (same principle as Handovers table Debit GEL/Total GEL calculation).
-- Downloadable printable form rules:
-  - User can select **one or multiple Cert. Dates** before download.
-  - Single-date export returns one file; multi-date export returns one ZIP with one file per selected date.
-  - API contract for `POST /api/export/handover-print-form`: accepts `certDate` (single) or `certDates[]` (multi). ZIP mode is enabled automatically for multi-date and can also be requested with `zip=true`.
-  - Each generated file is scoped to that date's jobs/amounts combination.
-  - Supported formats: **DOCX** and **PDF**, both generated in **portrait** orientation.
-  - **PDF generation strategy (DOCX-first with fallback):** When `format=pdf`, the route first generates the DOCX, then converts it to PDF via CloudConvert (LibreOffice engine) when `CLOUDCONVERT_API_KEY` is set, so the PDF is visually identical to the DOCX (fonts, tables, spacing). Conversion lives in `lib/export/docx-to-pdf.ts` (`convertDocxToPdf`, `isPdfConversionConfigured`). If the key is unset or conversion fails/times out, the route falls back to the built-in `pdfkit` renderer (`buildPdfPrintable`) so PDF export never breaks. The route sets `export const maxDuration = 60` to allow conversion time. Because both formats derive from the same DOCX when conversion is enabled, keep DOCX as the single source of truth for layout changes.
-  - **A4 table-fit parity rule:** to avoid DOCX/PDF drift, both DOCX and pdfkit fallback use the same fixed template column proportions (`TABLE_COLUMN_WIDTHS`) on A4 instead of independent content-autofit calculations.
-  - **PDF table overlap guard:** in pdfkit fallback, table text uses a slightly smaller font than body text and row heights are measured from wrapped text height (`heightOfString`) for left-aligned columns to prevent text layovers in narrow cells.
-  - **Renderer diagnostics header:** `POST /api/export/handover-print-form` includes `X-Printable-Pdf-Renderer` for PDF responses (`cloudconvert` or `pdfkit-fallback`; ZIP may include comma-separated values) so runtime path can be verified quickly during QA.
-  - **City label removed:** the header shows only the certification date (no `ქ. ბათუმი` / `ქ. თბილისი` city prefix). All document text uses a uniform font size (DOCX 22 half-points = 11pt; pdfkit fallback 11pt).
-  - **Template parity rule:** the generated DOCX/PDF must mirror the shared Handover XLSX template's visible text. Table headers use the template's Georgian labels in template column order (`#`, `კონტ. #`, `მწარმოებელი`, `ლიფტის #`, `ამწეობა (კგ)`, `სართ.`, `სერტიფიკატის #`, `თანხა {currency}`, `თანხა ₾`); the factory-number column is labeled `ლიფტის #` (not `საქარხნო ნომერი` / `Factory No`). The totals row label is `ჯამი`, and the template's verbatim legal notes paragraph (`HANDOVER_NOTES`) is rendered after the table. Headers come from the shared `handoverTableHeaders` helper used by both DOCX and PDF paths; data mapping stays position-matched to these columns.
-  - **Serverless runtime safety (critical):** the pdfkit fallback must use the vendored Georgian font file at `app/api/export/handover-print-form/fonts/noto-sans-georgian-georgian-400-normal.woff` and pass it as the PDFKit constructor `font` option (Buffer) so startup does not rely on standard Helvetica module aliases. Route-level tracing globs for pdfkit standard fonts can cause invalid serverless package failures and must be avoided.
-  - **Numeric rendering rule:** PDF table numeric cells (index/weight/floors/amount columns and page-number footer) must use the vendored Latin subset font `app/api/export/handover-print-form/fonts/noto-sans-georgian-latin-400-normal.woff` for consistent digit legibility.
-  - Files are generated server-side (not browser print) so they must not include browser header/footer artifacts (URL, timestamp, browser title).
-  - Keep explicit **page numbering** in the exported document.
-- Next.js App Router constraint: the print route uses `useSearchParams`, so it must be wrapped with `Suspense` at page boundary to avoid prerender/build failure.
-- ZIP selection logic must match Jobs table Doc. No source: per project/job, use the earliest active attachment among lift-certificate/interim-inspection document types, and only rows with non-empty `document_no`.
-- ZIP entry filename format is mandatory: `Job Name_Factory No_Doc. No` (original extension preserved when available; duplicate names get numeric suffixes).
-- ZIP response header must use RFC 5987 filename encoding for non-ASCII project names: set `Content-Disposition` with both `filename*` (UTF-8 encoded) and ASCII-safe `filename` fallback; do not place raw Unicode directly in header values.
 - The dialog resolves `payment_uuid` via `/api/payments-report` and preloads existing allocations from `/api/payments-jobs`.
 - **Debugging**: Console logs track payment_uuid resolution (`[Job Dist]` prefix) including payment mapping, distribution loading, row payment lookup, and save operations. This helps diagnose cases where distributions might incorrectly appear across multiple payments.
-- Runtime resilience guards for Handovers dependencies:
-  - `GET /api/jobs?projectUuid=...` bypasses insider-selection resolution and returns project-bound jobs directly, so Handovers job loading is not blocked by insider-selection state.
-  - In that project-scoped `/api/jobs` path, response mapping must not reference insider selection variables; use row fields directly (`insider_uuid`) to avoid runtime 500s from pre-declaration access.
-  - `GET /api/brands` no longer selects optional/non-critical columns for Handovers bootstrap; this reduces schema-drift 500s on environments with lagging migrations.
-  - `GET /api/payments-report` now falls back to a ledger-only query if the primary cross-table bank-union query fails, returning income rows instead of HTTP 500.
-  - Handovers initial-load project mapping debug spam (`[Handovers] Mapping project`) was removed from the client component to keep production console noise low.
-
-### Handovers Cross-Table Live Refresh
-- Handovers keeps the three grids (Jobs, Income Payments, Job Distributions) synchronized after mutations without reloading the whole page.
-- Source-of-change propagation rules:
-  - Income Payments mutation (payment edit, add ledger, confirm/deconfirm) refreshes Jobs derived metrics and Job Distributions grid.
-  - Job Distributions save/clear/auto actions refresh Jobs derived metrics and Income Payments grid.
-  - Jobs edit refreshes Income Payments and Job Distributions grids.
-- Jobs derived metrics refresh is incremental: recalculates paid/debit fields (including `Paid %`) from `/api/payments-report` + `/api/payments-jobs` and updates current jobs state in place.
 
 ### Handover Emission Feature
 When a user emits a handover, all current (non-emitted) job distributions are locked and marked with an `emission_uuid`, creating an immutable audit trail. Multiple emissions are supported, with the latest emission taking priority for display:
-- **UI trigger**: The Handovers toolbar includes an **Emit Handover** button that posts to `/api/handovers/emit` for the selected project and selected job rows (checkbox column), then refreshes page data after success.
-- **Date-scoped emission rule**: emissions remain scoped by handover cert date(s), but dates are derived from selected job rows. A selected job must have `liftCertDate` and non-emitted distributions.
-- **Emission Process**: User selects one or more emittable jobs and clicks "Emit Handover" → UI derives unique cert date(s) from selected jobs → API creates `handover_emissions` record → Updates only non-emitted `payments_jobs` for selected jobs/dates with `emission_uuid` and `emission_date` → Returns emission details.
+- **Emission Process**: User clicks "Emit Handover" button → API creates `handover_emissions` record → Updates all non-emitted `payments_jobs` with `emission_uuid` and `emission_date` → Returns emission details.
 - **Multiple Emissions**: Same project can emit multiple times; each emission gets a unique UUID. After an emission, new distributions can be added and emitted again. All emissions are permanently recorded.
 - **Display Priority**: UI shows emission status based on the most recent `emission_date` for the project. Historical emissions remain in the audit trail for reference.
 - **Immutability**: Database triggers prevent UPDATE and DELETE on records with `emission_uuid IS NOT NULL`. Projects and jobs with emitted distributions cannot be deleted.
-- **Live vs emitted rows**: emitted `payments_jobs` rows are immutable historical snapshots. Later distribution changes must operate only on live rows where `emission_uuid IS NULL`, allowing new non-emitted distributions to coexist with emitted snapshots for the same payment/job/scope.
-- **API guard**: single-row delete/update attempts against an emitted distribution must fail, while replace/delete/auto-distribute/recalculate flows must only touch non-emitted rows (`emission_uuid IS NULL`) and leave emitted snapshots intact.
-- **UI lock state**: the Job Distribution dialog opens in read-only mode (no save/clear/edit/fill/recalculate actions) when a transaction scope has only emitted snapshot rows and no live rows.
 - **Schema**: New table `handover_emissions` (uuid, created_at, created_by, description). New columns on `payments_jobs`: `emission_uuid` (FK), `emission_date`.
-- **API**: `POST /api/handovers/emit` accepts `{ projectUuid, certDate?, certDates[]?, jobUuids[]? }`, returns emission UUID, timestamp, count, and list of emitted records. It always targets only non-emitted distributions and can additionally scope by selected jobs.
+- **API**: `POST /api/handovers/emit` accepts `{ projectUuid }`, returns emission UUID, timestamp, count, and list of emitted records. Only targets non-emitted distributions.
 - **Audit Trail**: `emission_uuid` groups all records in a single emission; `created_by` records user email; `handover_emissions.created_at` records timestamp.
 - **Future**: Emission history view, reversal capability (superuser only), bulk emission, notifications.
 
@@ -670,16 +414,6 @@ When a payment is created or updated with both `jobUuid` and `projectUuid`, the 
 
 ### Rationale
 Previously, payments could reference a `jobUuid` and `projectUuid` combination without the job being bound to that project in `job_projects`. This caused jobs to not render in Handovers even though they were allocated there. Now, the binding is automatically maintained whenever a payment references both.
-
-## Global Date Normalization Rules (Ledger/Statement)
-
-To prevent `NaN.NaN.NaN` date regressions across statements and ledger editing flows:
-
-- **Canonical storage format**: `yyyy-mm-dd` (ISO date-only) for all `effective_date` payloads sent to API routes.
-- **Display format**: `dd.mm.yyyy` only in UI text fields and rendered table cells.
-- **Single normalization utility**: use `lib/date-normalization.ts` (`normalizeToIsoDate`, `toDisplayDate`, `toDateInputValue`, `toDateSortTimestamp`) instead of ad-hoc `new Date(...)` conversions.
-- **API boundary validation**: `/api/payments-ledger`, `/api/payments-ledger/[id]`, and `/api/adjustments` must normalize inbound dates and return HTTP 400 on invalid date strings.
-- **Local optimistic updates**: when updating in-memory ledger rows after edit, persist `effectiveDate` in ISO format (not `dd.mm.yyyy`) so downstream date formatters and sorters remain stable.
 
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.

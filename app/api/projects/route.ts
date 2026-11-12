@@ -12,7 +12,7 @@ const SOURCE_TABLES = [
 
 const UNION_SQL = SOURCE_TABLES.map((table) => (
   `SELECT
-     raw_record_uuid::uuid as raw_record_uuid,
+     raw_record_uuid::text as raw_record_uuid,
      payment_id::text as payment_id,
      nominal_amount::numeric as nominal_amount,
      account_currency_amount::numeric as account_currency_amount
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
               UNION ALL
 
               SELECT
-                btb.payment_id::text as payment_id,
+                btb.payment_id,
                 (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
                 cba.raw_record_uuid,
                 cba.account_currency_amount
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
               UNION ALL
 
               SELECT
-                pa.payment_id::text as payment_id,
+                pa.payment_id,
                 COALESCE(pa.nominal_amount, pa.amount) as nominal_amount,
                 NULL::uuid as raw_record_uuid,
                 NULL::numeric as account_currency_amount
@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
             UNION ALL
 
             SELECT
-              btb.payment_id::text as payment_id,
+              btb.payment_id,
               (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
               cba.raw_record_uuid,
               cba.account_currency_amount
@@ -207,7 +207,7 @@ export async function GET(req: NextRequest) {
             UNION ALL
 
             SELECT
-              pa.payment_id::text as payment_id,
+              pa.payment_id,
               COALESCE(pa.nominal_amount, pa.amount) as nominal_amount,
               NULL::uuid as raw_record_uuid,
               NULL::numeric as account_currency_amount

@@ -1036,6 +1036,8 @@ export function BankTransactionsTable({
   const startEdit = async (transaction: BankTransaction) => {
     setEditingTransaction(transaction);
     setSaveNotice(null);
+    // Clear payment options when starting a new edit to force re-filtering by the new transaction's counteragent
+    setPaymentOptions([]);
     
     const transactionDateInput = toInputDate(transaction.date);
     const correctionInput = toInputDate(transaction.correctionDate);
@@ -1170,13 +1172,13 @@ export function BankTransactionsTable({
     }
   }, [autoEditId, transactions]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Update payment options when transaction changes (re-filter by new counteragent)
   useEffect(() => {
     if (!editingTransaction || !isEditDialogOpen) return;
     if (allPayments.length === 0) return;
-    if (paymentOptions.length > 0) return;
+    // Always call updatePaymentOptions when editingTransaction changes to ensure correct filtering by counteragent
     updatePaymentOptions(editingTransaction, allPayments);
-  }, [allPayments.length, editingTransaction, isEditDialogOpen, paymentOptions.length]);
+  }, [editingTransaction, isEditDialogOpen]);
 
   useEffect(() => {
     if (renderMode !== 'dialog-only') return;
