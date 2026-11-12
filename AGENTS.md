@@ -42,6 +42,12 @@ The workspace is a single Next.js 14 application (App Router) with co-located AP
 ### Consolidated Processing Architecture
 All BOG GEL XML import and processing logic is consolidated into `import_bank_xml_data.py`, which implements a three-phase hierarchy:
 
+### BOG Raw-Table Resolution Guard (critical)
+- Deconsolidated BOG imports must resolve the target table in this order:
+  1) `bank_accounts.raw_table_name` when present, otherwise
+  2) derived `{account_number}_BOG_{currency}` fallback.
+- Import must probe the resolved table before processing and fail fast with an explicit configuration error when the table does not exist (for example stale account metadata), instead of continuing with generic Supabase errors.
+
 **Phase 1: Counteragent Identification** (HIGHEST PRIORITY - Cannot be overridden)
 - Extract INN from raw data fields based on transaction direction
   - Incoming payment (debit=NULL): Use DocSenderInn
@@ -120,6 +126,7 @@ The three-phase hierarchy ensures data integrity:
 - Update `bog_gel_raw_*` table (Supabase) with processing flags
 - Mark counteragent_processed, parsing_rule_processed, payment_id_processed
 - Set is_processed=TRUE when all three phases complete
+- Post-insert safeguard: for the current import batch, run a second payment-match reconciliation pass on unresolved token-like `docinformation` rows (`^[A-Za-z0-9_-]{5,50}$`) using a freshly loaded payments dictionary, then persist any recovered `payment_id`/flags.
 - **Note**: consolidated_bank_accounts table has been **removed** (2026-06-06)
   - Raw bank account tables are now the **only** data source
   - No consolidation step needed - raw tables are queried directly

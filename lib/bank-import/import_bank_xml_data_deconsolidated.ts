@@ -547,6 +547,141 @@ function resolveDeconsolidatedTableName(accountNumber: string, parsingScheme: st
   return `${accountNumber}_${safeScheme}`;
 }
 
+async function reconcilePaymentMatchesForCurrentBatch(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  deconsolidatedTableName: string,
+  importBatchId: string,
+  counteragentsMap: Map<string, CounteragentData>,
+  parsingRules: ParsingRule[],
+  nbgRatesMap: Map<string, NBGRates>,
+  currencyCache: Map<string, string>
+): Promise<number> {
+  const { paymentsMap, salaryBaseMap, salaryLatestMap, duplicatePaymentMap } = await loadPayments(supabase);
+
+  const { data: batchRows, error: batchRowsError } = await supabase
+    .from(deconsolidatedTableName)
+    .select(
+      'id,uuid,dockey,docsenderinn,docbenefinn,doccoracct,docsenderacctno,docbenefacctno,docprodgroup,docnomination,docinformation,entrydbamt,entrycramt,account_currency_amount,account_currency_uuid,transaction_date,payment_id,payment_id_processed,counteragent_processed,parsing_rule_processed,counteragent_uuid,parsing_lock'
+    )
+    .eq('import_batch_id', importBatchId);
+
+  if (batchRowsError) throw batchRowsError;
+
+  const tokenLikePattern = /^[A-Za-z0-9_-]{5,50}$/;
+  const candidates = (batchRows || []).filter((row: any) => {
+    const docInfo = String(row.docinformation || '').trim();
+    return (
+      !row.parsing_lock &&
+      !row.payment_id &&
+      !row.payment_id_processed &&
+      tokenLikePattern.test(docInfo)
+    );
+  });
+
+  if (candidates.length === 0) return 0;
+
+  const stats: ProcessingStats = {
+    case1_counteragent_processed: 0,
+    case2_counteragent_inn_blank: 0,
+    case3_counteragent_inn_nonblank_no_match: 0,
+    case4_payment_id_match: 0,
+    case5_payment_id_counteragent_mismatch: 0,
+    case6_parsing_rule_match: 0,
+    case7_parsing_rule_counteragent_mismatch: 0,
+    case8_parsing_rule_dominance: 0,
+  };
+  const missingCounteragents = new Map<string, { inn: string; count: number; name: string }>();
+
+  const updates: Array<{ id: number; [key: string]: any }> = [];
+
+  for (let idx = 0; idx < candidates.length; idx++) {
+    const row: any = candidates[idx];
+    const inputRow = {
+      ...row,
+      doccorracct: row.doccoracct ?? null,
+      debit: row.entrydbamt ? Number(row.entrydbamt) : 0,
+    };
+
+    const result = processSingleRecord(
+      inputRow,
+      counteragentsMap,
+      parsingRules,
+      paymentsMap,
+      salaryBaseMap,
+      salaryLatestMap,
+      duplicatePaymentMap,
+      idx + 1,
+      stats,
+      missingCounteragents
+    );
+
+    if (!result.case4_payment_id_matched) continue;
+
+    const accountCurrencyUuid = row.account_currency_uuid;
+    const accountCurrencyCode = accountCurrencyUuid ? currencyCache.get(accountCurrencyUuid) : null;
+    const nominalCurrencyUuid = result.nominal_currency_uuid || accountCurrencyUuid || null;
+    const transactionDate = row.transaction_date ? new Date(row.transaction_date) : null;
+    const nominalAmount =
+      transactionDate && accountCurrencyCode && nominalCurrencyUuid
+        ? calculateNominalAmount(
+            Number(row.account_currency_amount || 0),
+            accountCurrencyCode,
+            nominalCurrencyUuid,
+            transactionDate,
+            nbgRatesMap,
+            currencyCache
+          )
+        : Number(row.account_currency_amount || 0);
+
+    const caseDescription = computeCaseDescription(
+      result.case1_counteragent_processed,
+      false,
+      result.case3_counteragent_missing,
+      result.case4_payment_id_matched,
+      result.case5_payment_id_conflict,
+      result.case6_parsing_rule_applied,
+      result.case7_parsing_rule_conflict,
+      false,
+      result.applied_rule_id
+    );
+
+    updates.push({
+      id: Number(row.id),
+      counteragent_processed: result.case1_counteragent_processed,
+      parsing_rule_processed: result.case6_parsing_rule_applied,
+      payment_id_processed: result.case4_payment_id_matched,
+      is_processed: Boolean(
+        result.case1_counteragent_processed && result.case6_parsing_rule_applied && result.case4_payment_id_matched
+      ),
+      counteragent_inn: result.counteragent_inn,
+      applied_rule_id: result.applied_rule_id,
+      processing_case: caseDescription,
+      counteragent_uuid: result.counteragent_uuid,
+      counteragent_account_number: result.counteragent_account_number,
+      project_uuid: result.project_uuid,
+      financial_code_uuid: result.financial_code_uuid,
+      payment_id: result.payment_id,
+      nominal_currency_uuid: nominalCurrencyUuid,
+      nominal_amount: nominalAmount,
+    });
+  }
+
+  if (updates.length === 0) return 0;
+
+  const updateChunkSize = 20;
+  for (let i = 0; i < updates.length; i += updateChunkSize) {
+    const chunk = updates.slice(i, i + updateChunkSize);
+    const results = await Promise.all(
+      chunk.map((updateRow) => supabase.from(deconsolidatedTableName).update(updateRow).eq('id', updateRow.id))
+    );
+    for (const result of results) {
+      if (result.error) throw result.error;
+    }
+  }
+
+  return updates.length;
+}
+
 export async function processBOGGELDeconsolidated(
   xmlContent: string,
   accountUuid: string,
@@ -563,7 +698,7 @@ export async function processBOGGELDeconsolidated(
 
   const { data: accountData, error: accountError } = await supabase
     .from('bank_accounts')
-    .select('uuid, currency_uuid, parsing_scheme_uuid')
+    .select('uuid, account_number, raw_table_name, currency_uuid, parsing_scheme_uuid')
     .eq('uuid', accountUuid)
     .single();
 
@@ -609,10 +744,29 @@ export async function processBOGGELDeconsolidated(
   };
 
   const scheme = normalizeBogScheme(schemeData?.scheme, currencyCode);
-  const deconsolidatedTableName = resolveDeconsolidatedTableName(accountNumber, scheme);
+  const normalizedRawTableName = String(accountData.raw_table_name || '').trim();
+  const derivedTableName = resolveDeconsolidatedTableName(accountData.account_number || accountNumber, scheme);
+  const deconsolidatedTableName = normalizedRawTableName || derivedTableName;
+
+  const { error: tableProbeError } = await supabase
+    .from(deconsolidatedTableName)
+    .select('uuid')
+    .limit(1);
+
+  if (tableProbeError) {
+    if (tableProbeError.code === 'PGRST205' || tableProbeError.message?.includes('Could not find the table')) {
+      throw new Error(
+        `BOG account table configuration error: target table "${deconsolidatedTableName}" does not exist for account_uuid=${accountUuid}, account_number=${accountData.account_number || accountNumber}. Set bank_accounts.raw_table_name to an existing table or fix account metadata.`
+      );
+    }
+    throw tableProbeError;
+  }
 
   console.log(`📊 Bank Account UUID: ${bankAccountUuid}`);
   console.log(`💱 Account Currency UUID: ${accountCurrencyUuid}`);
+  if (normalizedRawTableName) {
+    console.log(`🧭 Using mapped raw table from bank_accounts.raw_table_name: ${normalizedRawTableName}`);
+  }
   console.log(`📋 Target Table: ${deconsolidatedTableName}\n`);
 
   const accountInfo = await identifyBOGGELAccount(xmlContent);
@@ -1262,6 +1416,20 @@ export async function processBOGGELDeconsolidated(
     }
 
     console.log(`✅ Inserted ${insertRecords.length} records\n`);
+
+    const reconciledCount = await reconcilePaymentMatchesForCurrentBatch(
+      supabase,
+      deconsolidatedTableName,
+      importBatchId,
+      counteragentsMap,
+      parsingRules,
+      nbgRatesMap,
+      currencyCache
+    );
+
+    if (reconciledCount > 0) {
+      console.log(`🔁 Reconciled ${reconciledCount} late payment match(es) in current batch\n`);
+    }
   } else {
     console.log('⚠️ No new records to insert\n');
   }
