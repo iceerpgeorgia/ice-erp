@@ -1,5 +1,29 @@
 # Deployment Log
 
+## 2026-06-16 Deployment #387 (Fix: Counteragent Payment Selection Caching)
+- Commit: b4ae5f0
+- Production: https://ice-o9enm8aff-iceerp.vercel.app
+- Summary: Fixed payment options caching bug in bank transactions edit dialog that caused colleagues to see incorrect payments when editing different counteragents.
+- Root Cause:
+  - `BankTransactionsTable` component maintained stale `paymentOptions` state across different transaction edits
+  - useEffect guard condition `if (paymentOptions.length > 0) return;` prevented re-filtering when switching counteragents
+  - Payment options weren't cleared when starting a new edit
+- Changes:
+  - `components/figma/bank-transactions-table.tsx`:
+    - Added `setPaymentOptions([])` in `startEdit()` function to clear cached options
+    - Removed guard clause that prevented re-filtering (`if (paymentOptions.length > 0) return;`)
+    - Fixed useEffect dependencies: now only depends on `[editingTransaction, isEditDialogOpen]`
+    - Added comment explaining why payment options must always be updated when transaction changes
+- Impact:
+  - ✅ Colleagues now see only payments for their current counteragent being edited
+  - ✅ No stale payment data pollution between editing sessions
+  - ✅ Works correctly across multiple browser sessions and sequential counteragent edits
+- Testing:
+  - ✅ TypeScript compilation: No errors
+  - ✅ ESLint: No new warnings
+  - ✅ Production build: Completed successfully
+- Status: ✅ Deployed
+
 ## 2026-07-16 Deployment #391 (Fix: Waybill Items Page Structure)
 - Commit: d4af309
 - Production: https://ice-4b0ykilb9-iceerp.vercel.app
