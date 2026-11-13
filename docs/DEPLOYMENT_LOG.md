@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-11-13 Deployment #414 (Fix: Strict UUID Payment Dropdown Scoping)
+- Commit: 5e55468
+- Deployed URL: https://ice-l6uregod9-iceerp.vercel.app
+- Production Alias: https://ice-erp.vercel.app
+- Deployment ID: dpl_2yS9M3YHTXQWy31cy2Rva7wxLm7L
+- Summary: Enforced strict payment-option scoping in bank-transaction edit dialogs so transactions with `counteragent_uuid` match payment options by UUID only and do not fall back to name matching.
+- Changes:
+  - `components/figma/bank-transactions-table.tsx`: `updatePaymentOptions` now normalizes IDs and applies UUID-only filtering when a transaction has `counteragentUuid`; name/all fallback remains only when UUID is missing.
+  - `AGENTS.md`: Added the "Payment ID Dropdown Scoping (Edit Dialog)" guardrail to prevent regressions.
+- Verification:
+  - ✅ `pnpm exec tsc --noEmit --pretty false` passed
+  - ✅ `pnpm lint` passed (warnings only)
+  - ✅ `pnpm build` passed
+  - ✅ `npx vercel inspect https://ice-l6uregod9-iceerp.vercel.app` shows `status=Ready`, `target=production`, alias `https://ice-erp.vercel.app`
+- Status: ✅ Deployed
+
 ## 2026-11-13 Deployment #413 (Fix: Counteragent Payment Selection + Alias Unification)
 - Commit: 3bd8cea
 - Deployed URL: https://ice-52blxuey7-iceerp.vercel.app
