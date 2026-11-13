@@ -475,26 +475,18 @@ export function BankTransactionsTable({
 
   const updatePaymentOptions = (transaction: BankTransaction, paymentsList: any[]) => {
     // If transaction has a counteragent, show only payments for that counteragent.
-    // Fall back to all payments only when no counteragent is assigned at all.
+    // Fall back to name/all only when no counteragent UUID is assigned at all.
     let payments = paymentsList;
-    const counteragentUuid = transaction.counteragentUuid?.toLowerCase() || '';
+    const normalize = (value: string | null | undefined) => String(value || '').trim().toLowerCase();
+    const counteragentUuid = normalize(transaction.counteragentUuid);
     const counteragentName = transaction.counteragentName?.toLowerCase() || '';
 
     if (counteragentUuid) {
-      const byUuid = paymentsList.filter((p: any) =>
-        String(p.counteragentUuid || '').toLowerCase() === counteragentUuid
+      // Strict UUID scoping: do not fall back to name when UUID exists,
+      // otherwise duplicate/mismatched names can leak unrelated payment IDs.
+      payments = paymentsList.filter((p: any) =>
+        normalize(p.counteragentUuid) === counteragentUuid
       );
-      if (byUuid.length > 0) {
-        payments = byUuid;
-      } else if (counteragentName) {
-        // Name match fallback is safe only when the transaction has a non-empty counteragent name.
-        payments = paymentsList.filter((p: any) =>
-          String(p.counteragentName || '').toLowerCase() === counteragentName
-        );
-      } else {
-        // UUID exists but does not resolve to any payment; keep scoped list empty.
-        payments = [];
-      }
     } else if (!counteragentName) {
       // No counteragent at all: show everything
       payments = paymentsList;

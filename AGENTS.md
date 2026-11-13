@@ -237,6 +237,13 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
 
+## Counteragent Statement Rendering Fallbacks
+- `GET /api/counteragent-statement` enriches bank rows with project and financial-code metadata from two sources:
+  1. payment-linked metadata (`payments` / `salary_accruals`) by `payment_id`
+  2. raw/batch transaction UUID links (`project_uuid`, `financial_code_uuid`) via joins to `projects` and `financial_codes`
+- UI fields `project` and `financialCode` must fall back to raw/batch-derived metadata when payment-linked metadata is missing, so recovered or legacy payment IDs still render project/financial-code columns.
+- The payment metadata lookup must not require `payments.is_active = true`; historical/inactive payments are still valid for statement rendering.
+
 ## Bank Transactions Data Architecture
 
 **PRIMARY DATA SOURCE**: Raw bank account tables (e.g., `GE65TB7856036050100002_TBC_GEL`, `GE78BG0000000893486000_BOG_GEL`, etc.) are the **active** source of truth for all bank transactions.
@@ -249,6 +256,11 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Returns `raw_record_uuid` from the source raw table
 - Batch transactions are resolved from `bank_transaction_batches` table
 - When adding a new bank account raw table, update `app/api/bank-transactions/route.ts` (`SOURCE_TABLES`) and `app/api/bank-transactions/[id]/route.ts` (allowed tables + synthetic offset resolver). Also mirror the table in `app/api/bank-transactions/raw-record/[uuid]/route.ts` and `app/api/bank-transactions/parsing-lock/{route.ts,[id]/route.ts}` allowlists. Missing any of these can cause edit dialogs/raw view/parsing-lock actions to hit the wrong table and show "Unknown" counteragent payments.
+
+### Payment ID Dropdown Scoping (Edit Dialog)
+- In bank transaction edit dialogs, when a transaction has `counteragent_uuid`, payment options must be filtered by UUID only.
+- Do **not** fall back to counteragent-name matching when UUID exists; name fallback is allowed only when UUID is missing.
+- Rationale: duplicate/stale counteragent names can leak unrelated payment IDs into the dropdown, especially for newly added raw bank tables.
 
 ### Job Distribution Linkage
 - `payments_jobs` table links distributions to bank transactions via `raw_record_uuid` or `batch_partition_uuid`
