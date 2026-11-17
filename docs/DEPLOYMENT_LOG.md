@@ -5301,3 +5301,10 @@
   - AGENTS.md: documented Jobs listing insider source and self-heal behavior.
 - Commit: 489842e
 - Production: https://ice-7bxt4qlhi-iceerp.vercel.app
+
+## 2026-11-17
+- Summary: Hotfix jobs API runtime failure from insider self-heal UUID aggregation.
+- Changes:
+  - app/api/jobs/route.ts: changed insider self-heal aggregate from `MIN(uuid)` to `MIN(insider_uuid::text)::uuid` to avoid runtime query failure and restore jobs page rendering.
+- Commit: 8738daa
+- Production: https://ice-9mtlnrs23-iceerp.vercel.app
