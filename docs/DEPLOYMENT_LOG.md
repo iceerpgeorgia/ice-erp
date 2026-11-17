@@ -5273,3 +5273,13 @@
   - AGENTS.md: documented cross-endpoint table mirroring requirement when adding bank account tables.
 - Commit: 59ad826
 - Production: https://ice-5n8ehs5vf-iceerp.vercel.app
+
+## 2026-11-17
+- Summary: Enforce strict insider derivation for jobs from bound project insider values.
+- Changes:
+  - app/api/jobs/route.ts: derive `jobs.insider_uuid` from selected project bindings; reject mixed-insider bindings; sync insider on bulk bind.
+  - app/api/job-projects/route.ts: sync job insider from bound projects and reject cross-insider inconsistencies.
+  - app/api/projects/route.ts: block project insider changes that would create cross-insider job bindings and propagate insider to bound jobs when valid.
+  - AGENTS.md: documented Jobs Insider Derivation Rule and conflict behavior.
+- Commit: 4775f03
+- Production: https://ice-pj08gl4nj-iceerp.vercel.app
