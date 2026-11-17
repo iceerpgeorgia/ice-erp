@@ -391,20 +391,37 @@ export function PaymentAttachments({
 
     setUploading(true);
     try {
+      const normalizedDocumentDate = (() => {
+        if (!documentDate) return undefined;
+        const m = documentDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        return m ? `${m[3]}-${m[2]}-${m[1]}` : documentDate;
+      })();
+      const targetProjectUuid = selectedProject || paymentProjectUuid || undefined;
+      const uploadBasePayload = {
+        fileName: selectedFile.name,
+        documentTypeUuid: selectedDocumentType,
+        documentDate: normalizedDocumentDate,
+        documentNo: documentNo || undefined,
+      };
+
+      const isProjectTarget = attachTarget === 'project';
+
       // Step 1: Get signed upload URL
-      const uploadUrlResponse = await fetch('/api/payments/attachments/upload', {
+      const uploadUrlResponse = await fetch(
+        isProjectTarget ? '/api/projects/attachments/upload' : '/api/payments/attachments/upload',
+        {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paymentId,
-          fileName: selectedFile.name,
-          documentTypeUuid: selectedDocumentType,
-          documentDate: (() => { if (!documentDate) return undefined; const m = documentDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : documentDate; })(),
-          documentNo: documentNo || undefined,
+          ...(isProjectTarget ? { projectUuid: targetProjectUuid } : { paymentId }),
+          ...uploadBasePayload,
         }),
       });
 
       const uploadData = await uploadUrlResponse.json();
+      if (!uploadUrlResponse.ok) {
+        throw new Error(uploadData?.error || 'Failed to create upload URL');
+      }
 
       // Step 2: Upload file to Supabase Storage
       const uploadResponse = await fetch(uploadData.signedUrl, {
@@ -420,19 +437,24 @@ export function PaymentAttachments({
       }
 
       // Step 3: Confirm upload and create database records
-      const confirmResponse = await fetch('/api/payments/attachments/confirm', {
+      const confirmResponse = await fetch(
+        isProjectTarget ? '/api/projects/attachments/confirm' : '/api/payments/attachments/confirm',
+        {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paymentId,
+          ...(isProjectTarget
+            ? { projectUuid: targetProjectUuid }
+            : { paymentId }),
           storagePath: uploadData.path,
           storageBucket: uploadData.bucket,
           fileName: selectedFile.name,
           mimeType: selectedFile.type,
           fileSizeBytes: selectedFile.size,
           documentTypeUuid: selectedDocumentType,
-          documentDate: (() => { if (!documentDate) return undefined; const m = documentDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : documentDate; })(),
+          documentDate: normalizedDocumentDate,
           documentNo: documentNo || undefined,
+          ...(isProjectTarget ? {} : { linkedProjectUuid: targetProjectUuid }),
         }),
       });
 
@@ -458,7 +480,7 @@ export function PaymentAttachments({
       setInnMismatch(null);
       setExtractedInn(null);
       // If the attachment has a value, offer to create a ledger entry
-      if (uploadedValue > 0) {
+      if (!isProjectTarget && uploadedValue > 0) {
         const docTypeName = documentTypes.find(d => d.uuid === selectedDocumentType)?.name || '';
         const docNo = documentNo.trim();
         const comment = [docTypeName, docNo].filter(Boolean).join(' ');

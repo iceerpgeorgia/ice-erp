@@ -237,6 +237,11 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
 
+## Payments Report Attachment Targeting
+- In the payments report attachment dialog (`PaymentAttachments`), **Attach to Project** must call project attachment APIs (`/api/projects/attachments/upload` + `/api/projects/attachments/confirm`) so links are created under `owner_table='projects'` only.
+- **Attach to Payment** must keep using payment attachment APIs and may add an optional secondary project link via `linkedProjectUuid`.
+- Ledger auto-create prompt applies to payment-target uploads only; project-target uploads must not create ledger entries automatically.
+
 ## Bank Transactions Data Architecture
 
 **PRIMARY DATA SOURCE**: Raw bank account tables (e.g., `GE65TB7856036050100002_TBC_GEL`, `GE78BG0000000893486000_BOG_GEL`, etc.) are the **active** source of truth for all bank transactions.
