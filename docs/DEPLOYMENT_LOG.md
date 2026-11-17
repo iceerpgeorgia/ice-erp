@@ -5295,3 +5295,12 @@
   - components/financial-codes-table.tsx: added isBundle type, normalization, Bundle column header/cell, colSpan 11, form state, and Bundle checkbox in dialog.
 - Commit: 6f2529e
 - Production: https://ice-n0mycykqe-iceerp.vercel.app
+
+## 2026-11-17
+- Summary: Roll back jobs page regression to previous stable behavior.
+- Changes:
+  - app/api/jobs/route.ts: restored jobs API behavior from pre-regression baseline (deployment #414 state), including job-level insider reads/writes used by the existing UI flow.
+  - prisma/schema.prisma: restored `jobs.insider_uuid` field and index to match deployed database/runtime behavior.
+  - AGENTS.md: reverted project-insider-only rule block so repository guidance matches the rolled-back runtime behavior.
+- Commit: 67be318
+- Production: https://ice-al3i7r2c8-iceerp.vercel.app
