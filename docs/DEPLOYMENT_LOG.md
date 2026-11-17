@@ -5247,3 +5247,11 @@
   - components/financial-codes-table.tsx: added isBundle type, normalization, Bundle column header/cell, colSpan 11, form state, and Bundle checkbox in dialog.
 - Commit: 6f2529e
 - Production: https://ice-n0mycykqe-iceerp.vercel.app
+
+## 2026-11-17
+- Summary: Fix payments report "Attach to Project" uploads to route to project attachments instead of payment attachments.
+- Changes:
+  - components/figma/payment-attachments.tsx: route upload/confirm calls by selected target (project vs payment), add upload response error check, and keep ledger prompt payment-target only.
+  - AGENTS.md: documented payments-report attachment targeting rules.
+- Commit: 1330005
+- Production: https://ice-erp-promoted-1lsxhya39-iceerp.vercel.app
