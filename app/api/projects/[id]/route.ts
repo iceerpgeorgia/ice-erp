@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { getInsiderOptions, resolveInsiderSelection } from '@/lib/insider-selection';
 
 // PUT update project
 export async function PUT(
@@ -23,8 +24,20 @@ export async function PUT(
       financialCodeUuid,
       currencyUuid,
       stateUuid,
+      insiderUuid,
+      insider_uuid,
       employees // Array of employee UUIDs
     } = body;
+    const selection = await resolveInsiderSelection(req);
+    const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json(
+        { error: 'Selected insider is invalid' },
+        { status: 400 }
+      );
+    }
 
     // Validation
     if (projectName && !/^[a-zA-Z0-9\s]+$/.test(projectName)) {
@@ -41,6 +54,41 @@ export async function PUT(
       );
     }
 
+    const currentProjectRows = await prisma.$queryRawUnsafe<Array<{ project_uuid: string; insider_uuid: string | null }>>(
+      `SELECT project_uuid, insider_uuid::text FROM projects WHERE id = $1 LIMIT 1`,
+      id
+    );
+    if (!currentProjectRows.length) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+    const currentProject = currentProjectRows[0];
+    const targetInsiderUuid = requestedInsiderUuid || currentProject.insider_uuid || selection.primaryInsider?.insiderUuid || null;
+    if (!targetInsiderUuid) {
+      return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
+    }
+
+    const crossInsiderJobs = await prisma.$queryRawUnsafe<Array<{ job_uuid: string }>>(
+      `SELECT DISTINCT jp.job_uuid::text AS job_uuid
+       FROM job_projects jp
+       INNER JOIN job_projects jp2 ON jp2.job_uuid = jp.job_uuid
+       INNER JOIN projects p2 ON p2.project_uuid = jp2.project_uuid
+       WHERE jp.project_uuid = $1::uuid
+         AND jp2.project_uuid <> $1::uuid
+         AND COALESCE(p2.insider_uuid::text, '') <> COALESCE($2::text, '')
+       LIMIT 25`,
+      currentProject.project_uuid,
+      targetInsiderUuid
+    );
+    if (crossInsiderJobs.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Cannot set project insider: linked jobs are also bound to projects with different insiders.',
+          conflictingJobs: crossInsiderJobs.map((row) => row.job_uuid),
+        },
+        { status: 409 }
+      );
+    }
+
     // Update project
     await prisma.$queryRaw`
       UPDATE projects
@@ -53,9 +101,21 @@ export async function PUT(
         financial_code_uuid = ${financialCodeUuid}::uuid,
         currency_uuid = ${currencyUuid}::uuid,
         state_uuid = ${stateUuid}::uuid,
+        insider_uuid = ${targetInsiderUuid}::uuid,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE jobs j
+       SET insider_uuid = $2::uuid,
+           updated_at = CURRENT_TIMESTAMP
+       FROM job_projects jp
+       WHERE jp.project_uuid = $1::uuid
+         AND jp.job_uuid = j.job_uuid`,
+      currentProject.project_uuid,
+      targetInsiderUuid
+    );
 
     // Update employees: delete all and re-insert
     if (employees && Array.isArray(employees)) {

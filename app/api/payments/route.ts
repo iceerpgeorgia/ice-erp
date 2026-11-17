@@ -6,6 +6,42 @@ import { sendPaymentNotifications } from '@/lib/payment-notifications';
 
 export const revalidate = 0;
 
+async function enforceJobInsiderFromProject(jobUuid: string, projectUuid: string) {
+  const projectRows = await prisma.$queryRawUnsafe<Array<{ insider_uuid: string | null }>>(
+    `SELECT insider_uuid::text AS insider_uuid FROM projects WHERE project_uuid = $1::uuid LIMIT 1`,
+    projectUuid
+  );
+  const projectInsiderUuid = (projectRows[0]?.insider_uuid || '').trim();
+  if (!projectInsiderUuid) {
+    throw new Error('Project insider is not set');
+  }
+
+  const existingInsiderRows = await prisma.$queryRawUnsafe<Array<{ insider_uuid: string | null }>>(
+    `SELECT DISTINCT p.insider_uuid::text AS insider_uuid
+     FROM job_projects jp
+     INNER JOIN projects p ON p.project_uuid = jp.project_uuid
+     WHERE jp.job_uuid = $1::uuid`,
+    jobUuid
+  );
+  const existingInsiders = Array.from(
+    new Set(existingInsiderRows.map((row) => (row.insider_uuid || '').trim()).filter(Boolean))
+  );
+  if (existingInsiders.some((insider) => insider.toLowerCase() !== projectInsiderUuid.toLowerCase())) {
+    throw new Error('Job is already bound to project(s) of another insider');
+  }
+
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
+    jobUuid,
+    projectUuid
+  );
+  await prisma.$executeRawUnsafe(
+    `UPDATE jobs SET insider_uuid = $1::uuid, updated_at = CURRENT_TIMESTAMP WHERE job_uuid = $2::uuid`,
+    projectInsiderUuid,
+    jobUuid
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(request);
@@ -271,17 +307,16 @@ export async function POST(request: NextRequest) {
       id: Number((payment as any).id),
     };
 
-    // Auto-bind job_projects if both job_uuid and project_uuid provided
+    // Auto-bind job_projects if both job_uuid and project_uuid provided.
+    // Insider is derived strictly from project insider.
     if (jobUuid && projectUuid) {
       try {
-        await prisma.$executeRawUnsafe(
-          `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
-          jobUuid,
-          projectUuid
-        );
+        await enforceJobInsiderFromProject(jobUuid, projectUuid);
       } catch (bindError: any) {
-        // Log but don't fail - binding is secondary to payment creation
-        console.warn('[Payments] Failed to create job_projects binding:', bindError?.message);
+        return NextResponse.json(
+          { error: `Job/project insider conflict: ${bindError?.message || 'Unable to bind job to project'}` },
+          { status: 409 }
+        );
       }
     }
 
@@ -577,17 +612,16 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Auto-bind job_projects if both job_uuid and project_uuid are set
+    // Auto-bind job_projects if both job_uuid and project_uuid are set.
+    // Insider is derived strictly from project insider.
     if (nextJobUuid && nextProjectUuid) {
       try {
-        await prisma.$executeRawUnsafe(
-          `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
-          nextJobUuid,
-          nextProjectUuid
-        );
+        await enforceJobInsiderFromProject(nextJobUuid, nextProjectUuid);
       } catch (bindError: any) {
-        // Log but don't fail - binding is secondary to payment update
-        console.warn('[Payments] Failed to create job_projects binding:', bindError?.message);
+        return NextResponse.json(
+          { error: `Job/project insider conflict: ${bindError?.message || 'Unable to bind job to project'}` },
+          { status: 409 }
+        );
       }
     }
 

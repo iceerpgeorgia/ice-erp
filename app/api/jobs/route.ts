@@ -46,6 +46,24 @@ export async function GET(req: NextRequest) {
     // currently active in the user's cookie selection.
     if (projectUuid) {
       console.log('[GET /api/jobs] Fetching jobs for project:', projectUuid);
+      await prisma.$executeRawUnsafe(
+        `UPDATE jobs j
+         SET insider_uuid = p.insider_uuid,
+             updated_at = CURRENT_TIMESTAMP
+         FROM job_projects jp
+         INNER JOIN projects p ON p.project_uuid = jp.project_uuid
+         WHERE jp.project_uuid = $1::uuid
+           AND jp.job_uuid = j.job_uuid
+           AND NOT EXISTS (
+             SELECT 1
+             FROM job_projects jp_other
+             INNER JOIN projects p_other ON p_other.project_uuid = jp_other.project_uuid
+             WHERE jp_other.job_uuid = j.job_uuid
+               AND COALESCE(p_other.insider_uuid::text, '') <> COALESCE(p.insider_uuid::text, '')
+           )`,
+        projectUuid
+      );
+
       const jobs = await withRetry(() => prisma.$queryRawUnsafe(`
         SELECT 
           j.id,
