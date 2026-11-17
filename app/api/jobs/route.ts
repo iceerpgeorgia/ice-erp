@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
           j.service_state,
           j.brand_uuid,
           p.insider_uuid as project_insider_uuid,
+          COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, p.insider_uuid::text) as project_insider_name,
           b.name as brand_name,
           CONCAT(
             j.job_name,
@@ -92,6 +93,7 @@ export async function GET(req: NextRequest) {
         INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
         LEFT JOIN brands b ON j.brand_uuid = b.uuid
         LEFT JOIN projects p ON jp.project_uuid = p.project_uuid
+        LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
         WHERE jp.project_uuid = $1::uuid
           AND j.is_active = true
         ORDER BY j.job_name ASC
@@ -111,7 +113,7 @@ export async function GET(req: NextRequest) {
         brandName: job.brand_name,
         jobDisplay: job.job_display,
         insiderUuid: job.project_insider_uuid || null,
-        insiderName: null,
+        insiderName: job.project_insider_name || null,
       }));
 
       return NextResponse.json(serialized);
@@ -120,6 +122,22 @@ export async function GET(req: NextRequest) {
     const selection = await resolveInsiderSelection(req);
     const insider = selection.primaryInsider;
     const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
+
+    // Self-heal: if a job is bound only to projects of one insider, force jobs.insider_uuid to that insider.
+    await prisma.$executeRawUnsafe(`
+      UPDATE jobs j
+      SET insider_uuid = src.insider_uuid,
+          updated_at = CURRENT_TIMESTAMP
+      FROM (
+        SELECT jp.job_uuid, MIN(p.insider_uuid)::uuid as insider_uuid
+        FROM job_projects jp
+        INNER JOIN projects p ON p.project_uuid = jp.project_uuid
+        GROUP BY jp.job_uuid
+        HAVING COUNT(DISTINCT p.insider_uuid) = 1
+      ) src
+      WHERE src.job_uuid = j.job_uuid
+        AND j.insider_uuid IS DISTINCT FROM src.insider_uuid
+    `);
 
     // Full listing: one row per job-project binding
     const jobs = await withRetry(() => prisma.$queryRawUnsafe(`
@@ -141,6 +159,7 @@ export async function GET(req: NextRequest) {
         b.name as brand_name,
         jp.project_uuid as bound_project_uuid,
         p.insider_uuid as bound_project_insider_uuid,
+        COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, p.insider_uuid::text) as bound_project_insider_name,
         p.project_index as bound_project_index,
         p.project_name as bound_project_name,
         -- Computed job_index using this row's project
@@ -165,6 +184,7 @@ export async function GET(req: NextRequest) {
       INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
       LEFT JOIN projects p ON jp.project_uuid = p.project_uuid
       LEFT JOIN brands b ON j.brand_uuid = b.uuid
+      LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
       WHERE p.insider_uuid IN (${insiderUuidListSql})
         AND j.is_active = true
       ORDER BY j.created_at DESC, p.project_index ASC
@@ -191,7 +211,7 @@ export async function GET(req: NextRequest) {
       createdAt: job.created_at,
       updatedAt: job.updated_at,
       insider_uuid: job.bound_project_insider_uuid ?? job.job_insider_uuid ?? insider?.insiderUuid ?? null,
-      insider_name: insider?.insiderName ?? null,
+      insider_name: job.bound_project_insider_name ?? insider?.insiderName ?? null,
       _rowKey: `${job.job_uuid}_${job.bound_project_uuid || idx}`,
     }));
 
