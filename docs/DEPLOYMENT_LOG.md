@@ -5304,3 +5304,10 @@
   - AGENTS.md: reverted project-insider-only rule block so repository guidance matches the rolled-back runtime behavior.
 - Commit: 67be318
 - Production: https://ice-al3i7r2c8-iceerp.vercel.app
+
+## 2026-11-18
+- Summary: Fix salary accrual month filter returning only 2 rows for Oct 2026.
+- Changes:
+  - components/figma/salary-accruals-table.tsx: normalized `salary_month` values to `YYYY-MM-01` during accrual normalization so month facet filtering matches both date-only and ISO timestamp values consistently.
+- Commit: 4de7572
+- Production: https://ice-33vh78izf-iceerp.vercel.app
