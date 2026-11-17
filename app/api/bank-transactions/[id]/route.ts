@@ -21,6 +21,7 @@ const ALLOWED_TABLES = new Set([
   "GE39TB7856036150100001_TBC_EUR",
   "GE79TB7856045067800004_TBC_GEL",
   "GE52TB7856045067800005_TBC_GEL",
+  "GE21BG0000000611354669_BOG_GEL",
 ]);
 type AllowedTable =
   | "GE78BG0000000893486000_BOG_GEL"
@@ -36,7 +37,8 @@ type AllowedTable =
   | "GE39TB7856036150100001_TBC_USD"
   | "GE39TB7856036150100001_TBC_EUR"
   | "GE79TB7856045067800004_TBC_GEL"
-  | "GE52TB7856045067800005_TBC_GEL";
+  | "GE52TB7856045067800005_TBC_GEL"
+  | "GE21BG0000000611354669_BOG_GEL";
 
 const BOG_USD_2_OFFSET = 300000000000n;
 const BOG_USD_OFFSET = 500000000000n;
@@ -51,6 +53,7 @@ const TBC_USD_OFFSET = 1010000000000n;
 const TBC_EUR_OFFSET = 1020000000000n;
 const TBC_GEL_2_OFFSET = 1030000000000n;
 const TBC_GEL_3_OFFSET = 1040000000000n;
+const BOG_GEL_2_OFFSET = 1050000000000n;
 const BATCH_OFFSET = 2000000000000n;
 
 const normalizeDateToISO = (value?: string | null): string | null => {
@@ -84,6 +87,9 @@ function resolveSyntheticId(rawId: bigint): { tableName: AllowedTable; recordId:
   if (rawId < 0n) return null;
   if (rawId >= BATCH_OFFSET) {
     const adjusted = rawId - BATCH_OFFSET;
+    if (adjusted >= BOG_GEL_2_OFFSET) {
+      return { tableName: "GE21BG0000000611354669_BOG_GEL", recordId: adjusted - BOG_GEL_2_OFFSET, isBatch: true };
+    }
     if (adjusted >= TBC_GEL_3_OFFSET) {
       return { tableName: "GE52TB7856045067800005_TBC_GEL", recordId: adjusted - TBC_GEL_3_OFFSET, isBatch: true };
     }
@@ -124,6 +130,9 @@ function resolveSyntheticId(rawId: bigint): { tableName: AllowedTable; recordId:
       return { tableName: "GE74BG0000000586388146_BOG_USD", recordId: adjusted - BOG_USD_2_OFFSET, isBatch: true };
     }
     return { tableName: "GE78BG0000000893486000_BOG_GEL", recordId: adjusted, isBatch: true };
+  }
+  if (rawId >= BOG_GEL_2_OFFSET) {
+    return { tableName: "GE21BG0000000611354669_BOG_GEL", recordId: rawId - BOG_GEL_2_OFFSET, isBatch: false };
   }
   if (rawId >= TBC_GEL_3_OFFSET) {
     return { tableName: "GE52TB7856045067800005_TBC_GEL", recordId: rawId - TBC_GEL_3_OFFSET, isBatch: false };

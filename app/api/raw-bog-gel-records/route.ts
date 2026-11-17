@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         entrydbamt,
         entrycramt,
         docinformation,
-        bank_account_uuid
+        NULL::uuid as bank_account_uuid
       FROM bog_gel_raw_893486000
       WHERE is_processed = false
       ORDER BY docvaluedate DESC

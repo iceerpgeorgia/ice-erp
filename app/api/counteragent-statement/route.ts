@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
                counteragent_account_number,
                description,
                created_at,
-               bank_account_uuid,
+               (SELECT ba.uuid FROM bank_accounts ba WHERE ba.raw_table_name = '${table.name}' LIMIT 1)::uuid as bank_account_uuid,
                account_currency_uuid,
                nominal_currency_uuid,
                counteragent_uuid,

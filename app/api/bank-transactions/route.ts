@@ -77,6 +77,11 @@ const SOURCE_TABLES = [
     offset: 1040000000000,
     isTbc: true,
   },
+  {
+    name: "GE21BG0000000611354669_BOG_GEL",
+    offset: 1050000000000,
+    isTbc: false,
+  },
 ];
 
 const BATCH_OFFSET = 2000000000000;
@@ -87,6 +92,7 @@ const isBatchPaymentId = (value?: string | null) =>
 
 const UNION_SQL = SOURCE_TABLES.map((table) => {
   const baseAlias = table.isTbc ? 't' : 'cba';
+  const bankAccountUuidSelect = `(SELECT ba.uuid FROM bank_accounts ba WHERE ba.raw_table_name = '${table.name}' LIMIT 1)::uuid as bank_account_uuid`;
   const conversionSelect = table.isTbc
     ? 'NULL::uuid as conversion_id'
     : `${baseAlias}.conversion_id`;
@@ -95,7 +101,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
   const baseSelect = `SELECT
       ${baseAlias}.id,
       ${baseAlias}.uuid,
-      ${baseAlias}.bank_account_uuid,
+      ${bankAccountUuidSelect},
       ${baseAlias}.raw_record_uuid,
       ${baseAlias}.dockey,
       ${baseAlias}.entriesid,
@@ -144,7 +150,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
   const batchSelect = `SELECT
       ${baseAlias}.id,
       ${baseAlias}.uuid,
-      ${baseAlias}.bank_account_uuid,
+      ${bankAccountUuidSelect},
       ${baseAlias}.raw_record_uuid,
       ${baseAlias}.dockey,
       ${baseAlias}.entriesid,
