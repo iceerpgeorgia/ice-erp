@@ -5283,3 +5283,13 @@
   - AGENTS.md: documented Jobs Insider Derivation Rule and conflict behavior.
 - Commit: 4775f03
 - Production: https://ice-pj08gl4nj-iceerp.vercel.app
+
+## 2026-11-17
+- Summary: Close remaining insider-drift bypass paths and enforce project-derived job insider in all update/bind routes.
+- Changes:
+  - app/api/projects/[id]/route.ts: added insider update validation, cross-insider conflict blocking, and bound-job insider propagation.
+  - app/api/payments/route.ts: payment auto-bind now enforces project/job insider compatibility and updates job insider from project insider; conflicts return 409.
+  - app/api/jobs/route.ts: added safe project-scoped self-heal update to align job insider with project insider when no cross-insider conflict exists.
+  - AGENTS.md: documented enforcement coverage across `/api/projects`, `/api/projects/[id]`, and `/api/payments`.
+- Commit: f28760c
+- Production: https://ice-3lfm7b562-iceerp.vercel.app
