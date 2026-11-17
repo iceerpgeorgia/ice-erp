@@ -35,11 +35,6 @@ async function enforceJobInsiderFromProject(jobUuid: string, projectUuid: string
     jobUuid,
     projectUuid
   );
-  await prisma.$executeRawUnsafe(
-    `UPDATE jobs SET insider_uuid = $1::uuid, updated_at = CURRENT_TIMESTAMP WHERE job_uuid = $2::uuid`,
-    projectInsiderUuid,
-    jobUuid
-  );
 }
 
 export async function GET(request: NextRequest) {

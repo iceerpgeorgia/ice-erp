@@ -106,17 +106,6 @@ export async function PUT(
       WHERE id = ${id}
     `;
 
-    await prisma.$executeRawUnsafe(
-      `UPDATE jobs j
-       SET insider_uuid = $2::uuid,
-           updated_at = CURRENT_TIMESTAMP
-       FROM job_projects jp
-       WHERE jp.project_uuid = $1::uuid
-         AND jp.job_uuid = j.job_uuid`,
-      currentProject.project_uuid,
-      targetInsiderUuid
-    );
-
     // Update employees: delete all and re-insert
     if (employees && Array.isArray(employees)) {
       // Delete existing

@@ -786,17 +786,6 @@ export async function PATCH(req: NextRequest) {
 
     const project: any = Array.isArray(result) ? result[0] : result;
 
-    await prisma.$executeRawUnsafe(
-      `UPDATE jobs j
-       SET insider_uuid = $2::uuid,
-           updated_at = NOW()
-       FROM job_projects jp
-       WHERE jp.project_uuid = $1::uuid
-         AND jp.job_uuid = j.job_uuid`,
-      project.project_uuid,
-      project.insider_uuid
-    );
-
     // If value changed, proportionally scale auto-managed payment ledger entries for this project.
     // Primary selector: payments flagged is_project_derived / is_bundle_payment.
     // Legacy fallback (to preserve older behavior): include the project FC payment and bundle-child FC payments

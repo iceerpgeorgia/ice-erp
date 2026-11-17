@@ -46,24 +46,6 @@ export async function GET(req: NextRequest) {
     // currently active in the user's cookie selection.
     if (projectUuid) {
       console.log('[GET /api/jobs] Fetching jobs for project:', projectUuid);
-      await prisma.$executeRawUnsafe(
-        `UPDATE jobs j
-         SET insider_uuid = p.insider_uuid,
-             updated_at = CURRENT_TIMESTAMP
-         FROM job_projects jp
-         INNER JOIN projects p ON p.project_uuid = jp.project_uuid
-         WHERE jp.project_uuid = $1::uuid
-           AND jp.job_uuid = j.job_uuid
-           AND NOT EXISTS (
-             SELECT 1
-             FROM job_projects jp_other
-             INNER JOIN projects p_other ON p_other.project_uuid = jp_other.project_uuid
-             WHERE jp_other.job_uuid = j.job_uuid
-               AND COALESCE(p_other.insider_uuid::text, '') <> COALESCE(p.insider_uuid::text, '')
-           )`,
-        projectUuid
-      );
-
       const jobs = await withRetry(() => prisma.$queryRawUnsafe(`
         SELECT 
           j.id,
@@ -120,24 +102,7 @@ export async function GET(req: NextRequest) {
     }
 
     const selection = await resolveInsiderSelection(req);
-    const insider = selection.primaryInsider;
     const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
-
-    // Self-heal: if a job is bound only to projects of one insider, force jobs.insider_uuid to that insider.
-    await prisma.$executeRawUnsafe(`
-      UPDATE jobs j
-      SET insider_uuid = src.insider_uuid,
-          updated_at = CURRENT_TIMESTAMP
-      FROM (
-        SELECT jp.job_uuid, MIN(p.insider_uuid::text)::uuid as insider_uuid
-        FROM job_projects jp
-        INNER JOIN projects p ON p.project_uuid = jp.project_uuid
-        GROUP BY jp.job_uuid
-        HAVING COUNT(DISTINCT p.insider_uuid) = 1
-      ) src
-      WHERE src.job_uuid = j.job_uuid
-        AND j.insider_uuid IS DISTINCT FROM src.insider_uuid
-    `);
 
     // Full listing: one row per job-project binding
     const jobs = await withRetry(() => prisma.$queryRawUnsafe(`
@@ -155,7 +120,6 @@ export async function GET(req: NextRequest) {
         j.is_active,
         j.created_at,
         j.updated_at,
-        j.insider_uuid as job_insider_uuid,
         b.name as brand_name,
         jp.project_uuid as bound_project_uuid,
         p.insider_uuid as bound_project_insider_uuid,
@@ -210,8 +174,8 @@ export async function GET(req: NextRequest) {
       is_active: job.is_active,
       createdAt: job.created_at,
       updatedAt: job.updated_at,
-      insider_uuid: job.bound_project_insider_uuid ?? job.job_insider_uuid ?? insider?.insiderUuid ?? null,
-      insider_name: job.bound_project_insider_name ?? insider?.insiderName ?? null,
+      insider_uuid: job.bound_project_insider_uuid ?? null,
+      insider_name: job.bound_project_insider_name ?? null,
       _rowKey: `${job.job_uuid}_${job.bound_project_uuid || idx}`,
     }));
 
@@ -251,8 +215,6 @@ export async function POST(req: NextRequest) {
     if ('error' in insiderResolution) {
       return NextResponse.json({ error: insiderResolution.error }, { status: insiderResolution.status });
     }
-    const effectiveInsiderUuid = insiderResolution.insiderUuid;
-
     // Check if job with same name already exists for this insider+brand+project
     // Job names (L0001, L0002...) are per-project, so we must also check
     // that an existing job is already bound to one of the target projects
@@ -261,12 +223,11 @@ export async function POST(req: NextRequest) {
       FROM jobs j
       INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
       WHERE lower(j.job_name) = lower($1)
-        AND j.insider_uuid = $2::uuid
-        AND COALESCE(j.brand_uuid::text, '') = COALESCE($3::text, '')
+        AND COALESCE(j.brand_uuid::text, '') = COALESCE($2::text, '')
         AND j.is_active = true
-        AND jp.project_uuid = ANY($4::uuid[])
+        AND jp.project_uuid = ANY($3::uuid[])
       LIMIT 1
-    `, jobName, effectiveInsiderUuid, brandUuid || '', targetProjectUuids) as any[];
+    `, jobName, brandUuid || '', targetProjectUuids) as any[];
 
     let jobId: number;
     let jobUuidValue: string;
@@ -278,8 +239,8 @@ export async function POST(req: NextRequest) {
     } else {
       // Create single job row (no project_uuid on jobs table)
       const result = await prisma.$queryRaw`
-        INSERT INTO jobs (job_name, floors, weight, is_ff, factory_no, selling_price, service_state, brand_uuid, insider_uuid)
-        VALUES (${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${normalizedFactoryNo}, ${normalizedSellingPrice}, ${serviceState || 'Active'}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
+        INSERT INTO jobs (job_name, floors, weight, is_ff, factory_no, selling_price, service_state, brand_uuid)
+        VALUES (${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${normalizedFactoryNo}, ${normalizedSellingPrice}, ${serviceState || 'Active'}, ${brandUuid}::uuid)
         RETURNING id, job_uuid
       ` as any[];
 
@@ -358,8 +319,6 @@ export async function PUT(req: NextRequest) {
     if ('error' in insiderResolution) {
       return NextResponse.json({ error: insiderResolution.error }, { status: insiderResolution.status });
     }
-    const effectiveInsiderUuid = insiderResolution.insiderUuid;
-
     // Get the current job's UUID
     const currentJob = await prisma.$queryRaw`
       SELECT job_uuid FROM jobs WHERE id = ${id} LIMIT 1
@@ -381,7 +340,6 @@ export async function PUT(req: NextRequest) {
         selling_price = ${normalizedSellingPrice},
         service_state = ${serviceState || 'Active'},
         brand_uuid = ${brandUuid}::uuid,
-        insider_uuid = ${effectiveInsiderUuid}::uuid,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
@@ -533,11 +491,6 @@ export async function PATCH(req: NextRequest) {
         );
         inserted += result;
       }
-      await prisma.$executeRawUnsafe(
-        `UPDATE jobs SET insider_uuid = $1::uuid, updated_at = CURRENT_TIMESTAMP WHERE job_uuid = $2::uuid`,
-        projectInsiderUuid,
-        jobUuid
-      );
     }
 
     return NextResponse.json({ success: true, inserted, total: jobUuids.length * projectUuids.length });
