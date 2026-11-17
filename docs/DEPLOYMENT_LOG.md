@@ -5263,3 +5263,13 @@
   - AGENTS.md: documented that `_PRL...` salary IDs must not be used for bank-transaction payment binding.
 - Commit: 57b95d9
 - Production: https://ice-gjf0cakrw-iceerp.vercel.app
+
+## 2026-11-17
+- Summary: Restore payment-id binding/edit support for newly registered TBC raw bank account tables.
+- Changes:
+  - app/api/bank-transactions/[id]/route.ts: added new TBC tables to `ALLOWED_TABLES`/`AllowedTable` and expanded synthetic ID offset resolver for all active TBC tables.
+  - app/api/bank-transactions/raw-record/[uuid]/route.ts: mirrored new TBC tables in raw-record table allowlist.
+  - app/api/bank-transactions/parsing-lock/route.ts and app/api/bank-transactions/parsing-lock/[id]/route.ts: mirrored new TBC tables in parsing-lock allowlists.
+  - AGENTS.md: documented cross-endpoint table mirroring requirement when adding bank account tables.
+- Commit: 59ad826
+- Production: https://ice-5n8ehs5vf-iceerp.vercel.app
