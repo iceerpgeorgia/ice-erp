@@ -5301,3 +5301,13 @@
   - AGENTS.md: documented Jobs listing insider source and self-heal behavior.
 - Commit: 489842e
 - Production: https://ice-7bxt4qlhi-iceerp.vercel.app
+
+## 2026-11-18
+- Summary: Fix salary accrual month facets and restore counteragent-scoped payment selection in bank transaction edit dialogs.
+- Changes:
+  - Normalize salary accrual `salary_month` values to `YYYY-MM-01` before table filtering so ISO and date-only rows match the same facet.
+  - Fetch bank transaction payment options per counteragent on every edit and preserve inactive payments when they are the transaction's current binding.
+  - Keep the current payment visible under the "Only due" filter and reject invalid counteragent UUID option requests.
+- Commit: 2988807
+- Production: https://ice-1fjbsmj1e-iceerp.vercel.app
+- Status: Production alias `ice-erp.vercel.app` verified on the new deployment.
