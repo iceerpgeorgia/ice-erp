@@ -589,7 +589,6 @@ model jobs {
   created_at    DateTime             @default(now())
   updated_at    DateTime             @default(now()) @updatedAt
   brand_uuid    String?              @db.Uuid
-  insider_uuid  String               @db.Uuid
   factory_no    String?
   selling_price Decimal?             @db.Decimal(18, 2)
   service_state job_service_state?   @default(Active)
@@ -597,7 +596,6 @@ model jobs {
   payments_jobs payments_jobs[]
 
   @@index([job_uuid], map: "idx_jobs_job_uuid")
-  @@index([insider_uuid], map: "idx_jobs_insider_uuid")
   @@index([project_uuid], map: "idx_jobs_project_uuid")
 }
 

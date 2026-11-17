@@ -426,6 +426,7 @@ Previously, payments could reference a `jobUuid` and `projectUuid` combination w
 ## Jobs Insider Derivation Rule
 - Jobs pages must render insider from the bound project context (`projects.insider_uuid` via `job_projects`), not from `jobs.insider_uuid`.
 - Runtime/API logic must not depend on writing or synchronizing `jobs.insider_uuid`; job-project bindings are the source of truth for insider context in jobs views.
+- Prisma migration `20261117154000_drop_jobs_insider_uuid` drops `jobs.insider_uuid` and `idx_jobs_insider_uuid`; any new code must join insider through `job_projects -> projects`.
 
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.
