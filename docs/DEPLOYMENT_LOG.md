@@ -1,8 +1,8 @@
 # Deployment Log
 
 ## 2026-11-17 Deployment #392 (Fix: Enforce project-derived job insider and remove stale job insider state)
-- Commit: pending
-- Production: pending deploy
+- Commit: 1108ab5
+- Production: https://ice-2pjv8mhcf-iceerp.vercel.app
 - Summary: Enforced the project-derived insider rule for jobs and removed the stale `jobs.insider_uuid` source of truth from the application and schema.
 - Root Cause:
   - Jobs were still being rendered and validated from stale `jobs.insider_uuid` values in the API layer.
