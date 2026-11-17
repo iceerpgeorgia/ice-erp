@@ -5254,4 +5254,4 @@
   - components/figma/payment-attachments.tsx: route upload/confirm calls by selected target (project vs payment), add upload response error check, and keep ledger prompt payment-target only.
   - AGENTS.md: documented payments-report attachment targeting rules.
 - Commit: 1330005
-- Production: https://ice-erp-promoted-1lsxhya39-iceerp.vercel.app
+- Production: https://ice-5rg6yw6qa-iceerp.vercel.app
