@@ -5255,3 +5255,11 @@
   - AGENTS.md: documented payments-report attachment targeting rules.
 - Commit: 1330005
 - Production: https://ice-5rg6yw6qa-iceerp.vercel.app
+
+## 2026-11-17
+- Summary: Fix bank transaction edit dialog offering non-bindable salary/projection payment IDs.
+- Changes:
+  - components/figma/bank-transactions-table.tsx: request payment options with `includeSalary=false` and filter to `source='payments'` before rendering bind options.
+  - AGENTS.md: documented that `_PRL...` salary IDs must not be used for bank-transaction payment binding.
+- Commit: 57b95d9
+- Production: https://ice-gjf0cakrw-iceerp.vercel.app
