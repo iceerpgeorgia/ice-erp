@@ -37,6 +37,13 @@ The workspace is a single Next.js 14 application (App Router) with co-located AP
 
 - Jobs CRUD now includes `selling_price` support in the Prisma schema, API handlers, and the Jobs table/form UI.
 
+## Project-Derived Job Insider Rule
+- `jobs.insider_uuid` is not a source of truth and must not be written or read as the business owner of a job.
+- A job's effective insider is derived from the bound project(s) via `job_projects -> projects.insider_uuid`.
+- When a job is created or updated, all target projects must share the same `insider_uuid`; otherwise the API rejects the change.
+- UI, API, and reporting must render `insider_uuid` from the project-side relationship, never from a job row.
+- This is a correctness rule: stale job-level insider state is invalid and must not be allowed to drift again.
+
 ## Project Balance Calculation
 
 ### Overview
@@ -237,13 +244,6 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
 
-## Counteragent Statement Rendering Fallbacks
-- `GET /api/counteragent-statement` enriches bank rows with project and financial-code metadata from two sources:
-  1. payment-linked metadata (`payments` / `salary_accruals`) by `payment_id`
-  2. raw/batch transaction UUID links (`project_uuid`, `financial_code_uuid`) via joins to `projects` and `financial_codes`
-- UI fields `project` and `financialCode` must fall back to raw/batch-derived metadata when payment-linked metadata is missing, so recovered or legacy payment IDs still render project/financial-code columns.
-- The payment metadata lookup must not require `payments.is_active = true`; historical/inactive payments are still valid for statement rendering.
-
 ## Bank Transactions Data Architecture
 
 **PRIMARY DATA SOURCE**: Raw bank account tables (e.g., `GE65TB7856036050100002_TBC_GEL`, `GE78BG0000000893486000_BOG_GEL`, etc.) are the **active** source of truth for all bank transactions.
@@ -255,12 +255,6 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Each raw table has a unique offset to generate synthetic IDs
 - Returns `raw_record_uuid` from the source raw table
 - Batch transactions are resolved from `bank_transaction_batches` table
-- When adding a new bank account raw table, update `app/api/bank-transactions/route.ts` (`SOURCE_TABLES`) and `app/api/bank-transactions/[id]/route.ts` (allowed tables + synthetic offset resolver). Also mirror the table in `app/api/bank-transactions/raw-record/[uuid]/route.ts` and `app/api/bank-transactions/parsing-lock/{route.ts,[id]/route.ts}` allowlists. Missing any of these can cause edit dialogs/raw view/parsing-lock actions to hit the wrong table and show "Unknown" counteragent payments.
-
-### Payment ID Dropdown Scoping (Edit Dialog)
-- In bank transaction edit dialogs, when a transaction has `counteragent_uuid`, payment options must be filtered by UUID only.
-- Do **not** fall back to counteragent-name matching when UUID exists; name fallback is allowed only when UUID is missing.
-- Rationale: duplicate/stale counteragent names can leak unrelated payment IDs into the dropdown, especially for newly added raw bank tables.
 
 ### Job Distribution Linkage
 - `payments_jobs` table links distributions to bank transactions via `raw_record_uuid` or `batch_partition_uuid`
@@ -309,12 +303,6 @@ All RS.ge credentials are stored in `RS_CREDENTIALS_MAP` (JSON array in `.env.lo
 [{"INSIDER_UUID":"...","RS_API_SU":"iceapi:XXXXXXXXX","RS_API_SP":"..."}]
 ```
 Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/integrations/rsge/client.ts`. Both cron routes and the manual sync endpoint read exclusively from this map — there are no separate `RS_API_SU`/`RS_API_SP` fallback vars.
-
-### Insider Selection Persistence
-- Selected insiders are persisted per user in `User.selected_insider_uuids` (`uuid[]`) and mirrored to the `insider-view-selection` cookie.
-- Resolution precedence in `resolveInsiderSelection`: DB-persisted selection first, then cookie selection, then all available insiders as fallback.
-- `POST /api/insider-selection` validates UUIDs against current insider options, stores the effective list in DB (when authenticated), and refreshes the cookie.
-- This keeps insider-driven views (including Conversions and other insider-filtered APIs) stable across deployments even if browser cookie/domain context changes.
 
 ### VAT Lock Rule
 `vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:
@@ -416,9 +404,6 @@ When a user emits a handover, all current (non-emitted) job distributions are lo
 - **Multiple Emissions**: Same project can emit multiple times; each emission gets a unique UUID. After an emission, new distributions can be added and emitted again. All emissions are permanently recorded.
 - **Display Priority**: UI shows emission status based on the most recent `emission_date` for the project. Historical emissions remain in the audit trail for reference.
 - **Immutability**: Database triggers prevent UPDATE and DELETE on records with `emission_uuid IS NOT NULL`. Projects and jobs with emitted distributions cannot be deleted.
-- **Live vs emitted rows**: emitted `payments_jobs` rows are immutable historical snapshots. Later distribution changes must operate only on live rows where `emission_uuid IS NULL`, allowing new non-emitted distributions to coexist with emitted snapshots for the same payment/job/scope.
-- **API guard**: single-row delete/update attempts against an emitted distribution must fail, while replace/delete/auto-distribute/recalculate flows must only touch non-emitted rows (`emission_uuid IS NULL`) and leave emitted snapshots intact.
-- **UI lock state**: the Job Distribution dialog opens in read-only mode (no save/clear/edit/fill/recalculate actions) when a transaction scope has only emitted snapshot rows and no live rows.
 - **Schema**: New table `handover_emissions` (uuid, created_at, created_by, description). New columns on `payments_jobs`: `emission_uuid` (FK), `emission_date`.
 - **API**: `POST /api/handovers/emit` accepts `{ projectUuid }`, returns emission UUID, timestamp, count, and list of emitted records. Only targets non-emitted distributions.
 - **Audit Trail**: `emission_uuid` groups all records in a single emission; `created_by` records user email; `handover_emissions.created_at` records timestamp.
