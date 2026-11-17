@@ -129,7 +129,7 @@ export async function GET(req: NextRequest) {
       SET insider_uuid = src.insider_uuid,
           updated_at = CURRENT_TIMESTAMP
       FROM (
-        SELECT jp.job_uuid, MIN(p.insider_uuid)::uuid as insider_uuid
+        SELECT jp.job_uuid, MIN(p.insider_uuid::text)::uuid as insider_uuid
         FROM job_projects jp
         INNER JOIN projects p ON p.project_uuid = jp.project_uuid
         GROUP BY jp.job_uuid
