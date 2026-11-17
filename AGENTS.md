@@ -423,6 +423,11 @@ When a payment is created or updated with both `jobUuid` and `projectUuid`, the 
 ### Rationale
 Previously, payments could reference a `jobUuid` and `projectUuid` combination without the job being bound to that project in `job_projects`. This caused jobs to not render in Handovers even though they were allocated there. Now, the binding is automatically maintained whenever a payment references both.
 
+## Jobs Insider Derivation Rule
+- `jobs.insider_uuid` is strictly derived from bound project insider(s) (`projects.insider_uuid` via `job_projects`). Direct caller-provided insider values must not control job insider.
+- Jobs can only be bound to projects that resolve to a single insider. Binding/update flows must reject mixed-insider project sets with HTTP 409.
+- When a project's insider changes, bound jobs inherit the new insider only if the job is not simultaneously bound to projects of a different insider; otherwise the project update is rejected with conflict details.
+
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.
 

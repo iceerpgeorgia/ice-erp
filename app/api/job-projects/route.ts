@@ -57,6 +57,15 @@ export async function POST(request: NextRequest) {
     );
 
     await prisma.$transaction(async (tx) => {
+      const projectInsiderRows = await tx.$queryRawUnsafe<Array<{ insider_uuid: string | null }>>(
+        `SELECT insider_uuid::text AS insider_uuid FROM projects WHERE project_uuid = $1::uuid LIMIT 1`,
+        normalizedProjectUuid
+      );
+      const projectInsiderUuid = (projectInsiderRows[0]?.insider_uuid || '').trim();
+      if (!projectInsiderUuid) {
+        throw new Error('Project insider must be set before binding jobs.');
+      }
+
       // Get current bindings for this project
       const currentBindings = await tx.$queryRawUnsafe<{ job_uuid: string }[]>(
         `SELECT job_uuid FROM job_projects WHERE project_uuid = $1::uuid`,
@@ -64,6 +73,7 @@ export async function POST(request: NextRequest) {
       );
       const currentJobUuids = new Set(currentBindings.map((r) => r.job_uuid));
       const targetJobUuids = new Set(normalizedJobUuids);
+      const impactedJobUuids = new Set<string>([...currentJobUuids, ...targetJobUuids]);
 
       // Remove only bindings not in the target set
       const toRemove = [...currentJobUuids].filter((id) => !targetJobUuids.has(id));
@@ -87,6 +97,32 @@ export async function POST(request: NextRequest) {
           `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ${values} ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
           ...params
         );
+      }
+
+      for (const jobUuid of impactedJobUuids) {
+        const insiderRows = await tx.$queryRawUnsafe<Array<{ insider_uuid: string | null }>>(
+          `SELECT DISTINCT p.insider_uuid::text AS insider_uuid
+           FROM job_projects jp
+           INNER JOIN projects p ON p.project_uuid = jp.project_uuid
+           WHERE jp.job_uuid = $1::uuid`,
+          jobUuid
+        );
+        const insiders = Array.from(new Set(insiderRows.map((r) => (r.insider_uuid || '').trim()).filter(Boolean)));
+        if (insiders.length > 1) {
+          throw new Error(`Job ${jobUuid} is bound to projects with different insiders. Unify project insiders first.`);
+        }
+        if (insiders.length === 1) {
+          await tx.$executeRawUnsafe(
+            `UPDATE jobs SET insider_uuid = $1::uuid, updated_at = CURRENT_TIMESTAMP WHERE job_uuid = $2::uuid`,
+            insiders[0],
+            jobUuid
+          );
+        } else {
+          await tx.$executeRawUnsafe(
+            `UPDATE jobs SET insider_uuid = NULL, updated_at = CURRENT_TIMESTAMP WHERE job_uuid = $1::uuid`,
+            jobUuid
+          );
+        }
       }
     });
 
