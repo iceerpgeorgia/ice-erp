@@ -37,6 +37,11 @@ The workspace is a single Next.js 14 application (App Router) with co-located AP
 
 - Jobs CRUD now includes `selling_price` support in the Prisma schema, API handlers, and the Jobs table/form UI.
 
+## Jobs Insider Consistency (Safe Baseline Rule)
+- `jobs.insider_uuid` remains in schema for compatibility, but jobs-table rendering/filtering must use project insider from `job_projects -> projects.insider_uuid`.
+- In `POST /api/jobs` and `PUT /api/jobs`, all target projects must share one insider; the job row must be written with that derived insider.
+- `PATCH /api/jobs` bulk project binding must reject cross-insider bindings so stale insider drift cannot be introduced through rebinding.
+
 ## Project Balance Calculation
 
 ### Overview
