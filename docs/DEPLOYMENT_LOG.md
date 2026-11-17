@@ -5293,3 +5293,11 @@
   - AGENTS.md: documented enforcement coverage across `/api/projects`, `/api/projects/[id]`, and `/api/payments`.
 - Commit: f28760c
 - Production: https://ice-3lfm7b562-iceerp.vercel.app
+
+## 2026-11-17
+- Summary: Fix Jobs insider column to always show project-derived insider and self-heal stale insider UUIDs.
+- Changes:
+  - app/api/jobs/route.ts: return insider name from bound project insider join (not selected insider context), and run safe self-heal to align `jobs.insider_uuid` when all bound projects share one insider.
+  - AGENTS.md: documented Jobs listing insider source and self-heal behavior.
+- Commit: 489842e
+- Production: https://ice-7bxt4qlhi-iceerp.vercel.app
