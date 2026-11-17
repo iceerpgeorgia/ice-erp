@@ -1159,8 +1159,10 @@ export function SalaryAccrualsTable() {
 
   const normalizeAccrualInsurance = (accrual: SalaryAccrual): SalaryAccrual => {
     const normalized = normalizeInsurancePair(accrual.surplus_insurance, accrual.deducted_insurance);
+    const salaryMonth = parseSalaryMonth(accrual.salary_month);
     return {
       ...accrual,
+      salary_month: salaryMonth ? formatSalaryMonth(salaryMonth) : accrual.salary_month,
       surplus_insurance: normalized.surplus_insurance,
       deducted_insurance: normalized.deducted_insurance,
     };

@@ -40,9 +40,14 @@ const updatePaymentIdForMonth = (paymentId: string, date: Date) => {
 // change (see revalidateTag(PAYMENT_OPTIONS_TAG) calls in mutation routes).
 // Cache key is stable regardless of projectionMonths so all callers share the same entry.
 const getCachedPaymentOptions = unstable_cache(
-  async (includeSalary: boolean, projectionMonths: number) =>
-    buildPaymentOptions(includeSalary, projectionMonths),
-  ['payment-id-options-v2'],
+  async (
+    includeSalary: boolean,
+    projectionMonths: number,
+    counteragentUuid: string | null,
+    currentPaymentId: string | null,
+  ) =>
+    buildPaymentOptions(includeSalary, projectionMonths, counteragentUuid, currentPaymentId),
+  ['payment-id-options-v3'],
   { tags: [PAYMENT_OPTIONS_TAG], revalidate: 300 },
 );
 
@@ -54,8 +59,27 @@ export async function GET(request: NextRequest) {
     // Lower default from 36 to 12 months. Callers that genuinely need a wider
     // window can still pass ?projectionMonths=36 explicitly.
     const projectionMonths = Math.max(0, parseInt(searchParams.get('projectionMonths') || '12', 10) || 12);
+    const requestedCounteragentUuid = searchParams.get('counteragentUuid')?.trim() || null;
+    const validCounteragentUuid =
+      !requestedCounteragentUuid ||
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        requestedCounteragentUuid
+      );
+    if (!validCounteragentUuid) {
+      return NextResponse.json(
+        { error: 'Invalid counteragentUuid' },
+        { status: 400 }
+      );
+    }
+    const counteragentUuid = requestedCounteragentUuid;
+    const currentPaymentId = searchParams.get('currentPaymentId')?.trim() || null;
 
-    const result = await getCachedPaymentOptions(includeSalary, projectionMonths);
+    const result = await getCachedPaymentOptions(
+      includeSalary,
+      projectionMonths,
+      counteragentUuid,
+      currentPaymentId
+    );
     const dur = Date.now() - t0;
 
     return NextResponse.json(result, {
@@ -76,7 +100,24 @@ export async function GET(request: NextRequest) {
 async function buildPaymentOptions(
   includeSalary: boolean,
   projectionMonths: number,
+  counteragentUuid: string | null = null,
+  currentPaymentId: string | null = null,
 ): Promise<PaymentOption[]> {
+  const paymentQueryArgs: string[] = [];
+  const paymentConditions: string[] = [];
+
+  if (counteragentUuid) {
+    paymentQueryArgs.push(counteragentUuid);
+    paymentConditions.push(`p.counteragent_uuid = $${paymentQueryArgs.length}::uuid AND p.is_active = true`);
+  } else {
+    paymentConditions.push('p.is_active = true');
+  }
+
+  if (currentPaymentId) {
+    paymentQueryArgs.push(currentPaymentId);
+    paymentConditions.push(`p.payment_id = $${paymentQueryArgs.length}`);
+  }
+
   const payments = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         p.project_uuid,
@@ -99,9 +140,9 @@ async function buildPaymentOptions(
       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
-      WHERE p.is_active = true
+      WHERE ${paymentConditions.join(' OR ')}
       ORDER BY p.created_at DESC
-    `)) as any[];
+    `, ...paymentQueryArgs)) as any[];
 
     const paymentOptions: PaymentOption[] = payments
       .filter((p) => p.payment_id)

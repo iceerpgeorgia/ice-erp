@@ -242,6 +242,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - In the payments report attachment dialog (`PaymentAttachments`), **Attach to Project** must call project attachment APIs (`/api/projects/attachments/upload` + `/api/projects/attachments/confirm`) so links are created under `owner_table='projects'` only.
 - **Attach to Payment** must keep using payment attachment APIs and may add an optional secondary project link via `linkedProjectUuid`.
 - Ledger auto-create prompt applies to payment-target uploads only; project-target uploads must not create ledger entries automatically.
+- Bank transaction edit dialogs must fetch payment options scoped to the transaction counteragent; inactive payments are included only when they are the transaction's currently bound payment ID.
 
 ## Bank Transactions Data Architecture
 
@@ -256,6 +257,10 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Batch transactions are resolved from `bank_transaction_batches` table
 - Keep `SOURCE_TABLES` in sync with `app/api/bank-transactions/[id]/route.ts` (allowed tables + synthetic offsets) and mirror new tables in `app/api/bank-transactions/raw-record/[uuid]/route.ts` and `app/api/bank-transactions/parsing-lock/{route.ts,[id]/route.ts}`; mismatches break edit/payment binding for newly added accounts.
 - Some newly created BOG raw tables may not have a physical `bank_account_uuid` column; statement/bank-transaction unions must derive it from `bank_accounts.raw_table_name` instead of selecting `table.bank_account_uuid` directly.
+
+### Salary Accrual Month Filtering
+- Normalize every loaded salary accrual `salary_month` to `YYYY-MM-01` before table filtering.
+- Rationale: API/projected rows can mix date-only and ISO timestamp formats, which otherwise makes facet equality drop valid records for the selected month.
 
 ### Job Distribution Linkage
 - `payments_jobs` table links distributions to bank transactions via `raw_record_uuid` or `batch_partition_uuid`

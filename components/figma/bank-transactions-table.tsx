@@ -502,6 +502,21 @@ export function BankTransactionsTable({
       payments = byName.length > 0 ? byName : paymentsList;
     }
 
+    if (transaction.paymentId) {
+      const boundPaymentId = String(transaction.paymentId).trim().toLowerCase();
+      const boundPayment = paymentsList.find(
+        (payment: any) =>
+          String(payment.paymentId || '').trim().toLowerCase() === boundPaymentId
+      );
+      const included = payments.some(
+        (payment: any) =>
+          String(payment.paymentId || '').trim().toLowerCase() === boundPaymentId
+      );
+      if (boundPayment && !included) {
+        payments = [boundPayment, ...payments];
+      }
+    }
+
     setPaymentOptions(payments);
 
     // If transaction already has a payment, find it and populate display values
@@ -1085,7 +1100,6 @@ export function BankTransactionsTable({
       // Run all fetches in parallel. Exchange rates are cached by date.
       // Reduced projectionMonths to 12 (1 year) for dialog performance - full 36 months is expensive
       const needsRates = !exchangeRateCacheRef.current[effectiveDate];
-      const needsPayments = allPayments.length === 0;
       const needsProjects = projectOptions.length === 0;
       const needsCodes = financialCodeOptions.length === 0;
       const needsCurrencies = currencyOptions.length === 0;
@@ -1093,7 +1107,11 @@ export function BankTransactionsTable({
 
       const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
         needsRates ? fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.json()).catch(e => { console.error('[startEdit] Exchange rates error:', e); return null; }) : null,
-        needsPayments ? fetch('/api/payment-id-options?includeSalary=false&projectionMonths=12').then(r => r.ok ? r.json() : []).catch(e => { console.error('[startEdit] Payments error:', e); return []; }) : null,
+        fetch(
+          `/api/payment-id-options?includeSalary=false&projectionMonths=12` +
+          `${transaction.counteragentUuid ? `&counteragentUuid=${encodeURIComponent(transaction.counteragentUuid)}` : ''}` +
+          `${transaction.paymentId ? `&currentPaymentId=${encodeURIComponent(transaction.paymentId)}` : ''}`
+        ).then(r => r.ok ? r.json() : []).catch(e => { console.error('[startEdit] Payments error:', e); return []; }),
         needsProjects ? fetch('/api/projects?dropdown=true').then(r => r.json()).catch(e => { console.error('[startEdit] Projects error:', e); return []; }) : null,
         needsCodes ? fetch('/api/financial-codes').then(r => r.json()).catch(e => { console.error('[startEdit] Codes error:', e); return []; }) : null,
         needsCurrencies ? fetch('/api/currencies').then(r => r.json()).catch(e => { console.error('[startEdit] Currencies error:', e); return []; }) : null,
@@ -1112,7 +1130,7 @@ export function BankTransactionsTable({
 
       // Payments
       let freshPayments = allPayments;
-      if (needsPayments && paymentsRaw) {
+      if (paymentsRaw) {
         freshPayments = Array.isArray(paymentsRaw)
           ? paymentsRaw
               .filter((payment: any) => (payment?.source || 'payments') === 'payments')
@@ -2654,7 +2672,15 @@ export function BankTransactionsTable({
                       <SelectItem value="__none__">-- No Payment --</SelectItem>
                         {paymentOptions
                           .filter((payment) => {
-                            if (onlyDue && duePaymentIds.size > 0 && !duePaymentIds.has(payment.paymentId)) return false;
+                            const isCurrentlySelected =
+                              payment.paymentId === editingTransaction?.paymentId ||
+                              payment.paymentId === formData.payment_uuid;
+                            if (
+                              onlyDue &&
+                              duePaymentIds.size > 0 &&
+                              !isCurrentlySelected &&
+                              !duePaymentIds.has(payment.paymentId)
+                            ) return false;
                             if (!paymentSearch) return true;
                             const searchLower = paymentSearch.toLowerCase();
                             return (
