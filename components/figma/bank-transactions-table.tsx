@@ -639,11 +639,13 @@ export function BankTransactionsTable({
   useEffect(() => {
     const fetchAllPayments = async () => {
       try {
-        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12');
+        const response = await fetch('/api/payment-id-options?includeSalary=false&projectionMonths=12');
         if (!response.ok) throw new Error('Failed to fetch payments');
         const paymentsData = await response.json();
         const normalizedPayments = Array.isArray(paymentsData)
-          ? paymentsData.map((payment: any) => ({
+          ? paymentsData
+              .filter((payment: any) => (payment?.source || 'payments') === 'payments')
+              .map((payment: any) => ({
               ...payment,
               counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
               projectUuid: payment.projectUuid || payment.project_uuid || null,
@@ -1091,7 +1093,7 @@ export function BankTransactionsTable({
 
       const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
         needsRates ? fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.json()).catch(e => { console.error('[startEdit] Exchange rates error:', e); return null; }) : null,
-        needsPayments ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12').then(r => r.ok ? r.json() : []).catch(e => { console.error('[startEdit] Payments error:', e); return []; }) : null,
+        needsPayments ? fetch('/api/payment-id-options?includeSalary=false&projectionMonths=12').then(r => r.ok ? r.json() : []).catch(e => { console.error('[startEdit] Payments error:', e); return []; }) : null,
         needsProjects ? fetch('/api/projects?dropdown=true').then(r => r.json()).catch(e => { console.error('[startEdit] Projects error:', e); return []; }) : null,
         needsCodes ? fetch('/api/financial-codes').then(r => r.json()).catch(e => { console.error('[startEdit] Codes error:', e); return []; }) : null,
         needsCurrencies ? fetch('/api/currencies').then(r => r.json()).catch(e => { console.error('[startEdit] Currencies error:', e); return []; }) : null,
@@ -1112,7 +1114,9 @@ export function BankTransactionsTable({
       let freshPayments = allPayments;
       if (needsPayments && paymentsRaw) {
         freshPayments = Array.isArray(paymentsRaw)
-          ? paymentsRaw.map((payment: any) => ({
+          ? paymentsRaw
+              .filter((payment: any) => (payment?.source || 'payments') === 'payments')
+              .map((payment: any) => ({
               ...payment,
               counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
               projectUuid: payment.projectUuid || payment.project_uuid || null,

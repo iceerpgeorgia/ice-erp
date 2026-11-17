@@ -236,6 +236,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
+- Bank transaction edit dialogs must request payment options with `includeSalary=false` and only allow `source='payments'` IDs; salary accrual/projection IDs (e.g., `_PRL...`) are not bindable via bank transaction PATCH and cause 400 "Payment not found" errors if selected.
 
 ## Payments Report Attachment Targeting
 - In the payments report attachment dialog (`PaymentAttachments`), **Attach to Project** must call project attachment APIs (`/api/projects/attachments/upload` + `/api/projects/attachments/confirm`) so links are created under `owner_table='projects'` only.
