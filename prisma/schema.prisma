@@ -590,6 +590,7 @@ model jobs {
   created_at    DateTime             @default(now())
   updated_at    DateTime             @default(now()) @updatedAt
   brand_uuid    String?              @db.Uuid
+  insider_uuid  String               @db.Uuid
   factory_no    String?
   selling_price Decimal?             @db.Decimal(18, 2)
   service_state job_service_state?   @default(Active)
@@ -597,6 +598,7 @@ model jobs {
   payments_jobs payments_jobs[]
 
   @@index([job_uuid], map: "idx_jobs_job_uuid")
+  @@index([insider_uuid], map: "idx_jobs_insider_uuid")
   @@index([project_uuid], map: "idx_jobs_project_uuid")
 }
 
@@ -828,7 +830,7 @@ model salary_accruals {
   confirmed             Boolean  @default(false)
   insider_uuid          String   @db.Uuid
 
-  @@unique([counteragent_uuid, financial_code_uuid, salary_month, insider_uuid], name: "salary_accruals_ca_fc_month_insider_unique", map: "salary_accruals_ca_fc_month_insider_unique")
+  @@unique([counteragent_uuid, financial_code_uuid, salary_month], name: "salary_accruals_ca_fc_month_unique", map: "salary_accruals_ca_fc_month_unique")
   @@index([counteragent_uuid], map: "idx_salary_accruals_counteragent")
   @@index([nominal_currency_uuid], map: "idx_salary_accruals_currency")
   @@index([financial_code_uuid], map: "idx_salary_accruals_financial_code")

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, withRetry } from '@/lib/prisma';
-import { resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
+import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 // GET all jobs with project info from job_projects junction table
@@ -28,8 +28,7 @@ export async function GET(req: NextRequest) {
           j.selling_price,
           j.service_state,
           j.brand_uuid,
-          p.insider_uuid as project_insider_uuid,
-          ci.name as insider_name,
+          j.insider_uuid,
           b.name as brand_name,
           CONCAT(
             j.job_name,
@@ -43,8 +42,6 @@ export async function GET(req: NextRequest) {
           ) as job_display
         FROM jobs j
         INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
-        LEFT JOIN projects p ON jp.project_uuid = p.project_uuid
-        LEFT JOIN counteragents ci ON ci.counteragent_uuid = p.insider_uuid
         LEFT JOIN brands b ON j.brand_uuid = b.uuid
         WHERE jp.project_uuid = $1::uuid
           AND j.is_active = true
@@ -64,8 +61,8 @@ export async function GET(req: NextRequest) {
         brandUuid: job.brand_uuid,
         brandName: job.brand_name,
         jobDisplay: job.job_display,
-        insiderUuid: job.project_insider_uuid || null,
-        insiderName: job.insider_name || null,
+        insiderUuid: job.insider_uuid || null,
+        insiderName: null,
       }));
 
       return NextResponse.json(serialized);
@@ -95,8 +92,7 @@ export async function GET(req: NextRequest) {
         jp.project_uuid as bound_project_uuid,
         p.project_index as bound_project_index,
         p.project_name as bound_project_name,
-        p.insider_uuid as project_insider_uuid,
-        ci.name as insider_name,
+        -- Computed job_index using this row's project
         CONCAT(
           COALESCE(p.project_name, '-'),
           ' | ',
@@ -112,13 +108,13 @@ export async function GET(req: NextRequest) {
           ' | ',
           CASE WHEN j.is_ff THEN 'FF' ELSE 'NOT FF' END
         ) as job_index,
+        -- Total number of project bindings for this job
         (SELECT count(*) FROM job_projects jp2 WHERE jp2.job_uuid = j.job_uuid) as binding_count
       FROM jobs j
       INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
       LEFT JOIN projects p ON jp.project_uuid = p.project_uuid
-      LEFT JOIN counteragents ci ON ci.counteragent_uuid = p.insider_uuid
       LEFT JOIN brands b ON j.brand_uuid = b.uuid
-      WHERE p.insider_uuid IN (${insiderUuidListSql})
+      WHERE j.insider_uuid IN (${insiderUuidListSql})
         AND j.is_active = true
       ORDER BY j.created_at DESC, p.project_index ASC
     `));
@@ -143,8 +139,8 @@ export async function GET(req: NextRequest) {
       is_active: job.is_active,
       createdAt: job.created_at,
       updatedAt: job.updated_at,
-      insider_uuid: job.project_insider_uuid ?? null,
-      insider_name: job.insider_name ?? null,
+      insider_uuid: job.insider_uuid ?? insider?.insiderUuid ?? null,
+      insider_name: insider?.insiderName ?? null,
       _rowKey: `${job.job_uuid}_${job.bound_project_uuid || idx}`,
     }));
 
@@ -163,12 +159,22 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
   try {
+    const selection = await resolveInsiderSelection(req);
     const body = await req.json();
     const { projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, sellingPrice, serviceState, insider_uuid, insiderUuid } = body;
 
     const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
     const normalizedFactoryNo = String(factoryNo ?? factory_no ?? '').trim() || null;
     const normalizedSellingPrice = sellingPrice !== undefined && sellingPrice !== null && sellingPrice !== '' ? Number(sellingPrice) : null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
+    }
 
     const targetProjectUuids: string[] = Array.isArray(projectUuids)
       ? projectUuids.filter((item) => typeof item === 'string' && item.trim().length > 0)
@@ -181,44 +187,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const projectRows = await prisma.$queryRawUnsafe(`
-      SELECT DISTINCT p.insider_uuid
-      FROM projects p
-      WHERE p.project_uuid = ANY($1::uuid[])
-    `, targetProjectUuids) as any[];
-
-    if (projectRows.length !== targetProjectUuids.length) {
-      return NextResponse.json({ error: 'One or more target projects are invalid' }, { status: 400 });
-    }
-
-    const targetInsiderSet = new Set(projectRows.map((row: any) => String(row.insider_uuid).toLowerCase()));
-    if (targetInsiderSet.size > 1) {
-      return NextResponse.json({ error: 'All target projects must share the same insider. Job insider is derived from the project.' }, { status: 400 });
-    }
-
-    const derivedProjectInsiderUuid = projectRows[0]?.insider_uuid ?? null;
-    if (!derivedProjectInsiderUuid) {
-      return NextResponse.json({ error: 'Selected projects do not have an insider configured' }, { status: 400 });
-    }
-
-    if (requestedInsiderUuid && requestedInsiderUuid.toLowerCase() !== String(derivedProjectInsiderUuid).toLowerCase()) {
-      return NextResponse.json({ error: 'Job insider is derived from the bound project. Update the project insider instead.' }, { status: 400 });
-    }
-
-    // Check if job with same name already exists for this insider+brand+project.
-    // Insider is project-derived and must not be stored on each job row.
+    // Check if job with same name already exists for this insider+brand+project
+    // Job names (L0001, L0002...) are per-project, so we must also check
+    // that an existing job is already bound to one of the target projects
     const existing = await prisma.$queryRawUnsafe(`
       SELECT j.id, j.job_uuid
       FROM jobs j
       INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
-      INNER JOIN projects p ON jp.project_uuid = p.project_uuid
       WHERE lower(j.job_name) = lower($1)
-        AND p.insider_uuid = $2::uuid
+        AND j.insider_uuid = $2::uuid
         AND COALESCE(j.brand_uuid::text, '') = COALESCE($3::text, '')
         AND j.is_active = true
         AND jp.project_uuid = ANY($4::uuid[])
       LIMIT 1
-    `, jobName, derivedProjectInsiderUuid, brandUuid || '', targetProjectUuids) as any[];
+    `, jobName, effectiveInsiderUuid, brandUuid || '', targetProjectUuids) as any[];
 
     let jobId: number;
     let jobUuidValue: string;
@@ -228,9 +210,10 @@ export async function POST(req: NextRequest) {
       jobId = Number(existing[0].id);
       jobUuidValue = existing[0].job_uuid;
     } else {
+      // Create single job row (no project_uuid on jobs table)
       const result = await prisma.$queryRaw`
-        INSERT INTO jobs (job_name, floors, weight, is_ff, factory_no, selling_price, service_state, brand_uuid)
-        VALUES (${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${normalizedFactoryNo}, ${normalizedSellingPrice}, ${serviceState || 'Active'}, ${brandUuid}::uuid)
+        INSERT INTO jobs (job_name, floors, weight, is_ff, factory_no, selling_price, service_state, brand_uuid, insider_uuid)
+        VALUES (${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${normalizedFactoryNo}, ${normalizedSellingPrice}, ${serviceState || 'Active'}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
         RETURNING id, job_uuid
       ` as any[];
 
@@ -268,6 +251,7 @@ export async function PUT(req: NextRequest) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
   try {
+    const selection = await resolveInsiderSelection(req);
     const body = await req.json();
     const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, sellingPrice, serviceState, insider_uuid, insiderUuid, jobUuids, bulkUpdate } = body;
 
@@ -287,6 +271,16 @@ export async function PUT(req: NextRequest) {
     const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
     const normalizedFactoryNo = String(factoryNo ?? factory_no ?? '').trim() || null;
     const normalizedSellingPrice = sellingPrice !== undefined && sellingPrice !== null && sellingPrice !== '' ? Number(sellingPrice) : null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
+    }
+
     const targetProjectUuids: string[] = Array.isArray(projectUuids)
       ? projectUuids.filter((item) => typeof item === 'string' && item.trim().length > 0)
       : (projectUuid ? [projectUuid] : []);
@@ -303,30 +297,6 @@ export async function PUT(req: NextRequest) {
         { error: 'At least one project is required' },
         { status: 400 }
       );
-    }
-
-    const projectRows = await prisma.$queryRawUnsafe(`
-      SELECT DISTINCT p.insider_uuid
-      FROM projects p
-      WHERE p.project_uuid = ANY($1::uuid[])
-    `, targetProjectUuids) as any[];
-
-    if (projectRows.length !== targetProjectUuids.length) {
-      return NextResponse.json({ error: 'One or more target projects are invalid' }, { status: 400 });
-    }
-
-    const targetInsiderSet = new Set(projectRows.map((row: any) => String(row.insider_uuid).toLowerCase()));
-    if (targetInsiderSet.size > 1) {
-      return NextResponse.json({ error: 'All target projects must share the same insider. Job insider is derived from the project.' }, { status: 400 });
-    }
-
-    const derivedProjectInsiderUuid = projectRows[0]?.insider_uuid ?? null;
-    if (!derivedProjectInsiderUuid) {
-      return NextResponse.json({ error: 'Selected projects do not have an insider configured' }, { status: 400 });
-    }
-
-    if (requestedInsiderUuid && requestedInsiderUuid.toLowerCase() !== String(derivedProjectInsiderUuid).toLowerCase()) {
-      return NextResponse.json({ error: 'Job insider is derived from the bound project. Update the project insider instead.' }, { status: 400 });
     }
 
     // Get the current job's UUID
@@ -350,6 +320,7 @@ export async function PUT(req: NextRequest) {
         selling_price = ${normalizedSellingPrice},
         service_state = ${serviceState || 'Active'},
         brand_uuid = ${brandUuid}::uuid,
+        insider_uuid = ${effectiveInsiderUuid}::uuid,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
