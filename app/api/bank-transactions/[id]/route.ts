@@ -17,6 +17,10 @@ const ALLOWED_TABLES = new Set([
   "GE78BG0000000893486000_BOG_CNY",
   "GE78BG0000000893486000_BOG_TRY",
   "GE65TB7856036050100002_TBC_GEL",
+  "GE39TB7856036150100001_TBC_USD",
+  "GE39TB7856036150100001_TBC_EUR",
+  "GE79TB7856045067800004_TBC_GEL",
+  "GE52TB7856045067800005_TBC_GEL",
 ]);
 type AllowedTable =
   | "GE78BG0000000893486000_BOG_GEL"
@@ -28,7 +32,11 @@ type AllowedTable =
   | "GE78BG0000000893486000_BOG_KZT"
   | "GE78BG0000000893486000_BOG_CNY"
   | "GE78BG0000000893486000_BOG_TRY"
-  | "GE65TB7856036050100002_TBC_GEL";
+  | "GE65TB7856036050100002_TBC_GEL"
+  | "GE39TB7856036150100001_TBC_USD"
+  | "GE39TB7856036150100001_TBC_EUR"
+  | "GE79TB7856045067800004_TBC_GEL"
+  | "GE52TB7856045067800005_TBC_GEL";
 
 const BOG_USD_2_OFFSET = 300000000000n;
 const BOG_USD_OFFSET = 500000000000n;
@@ -38,7 +46,11 @@ const BOG_GBP_OFFSET = 800000000000n;
 const BOG_KZT_OFFSET = 900000000000n;
 const BOG_CNY_OFFSET = 950000000000n;
 const BOG_TRY_OFFSET = 980000000000n;
-const TBC_OFFSET = 1000000000000n;
+const TBC_GEL_OFFSET = 1000000000000n;
+const TBC_USD_OFFSET = 1010000000000n;
+const TBC_EUR_OFFSET = 1020000000000n;
+const TBC_GEL_2_OFFSET = 1030000000000n;
+const TBC_GEL_3_OFFSET = 1040000000000n;
 const BATCH_OFFSET = 2000000000000n;
 
 const normalizeDateToISO = (value?: string | null): string | null => {
@@ -72,8 +84,20 @@ function resolveSyntheticId(rawId: bigint): { tableName: AllowedTable; recordId:
   if (rawId < 0n) return null;
   if (rawId >= BATCH_OFFSET) {
     const adjusted = rawId - BATCH_OFFSET;
-    if (adjusted >= TBC_OFFSET) {
-      return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: adjusted - TBC_OFFSET, isBatch: true };
+    if (adjusted >= TBC_GEL_3_OFFSET) {
+      return { tableName: "GE52TB7856045067800005_TBC_GEL", recordId: adjusted - TBC_GEL_3_OFFSET, isBatch: true };
+    }
+    if (adjusted >= TBC_GEL_2_OFFSET) {
+      return { tableName: "GE79TB7856045067800004_TBC_GEL", recordId: adjusted - TBC_GEL_2_OFFSET, isBatch: true };
+    }
+    if (adjusted >= TBC_EUR_OFFSET) {
+      return { tableName: "GE39TB7856036150100001_TBC_EUR", recordId: adjusted - TBC_EUR_OFFSET, isBatch: true };
+    }
+    if (adjusted >= TBC_USD_OFFSET) {
+      return { tableName: "GE39TB7856036150100001_TBC_USD", recordId: adjusted - TBC_USD_OFFSET, isBatch: true };
+    }
+    if (adjusted >= TBC_GEL_OFFSET) {
+      return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: adjusted - TBC_GEL_OFFSET, isBatch: true };
     }
     if (adjusted >= BOG_TRY_OFFSET) {
       return { tableName: "GE78BG0000000893486000_BOG_TRY", recordId: adjusted - BOG_TRY_OFFSET, isBatch: true };
@@ -101,8 +125,20 @@ function resolveSyntheticId(rawId: bigint): { tableName: AllowedTable; recordId:
     }
     return { tableName: "GE78BG0000000893486000_BOG_GEL", recordId: adjusted, isBatch: true };
   }
-  if (rawId >= TBC_OFFSET) {
-    return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: rawId - TBC_OFFSET, isBatch: false };
+  if (rawId >= TBC_GEL_3_OFFSET) {
+    return { tableName: "GE52TB7856045067800005_TBC_GEL", recordId: rawId - TBC_GEL_3_OFFSET, isBatch: false };
+  }
+  if (rawId >= TBC_GEL_2_OFFSET) {
+    return { tableName: "GE79TB7856045067800004_TBC_GEL", recordId: rawId - TBC_GEL_2_OFFSET, isBatch: false };
+  }
+  if (rawId >= TBC_EUR_OFFSET) {
+    return { tableName: "GE39TB7856036150100001_TBC_EUR", recordId: rawId - TBC_EUR_OFFSET, isBatch: false };
+  }
+  if (rawId >= TBC_USD_OFFSET) {
+    return { tableName: "GE39TB7856036150100001_TBC_USD", recordId: rawId - TBC_USD_OFFSET, isBatch: false };
+  }
+  if (rawId >= TBC_GEL_OFFSET) {
+    return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: rawId - TBC_GEL_OFFSET, isBatch: false };
   }
   if (rawId >= BOG_TRY_OFFSET) {
     return { tableName: "GE78BG0000000893486000_BOG_TRY", recordId: rawId - BOG_TRY_OFFSET, isBatch: false };

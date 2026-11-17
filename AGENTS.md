@@ -254,6 +254,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Each raw table has a unique offset to generate synthetic IDs
 - Returns `raw_record_uuid` from the source raw table
 - Batch transactions are resolved from `bank_transaction_batches` table
+- Keep `SOURCE_TABLES` in sync with `app/api/bank-transactions/[id]/route.ts` (allowed tables + synthetic offsets) and mirror new tables in `app/api/bank-transactions/raw-record/[uuid]/route.ts` and `app/api/bank-transactions/parsing-lock/{route.ts,[id]/route.ts}`; mismatches break edit/payment binding for newly added accounts.
 
 ### Job Distribution Linkage
 - `payments_jobs` table links distributions to bank transactions via `raw_record_uuid` or `batch_partition_uuid`
