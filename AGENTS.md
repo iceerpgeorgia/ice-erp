@@ -236,13 +236,14 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
-- Bank transaction edit dialogs must request payment options with `includeSalary=false` and only allow `source='payments'` IDs; salary accrual/projection IDs (e.g., `_PRL...`) are not bindable via bank transaction PATCH and cause 400 "Payment not found" errors if selected.
+- Bank transaction edit dialogs request real salary accrual payment IDs with `includeSalary=true&projectionMonths=0`; generated future salary projections remain non-bindable.
 
 ## Payments Report Attachment Targeting
 - In the payments report attachment dialog (`PaymentAttachments`), **Attach to Project** must call project attachment APIs (`/api/projects/attachments/upload` + `/api/projects/attachments/confirm`) so links are created under `owner_table='projects'` only.
 - **Attach to Payment** must keep using payment attachment APIs and may add an optional secondary project link via `linkedProjectUuid`.
 - Ledger auto-create prompt applies to payment-target uploads only; project-target uploads must not create ledger entries automatically.
-- Bank transaction edit dialogs must fetch payment options scoped to the transaction counteragent; inactive payments are included only when they are the transaction's currently bound payment ID.
+- Payment options are scoped to the transaction counteragent and bank-account insider. Project insider is authoritative for normal payments (`projects.insider_uuid`, falling back to `payments.insider_uuid`); inactive payments are included only when they are the transaction's currently bound payment ID.
+- `/api/bank-transactions/[id]` resolves normal `payments` IDs first, then existing `salary_accruals.payment_id` IDs with salary counteragent/financial-code/currency metadata.
 
 ## Bank Transactions Data Architecture
 
@@ -257,6 +258,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Batch transactions are resolved from `bank_transaction_batches` table
 - Keep `SOURCE_TABLES` in sync with `app/api/bank-transactions/[id]/route.ts` (allowed tables + synthetic offsets) and mirror new tables in `app/api/bank-transactions/raw-record/[uuid]/route.ts` and `app/api/bank-transactions/parsing-lock/{route.ts,[id]/route.ts}`; mismatches break edit/payment binding for newly added accounts.
 - Some newly created BOG raw tables may not have a physical `bank_account_uuid` column; statement/bank-transaction unions must derive it from `bank_accounts.raw_table_name` instead of selecting `table.bank_account_uuid` directly.
+- Do not run per-bank-account Prisma/DB queries in `Promise.all`; local PgBouncer-compatible pools may provide only one connection. Process account metadata/balance checks sequentially and load base account rows before optional balance enrichment.
 
 ### Salary Accrual Month Filtering
 - Normalize every loaded salary accrual `salary_month` to `YYYY-MM-01` before table filtering.

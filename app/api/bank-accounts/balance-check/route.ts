@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
@@ -238,6 +239,39 @@ async function tableExists(tableName: string): Promise<boolean> {
   return !!row?.exists;
 }
 
+async function getLatestTransactionDate(tableName: string): Promise<string | null> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ latest_date: Date | string | null }>>(
+    `SELECT MAX(transaction_date)::date AS latest_date FROM "${tableName}"`
+  );
+  const latest = rows[0]?.latest_date;
+  if (!latest) return null;
+  return latest instanceof Date ? latest.toISOString().slice(0, 10) : String(latest).slice(0, 10);
+}
+
+async function getRecordedBalanceForDate(
+  accountUuid: string,
+  latestDate: string
+): Promise<number | null> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ recorded_balance: unknown }>>(
+    `
+      SELECT
+        COALESCE(bab.closing_balance, bab.opening_balance) AS recorded_balance
+      FROM bank_account_balances bab
+      WHERE bab.account_uuid = $1::uuid
+        AND bab.opening_date <= $2::date
+        AND bab.closing_date > $2::date
+      ORDER BY bab.opening_date DESC
+      LIMIT 1
+    `,
+    accountUuid,
+    latestDate
+  );
+  const value = rows[0]?.recorded_balance;
+  if (value === null || value === undefined) return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
 async function getMovementStats(tableName: string, asOfDate: string, balanceDate: string | null) {
   let whereClause = `transaction_date::date <= $1::date`;
   const params: Array<string> = [asOfDate];
@@ -294,8 +328,8 @@ export async function GET(request: NextRequest) {
       ORDER BY ba.created_at DESC
     `);
 
-    const rows = await Promise.all(
-      accounts.map(async (account) => {
+    const rows: any[] = [];
+    for (const account of accounts) {
         const openingBalance = account.balance === null || account.balance === undefined ? null : toNumber(account.balance);
         const balanceDate = normalizeDateOnly(account.balance_date);
         const tableName = deriveDeconsolidatedTableName({
@@ -333,7 +367,7 @@ export async function GET(request: NextRequest) {
         }
 
         if (!tableName || !TABLE_NAME_RE.test(tableName)) {
-          return {
+          rows.push({
             bankAccountUuid: account.uuid,
             deconsolidatedTable: null,
             openingBalance,
@@ -350,12 +384,13 @@ export async function GET(request: NextRequest) {
             bogCorrelationId,
             asOfDate: asOfDateRaw,
             status: "skipped_table_unknown",
-          };
+          });
+          continue;
         }
 
         const exists = await tableExists(tableName);
         if (!exists) {
-          return {
+          rows.push({
             bankAccountUuid: account.uuid,
             deconsolidatedTable: tableName,
             openingBalance,
@@ -372,14 +407,19 @@ export async function GET(request: NextRequest) {
             bogCorrelationId,
             asOfDate: asOfDateRaw,
             status: "skipped_table_missing",
-          };
+          });
+          continue;
         }
 
         const movement = await getMovementStats(tableName, asOfDateRaw, balanceDate);
+        const latestDate = await getLatestTransactionDate(tableName);
+        const recordedBalance = latestDate
+          ? await getRecordedBalanceForDate(String(account.uuid), latestDate)
+          : null;
         const base = openingBalance ?? 0;
         const computedCurrentBalance = base + movement.net;
 
-        return {
+        rows.push({
           bankAccountUuid: account.uuid,
           deconsolidatedTable: tableName,
           openingBalance,
@@ -394,11 +434,12 @@ export async function GET(request: NextRequest) {
           bogApiBalance,
           bogBalanceStatus,
           bogCorrelationId,
+          latestDate,
+          recordedBalance,
           asOfDate: asOfDateRaw,
           status: "ok",
-        };
-      })
-    );
+        });
+    }
 
     return NextResponse.json({ asOfDate: asOfDateRaw, rows });
   } catch (error) {

@@ -44,10 +44,11 @@ const getCachedPaymentOptions = unstable_cache(
     includeSalary: boolean,
     projectionMonths: number,
     counteragentUuid: string | null,
+    insiderUuid: string | null,
     currentPaymentId: string | null,
   ) =>
-    buildPaymentOptions(includeSalary, projectionMonths, counteragentUuid, currentPaymentId),
-  ['payment-id-options-v3'],
+    buildPaymentOptions(includeSalary, projectionMonths, counteragentUuid, insiderUuid, currentPaymentId),
+  ['payment-id-options-v5'],
   { tags: [PAYMENT_OPTIONS_TAG], revalidate: 300 },
 );
 
@@ -58,7 +59,13 @@ export async function GET(request: NextRequest) {
     const includeSalary = searchParams.get('includeSalary') !== 'false';
     // Lower default from 36 to 12 months. Callers that genuinely need a wider
     // window can still pass ?projectionMonths=36 explicitly.
-    const projectionMonths = Math.max(0, parseInt(searchParams.get('projectionMonths') || '12', 10) || 12);
+    const requestedProjectionMonths = searchParams.get('projectionMonths');
+    const parsedProjectionMonths = requestedProjectionMonths === null
+      ? 12
+      : Number.parseInt(requestedProjectionMonths, 10);
+    const projectionMonths = Number.isNaN(parsedProjectionMonths)
+      ? 12
+      : Math.max(0, parsedProjectionMonths);
     const requestedCounteragentUuid = searchParams.get('counteragentUuid')?.trim() || null;
     const validCounteragentUuid =
       !requestedCounteragentUuid ||
@@ -72,12 +79,40 @@ export async function GET(request: NextRequest) {
       );
     }
     const counteragentUuid = requestedCounteragentUuid;
+    const requestedBankAccountUuid = searchParams.get('bankAccountUuid')?.trim() || null;
+    const validBankAccountUuid =
+      !requestedBankAccountUuid ||
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        requestedBankAccountUuid
+      );
+    if (!validBankAccountUuid) {
+      return NextResponse.json(
+        { error: 'Invalid bankAccountUuid' },
+        { status: 400 }
+      );
+    }
+
+    let insiderUuid: string | null = null;
+    if (requestedBankAccountUuid) {
+      const bankAccount = await prisma.bankAccount.findUnique({
+        where: { uuid: requestedBankAccountUuid },
+        select: { insiderUuid: true },
+      });
+      if (!bankAccount) {
+        return NextResponse.json(
+          { error: 'Bank account not found' },
+          { status: 404 }
+        );
+      }
+      insiderUuid = bankAccount.insiderUuid;
+    }
     const currentPaymentId = searchParams.get('currentPaymentId')?.trim() || null;
 
     const result = await getCachedPaymentOptions(
       includeSalary,
       projectionMonths,
       counteragentUuid,
+      insiderUuid,
       currentPaymentId
     );
     const dur = Date.now() - t0;
@@ -101,6 +136,7 @@ async function buildPaymentOptions(
   includeSalary: boolean,
   projectionMonths: number,
   counteragentUuid: string | null = null,
+  insiderUuid: string | null = null,
   currentPaymentId: string | null = null,
 ): Promise<PaymentOption[]> {
   const paymentQueryArgs: string[] = [];
@@ -108,7 +144,17 @@ async function buildPaymentOptions(
 
   if (counteragentUuid) {
     paymentQueryArgs.push(counteragentUuid);
-    paymentConditions.push(`p.counteragent_uuid = $${paymentQueryArgs.length}::uuid AND p.is_active = true`);
+    let condition = `p.counteragent_uuid = $${paymentQueryArgs.length}::uuid AND p.is_active = true`;
+    if (insiderUuid) {
+      paymentQueryArgs.push(insiderUuid);
+      condition += ` AND COALESCE(proj.insider_uuid, p.insider_uuid) = $${paymentQueryArgs.length}::uuid`;
+    }
+    paymentConditions.push(condition);
+  } else if (insiderUuid) {
+    paymentQueryArgs.push(insiderUuid);
+    paymentConditions.push(
+      `COALESCE(proj.insider_uuid, p.insider_uuid) = $${paymentQueryArgs.length}::uuid AND p.is_active = true`
+    );
   } else {
     paymentConditions.push('p.is_active = true');
   }
@@ -168,6 +214,30 @@ async function buildPaymentOptions(
       return paymentOptions;
     }
 
+    const salaryQueryArgs: string[] = [];
+    const salaryConditions = ["sa.payment_id IS NOT NULL AND sa.payment_id <> ''"];
+    const salaryScopeConditions: string[] = [];
+    if (counteragentUuid && insiderUuid) {
+      salaryQueryArgs.push(counteragentUuid);
+      salaryQueryArgs.push(insiderUuid);
+      salaryScopeConditions.push(
+        `(sa.counteragent_uuid = $${salaryQueryArgs.length - 1}::uuid AND sa.insider_uuid = $${salaryQueryArgs.length}::uuid)`
+      );
+    } else if (counteragentUuid) {
+      salaryQueryArgs.push(counteragentUuid);
+      salaryScopeConditions.push(`sa.counteragent_uuid = $${salaryQueryArgs.length}::uuid`);
+    } else if (insiderUuid) {
+      salaryQueryArgs.push(insiderUuid);
+      salaryScopeConditions.push(`sa.insider_uuid = $${salaryQueryArgs.length}::uuid`);
+    }
+    if (currentPaymentId) {
+      salaryQueryArgs.push(currentPaymentId);
+      salaryScopeConditions.push(`sa.payment_id = $${salaryQueryArgs.length}`);
+    }
+    if (salaryScopeConditions.length > 0) {
+      salaryConditions.push(`(${salaryScopeConditions.join(' OR ')})`);
+    }
+
     const salaryRows = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT DISTINCT ON (sa.counteragent_uuid, sa.payment_id)
         sa.payment_id,
@@ -183,9 +253,9 @@ async function buildPaymentOptions(
       LEFT JOIN counteragents ca ON sa.counteragent_uuid = ca.counteragent_uuid
       LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
       LEFT JOIN currencies curr ON sa.nominal_currency_uuid = curr.uuid
-      WHERE sa.payment_id IS NOT NULL AND sa.payment_id <> ''
+      WHERE ${salaryConditions.join(' AND ')}
       ORDER BY sa.counteragent_uuid, sa.payment_id, sa.salary_month DESC
-    `)) as any[];
+    `, ...salaryQueryArgs)) as any[];
 
     const salaryOptionsById = new Map<string, PaymentOption>();
     salaryRows.forEach((row) => {

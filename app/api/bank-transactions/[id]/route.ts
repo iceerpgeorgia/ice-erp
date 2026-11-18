@@ -507,7 +507,14 @@ export async function PATCH(
       if (normalizedPaymentId) {
         try {
           // Pull payment attributes used to keep transaction fields aligned.
-          const payment = await prisma.payments.findUnique({
+          let payment:
+            | {
+                currency_uuid: string | null;
+                counteragent_uuid: string | null;
+                project_uuid: string | null;
+                financial_code_uuid: string | null;
+              }
+            | null = await prisma.payments.findUnique({
             where: { payment_id: normalizedPaymentId },
             select: {
               currency_uuid: true,
@@ -516,6 +523,27 @@ export async function PATCH(
               financial_code_uuid: true,
             }
           });
+
+          if (!payment) {
+            const salaryAccrual = await prisma.salary_accruals.findFirst({
+              where: { payment_id: normalizedPaymentId },
+              select: {
+                nominal_currency_uuid: true,
+                counteragent_uuid: true,
+                financial_code_uuid: true,
+              },
+              orderBy: { salary_month: 'desc' },
+            });
+
+            if (salaryAccrual) {
+              payment = {
+                currency_uuid: salaryAccrual.nominal_currency_uuid,
+                counteragent_uuid: salaryAccrual.counteragent_uuid,
+                project_uuid: null,
+                financial_code_uuid: salaryAccrual.financial_code_uuid,
+              };
+            }
+          }
 
           if (!payment) {
             return NextResponse.json(

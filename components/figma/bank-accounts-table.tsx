@@ -28,7 +28,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Combobox } from '@/components/ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
-import { useRequiredInsiderName } from './shared/use-required-insider';
 
 type BankAccount = {
   id: number;
@@ -127,7 +126,6 @@ interface ParsingScheme {
 }
 
 export function BankAccountsTable() {
-  const requiredInsiderName = useRequiredInsiderName();
   const [data, setData] = useState<BankAccount[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -289,59 +287,65 @@ export function BankAccountsTable() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [accountsResponse, balanceResponse] = await Promise.all([
-        fetch('/api/bank-accounts'),
-        fetch('/api/bank-accounts/balance-check'),
-      ]);
-
+      const accountsResponse = await fetch('/api/bank-accounts', { cache: 'no-store' });
       if (!accountsResponse.ok) throw new Error('Failed to fetch bank accounts');
       const accounts = await accountsResponse.json();
 
-      let balanceRows: any[] = [];
-      if (balanceResponse.ok) {
-        const payload = await balanceResponse.json();
-        balanceRows = Array.isArray(payload?.rows) ? payload.rows : [];
-      }
+      setData(Array.isArray(accounts) ? accounts : []);
+      setLoading(false);
 
-      const balanceByAccount = new Map<string, any>(
-        balanceRows.map((row) => [String(row.bankAccountUuid), row])
-      );
+      void fetch('/api/bank-accounts/balance-check', { cache: 'no-store' })
+        .then(async (balanceResponse) => {
+          if (!balanceResponse.ok) return;
+          const payload = await balanceResponse.json();
+          const balanceRows = Array.isArray(payload?.rows) ? payload.rows : [];
+          const balanceByAccount = new Map<string, any>(
+            balanceRows.map((row: any) => [String(row.bankAccountUuid), row])
+          );
 
-      const merged = (Array.isArray(accounts) ? accounts : []).map((account: any) => {
-        const balanceData = balanceByAccount.get(String(account.uuid));
-        return {
-          ...account,
-          computedCurrentBalance:
-            balanceData?.computedCurrentBalance === null || balanceData?.computedCurrentBalance === undefined
-              ? null
-              : Number(balanceData.computedCurrentBalance),
-          balanceDelta:
-            balanceData?.deltaFromStored === null || balanceData?.deltaFromStored === undefined
-              ? null
-              : Number(balanceData.deltaFromStored),
-          periodIncome:
-            balanceData?.income === null || balanceData?.income === undefined
-              ? null
-              : Number(balanceData.income),
-          periodExpense:
-            balanceData?.expense === null || balanceData?.expense === undefined
-              ? null
-              : Number(balanceData.expense),
-          balanceAsOfDate: balanceData?.asOfDate || null,
-          balanceCheckStatus: balanceData?.status || null,
-          bogApiBalance:
-            balanceData?.bogApiBalance === null || balanceData?.bogApiBalance === undefined
-              ? null
-              : Number(balanceData.bogApiBalance),
-          bogBalanceDelta:
-            balanceData?.deltaFromBogApi === null || balanceData?.deltaFromBogApi === undefined
-              ? null
-              : Number(balanceData.deltaFromBogApi),
-          bogBalanceStatus: balanceData?.bogBalanceStatus || null,
-        } as BankAccount;
-      });
-
-      setData(merged);
+          setData((current) => current.map((account) => {
+            const balanceData = balanceByAccount.get(String(account.uuid));
+            if (!balanceData) return account;
+            return {
+              ...account,
+              computedCurrentBalance:
+                balanceData.computedCurrentBalance === null || balanceData.computedCurrentBalance === undefined
+                  ? null
+                  : Number(balanceData.computedCurrentBalance),
+              balanceDelta:
+                balanceData.deltaFromStored === null || balanceData.deltaFromStored === undefined
+                  ? null
+                  : Number(balanceData.deltaFromStored),
+              periodIncome:
+                balanceData.income === null || balanceData.income === undefined
+                  ? null
+                  : Number(balanceData.income),
+              periodExpense:
+                balanceData.expense === null || balanceData.expense === undefined
+                  ? null
+                  : Number(balanceData.expense),
+              balanceAsOfDate: balanceData.asOfDate || null,
+              balanceCheckStatus: balanceData.status || null,
+              bogApiBalance:
+                balanceData.bogApiBalance === null || balanceData.bogApiBalance === undefined
+                  ? null
+                  : Number(balanceData.bogApiBalance),
+              bogBalanceDelta:
+                balanceData.deltaFromBogApi === null || balanceData.deltaFromBogApi === undefined
+                  ? null
+                  : Number(balanceData.deltaFromBogApi),
+              bogBalanceStatus: balanceData.bogBalanceStatus || null,
+              latestDate: balanceData.latestDate ?? account.latestDate,
+              recordedBalance:
+                balanceData.recordedBalance === null || balanceData.recordedBalance === undefined
+                  ? account.recordedBalance
+                  : Number(balanceData.recordedBalance),
+            };
+          }));
+        })
+        .catch((error) => {
+          console.error('Error enriching bank account balances:', error);
+        });
     } catch (error) {
       console.error('Error fetching bank accounts:', error);
     } finally {
@@ -1083,7 +1087,7 @@ export function BankAccountsTable() {
                         ) : (
                           <div className="truncate">
                             {col.key === 'insiderName'
-                              ? (requiredInsiderName || '-')
+                              ? (row.insiderName || '-')
                               : col.key === 'balanceDelta'
                                 ? formatDeltaCell(row)
                               : formatValue(row[col.key], col.format)}

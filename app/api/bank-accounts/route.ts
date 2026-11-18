@@ -3,87 +3,10 @@ import { PrismaClient } from "@prisma/client";
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from "@/lib/insider-selection";
 import { requireAuth, isAuthError } from "@/lib/auth-guard";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const prisma = new PrismaClient();
-const TABLE_NAME_RE = /^[A-Za-z0-9_]+$/;
-
-function normalizeCurrencyCode(code: string | null): string {
-  return String(code || "").trim().toUpperCase();
-}
-
-function deriveDeconsolidatedTableName(params: {
-  accountNumber: string;
-  bankName: string | null;
-  currencyCode: string | null;
-  parsingSchemeName: string | null;
-}): string | null {
-  const accountNumber = String(params.accountNumber || "").trim();
-  const bankName = String(params.bankName || "").trim().toUpperCase();
-  const currencyCode = normalizeCurrencyCode(params.currencyCode);
-  const parsingSchemeName = String(params.parsingSchemeName || "").trim().toUpperCase();
-
-  if (!accountNumber || !currencyCode) return null;
-
-  if (bankName.includes("BOG") || parsingSchemeName.includes("BOG")) {
-    const schemeSuffix = currencyCode === "GEL" ? "BOG_GEL" : `BOG_${currencyCode}`;
-    return `${accountNumber}_${schemeSuffix}`;
-  }
-
-  if (bankName.includes("TBC") || parsingSchemeName.includes("TBC")) {
-    return `${accountNumber}_TBC_${currencyCode}`;
-  }
-
-  return null;
-}
-
-async function tableExists(tableName: string): Promise<boolean> {
-  const [row] = await prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
-    `
-      SELECT EXISTS (
-        SELECT 1
-        FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_name = $1
-      ) AS exists
-    `,
-    tableName
-  );
-
-  return !!row?.exists;
-}
-
-async function getLatestTransactionDate(tableName: string): Promise<string | null> {
-  if (!TABLE_NAME_RE.test(tableName)) return null;
-  const [row] = await prisma.$queryRawUnsafe<Array<{ latest_date: string | null }>>(
-    `
-      SELECT MAX(transaction_date::date)::text AS latest_date
-      FROM "${tableName}"
-    `
-  );
-  return row?.latest_date || null;
-}
-
-async function getRecordedBalanceForDate(accountUuid: string, latestDate: string): Promise<number | null> {
-  const [row] = await prisma.$queryRawUnsafe<Array<{ recorded_balance: unknown }>>(
-    `
-      SELECT
-        CASE
-          WHEN $2::date = bab.opening_date THEN bab.closing_balance
-          ELSE bab.opening_balance
-        END AS recorded_balance
-      FROM bank_account_balances bab
-      WHERE bab.account_uuid = $1::uuid
-        AND bab.opening_date <= $2::date
-        AND bab.closing_date > $2::date
-      ORDER BY bab.opening_date DESC
-      LIMIT 1
-    `,
-    accountUuid,
-    latestDate
-  );
-
-  if (!row || row.recorded_balance === null || row.recorded_balance === undefined) return null;
-  const n = Number(row.recorded_balance);
-  return Number.isFinite(n) ? n : null;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -116,29 +39,7 @@ export async function GET(request: NextRequest) {
       ORDER BY ba.created_at DESC
     `);
 
-    const formattedAccounts = await Promise.all(
-      bankAccounts.map(async (account) => {
-        const deconsolidatedTableName = deriveDeconsolidatedTableName({
-          accountNumber: account.account_number,
-          bankName: account.bank_name,
-          currencyCode: account.currency_code,
-          parsingSchemeName: account.parsing_scheme_name,
-        });
-
-        let latestDate: string | null = null;
-        let recordedBalance: number | null = null;
-
-        if (deconsolidatedTableName && TABLE_NAME_RE.test(deconsolidatedTableName)) {
-          const exists = await tableExists(deconsolidatedTableName);
-          if (exists) {
-            latestDate = await getLatestTransactionDate(deconsolidatedTableName);
-            if (latestDate) {
-              recordedBalance = await getRecordedBalanceForDate(String(account.uuid), latestDate);
-            }
-          }
-        }
-
-        return {
+    const formattedAccounts = bankAccounts.map((account) => ({
           id: Number(account.id),
           uuid: account.uuid,
           accountNumber: account.account_number,
@@ -157,13 +58,15 @@ export async function GET(request: NextRequest) {
           updatedAt: account.updated_at,
           insiderUuid: account.insider_uuid,
           insiderName: selection.selectedInsiders.find((i) => i.insiderUuid === account.insider_uuid)?.insiderName || null,
-          latestDate,
-          recordedBalance,
-        };
-      })
-    );
+          latestDate: null,
+          recordedBalance: null,
+        }));
 
-    return NextResponse.json(formattedAccounts);
+    return NextResponse.json(formattedAccounts, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      },
+    });
   } catch (error) {
     console.error("Error fetching bank accounts:", error);
     return NextResponse.json(

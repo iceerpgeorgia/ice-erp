@@ -654,12 +654,11 @@ export function BankTransactionsTable({
   useEffect(() => {
     const fetchAllPayments = async () => {
       try {
-        const response = await fetch('/api/payment-id-options?includeSalary=false&projectionMonths=12');
+        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=0');
         if (!response.ok) throw new Error('Failed to fetch payments');
         const paymentsData = await response.json();
         const normalizedPayments = Array.isArray(paymentsData)
           ? paymentsData
-              .filter((payment: any) => (payment?.source || 'payments') === 'payments')
               .map((payment: any) => ({
               ...payment,
               counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
@@ -1108,8 +1107,9 @@ export function BankTransactionsTable({
       const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
         needsRates ? fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.json()).catch(e => { console.error('[startEdit] Exchange rates error:', e); return null; }) : null,
         fetch(
-          `/api/payment-id-options?includeSalary=false&projectionMonths=12` +
+          `/api/payment-id-options?includeSalary=true&projectionMonths=0` +
           `${transaction.counteragentUuid ? `&counteragentUuid=${encodeURIComponent(transaction.counteragentUuid)}` : ''}` +
+          `${transaction.accountUuid ? `&bankAccountUuid=${encodeURIComponent(transaction.accountUuid)}` : ''}` +
           `${transaction.paymentId ? `&currentPaymentId=${encodeURIComponent(transaction.paymentId)}` : ''}`
         ).then(r => r.ok ? r.json() : []).catch(e => { console.error('[startEdit] Payments error:', e); return []; }),
         needsProjects ? fetch('/api/projects?dropdown=true').then(r => r.json()).catch(e => { console.error('[startEdit] Projects error:', e); return []; }) : null,
@@ -1133,7 +1133,6 @@ export function BankTransactionsTable({
       if (paymentsRaw) {
         freshPayments = Array.isArray(paymentsRaw)
           ? paymentsRaw
-              .filter((payment: any) => (payment?.source || 'payments') === 'payments')
               .map((payment: any) => ({
               ...payment,
               counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
