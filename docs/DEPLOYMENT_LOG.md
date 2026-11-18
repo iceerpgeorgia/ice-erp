@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-11-18
+- Summary: Enable salary payment binding, scope bank transaction payment options by counteragent and bank-account insider, and stabilize bank account loading/display.
+- Changes:
+  - Payment options include real salary accrual IDs but exclude generated salary projections.
+  - PATCH bank transaction binding resolves existing salary accrual metadata when a `payments` row is absent.
+  - Payment options use project insider first, falling back to payment insider, and are restricted by the bank account insider.
+  - Bank account APIs avoid one-connection-pool exhaustion, disable stale caching, and return rows before optional balance enrichment.
+  - Bank account table displays each row's stored insider instead of the global primary insider label.
+- Commit: 0d1b87f
+- Production: https://ice-khk2dc4ix-iceerp.vercel.app
+- Status: Production alias verified; local tests, type-check, and production build passed.
+
 ## 2026-06-16 Deployment #387 (Fix: Counteragent Payment Selection Caching)
 - Commit: b4ae5f0
 - Production: https://ice-o9enm8aff-iceerp.vercel.app
