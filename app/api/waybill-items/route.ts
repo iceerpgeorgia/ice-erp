@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, withRetry } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { getRequiredInsider } from "@/lib/required-insider";
 import { requireAuth, isAuthError } from "@/lib/auth-guard";
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = url;
 
     // Parse core parameters
-    const limit = Math.min(Number(searchParams.get('limit') || 200), 2000);
+    const limit = Math.min(Number(searchParams.get('limit') || 200), 50000);
     const offset = Math.max(Number(searchParams.get('offset') || 0), 0);
     const search = (searchParams.get('search') || '').trim();
     const sortColumn = searchParams.get('sortColumn') || 'waybill_no';
@@ -270,7 +270,7 @@ export async function GET(req: NextRequest) {
     // Build order by
     const orderBy: any = {};
     if (allowedSortColumns.has(sortColumn)) {
-      if (sortColumn.startsWith('waybill_')) {
+      if (sortColumn.startsWith('waybill_') && sortColumn !== 'waybill_no') {
         const fieldName = sortColumn.replace('waybill_', '');
         orderBy['waybill'] = { [fieldName]: sortDirection };
       } else if (sortColumn === 'inventory_name') {
@@ -285,8 +285,7 @@ export async function GET(req: NextRequest) {
       orderBy['id'] = 'asc';
     }
 
-    const [rows, total] = await Promise.all([
-      prisma.rs_waybills_in_items.findMany({
+    const rows = await withRetry(() => prisma.rs_waybills_in_items.findMany({
         where,
         orderBy,
         take: limit,
@@ -317,9 +316,8 @@ export async function GET(req: NextRequest) {
             }
           }
         },
-      }),
-      prisma.rs_waybills_in_items.count({ where }),
-    ]);
+      }));
+    const total = await withRetry(() => prisma.rs_waybills_in_items.count({ where }));
 
     const data = rows.map((row) => ({
       // Item fields

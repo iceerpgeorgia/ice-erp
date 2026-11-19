@@ -67,6 +67,8 @@ const RETRYABLE_PATTERNS = [
   'remaining connection slots are reserved',
   'too many connections',
   'Connection timed out',
+  'Timed out fetching a new connection from the connection pool',
+  'Server has closed the connection',
 ];
 
 function isRetryableError(error: unknown): boolean {

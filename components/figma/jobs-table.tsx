@@ -36,7 +36,6 @@ import { Combobox } from '@/components/ui/combobox';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
-import { useRequiredInsiderName } from './shared/use-required-insider';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters } from './shared/use-table-filters';
@@ -115,7 +114,6 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export function JobsTable() {
-  const requiredInsiderName = useRequiredInsiderName();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [projects, setProjects] = useState<Array<{ projectUuid: string; projectIndex: string; projectName: string }>>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -295,6 +293,8 @@ export function JobsTable() {
               isActive: job.isActive ?? job.is_active ?? true,
               createdAt: job.createdAt || job.created_at,
               updatedAt: job.updatedAt || job.updated_at,
+              insiderUuid: job.insiderUuid || job.insider_uuid || null,
+              insiderName: job.insiderName || job.insider_name || null,
               _rowKey: job._rowKey || `${job.jobUuid || job.job_uuid}_${job.projectUuid || ''}`,
             }))
           : [];
@@ -866,7 +866,7 @@ export function JobsTable() {
                       ) : column.key === 'weight' ? (
                         <span>{job.weight == null ? '-' : `${job.weight} kg`}</span>
                       ) : column.key === 'insiderName' ? (
-                        <span className="text-sm">{requiredInsiderName || '-'}</span>
+                        <span className="text-sm">{job.insiderName || '-'}</span>
                       ) : column.key === 'projectIndex' ? (
                         <span className="text-sm" title={job.projectIndex}>
                           {job.projectIndex || '-'}

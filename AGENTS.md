@@ -370,6 +370,12 @@ The official unit list is fetched via `get_waybill_units` SOAP method. Verified 
 
 ## Waybill-Derived Payments
 
+### Waybill Check Column
+- `rs_waybills_in_api` check state is computed as `project_uuid OR financial_code_uuid OR corresponding_account`; expose it as boolean `check` from `/api/waybills` for correct Yes/No facet values and filtering.
+- In `/api/waybill-items`, `waybill_no` is an item-level column; only `waybill_*` header columns such as `waybill_activation_time` sort through the `waybill` relation. Rewriting `waybill_no` as `waybill.no` causes Prisma validation failure and HTTP 500.
+- Waybill and Waybill Items tables load the full scoped dataset in sequential 2,000-row chunks for client-side filtering; single huge requests can monopolize the one-connection Prisma pool and hide rows behind the old cap.
+- Retry long list/count queries when Prisma reports pool acquisition timeout or PgBouncer/driver "Server has closed the connection".
+
 When a waybill is bound (or re-bound) to a project, the system automatically creates and maintains a corresponding `payments` record and a `payments_ledger` entry.
 
 ### Key Rules
@@ -391,6 +397,7 @@ When a waybill is bound (or re-bound) to a project, the system automatically cre
 When waybill items are bound to different projects, item-level binding should take priority over waybill-level payment derivation. This is not yet implemented; the current implementation operates at the waybill level only.
 
 ## Handovers Job Distribution UI & Emission
+- Inventories follows the Waybill Items table pattern: full-width shell, global search, per-column facets, sorting, column visibility, export, and pagination; CRUD behavior remains on `/api/inventories`.
 - The Job Distributions grid on Handovers renders bank-transaction-style rows (date, account, CA account, amount, nominal amount, financial code, nom ISO, payment ID, batch ID, description, ID1, ID2) from `/api/bank-transactions`, filtered by `project_uuid` and limited to payment IDs from income payments (`financialCodeIsIncome`).
 - The Handovers jobs table shows calculated columns for Paid Nominal, Paid GEL, Debit Nominal, Debit GEL, and Total GEL, and its footer totals the numeric business columns that are actually displayed as totals (for example Floors and the money columns, but not Weight). Paid GEL is summed from `payments_jobs.amount_account_curr`, while Debit GEL/Total GEL are computed from nominal amounts using the job's `liftCertDate` and the project currency's NBG rate lookup by date.
 - The grid supports advanced table features: column resizing (drag resize handle), column reordering (drag column headers), column visibility toggle (Columns dropdown), filtering (filterable columns have filter icon), sorting (sortable columns have sort icon), and global search (search bar filters all visible columns).
@@ -436,6 +443,7 @@ Previously, payments could reference a `jobUuid` and `projectUuid` combination w
 - When a project's insider changes, bound jobs inherit the new insider only if the job is not simultaneously bound to projects of a different insider; otherwise the project update is rejected with conflict details.
 - This rule is enforced in both project update endpoints (`/api/projects` and `/api/projects/[id]`) and in payment auto-bind flows (`POST/PATCH /api/payments`) so job-project linkage cannot bypass insider consistency.
 - Jobs listing responses expose insider from the bound project context (not caller-selected insider), and `/api/jobs` runs a safe self-heal update to align `jobs.insider_uuid` when all bound projects for a job share one insider.
+- Jobs table normalization and rendering must preserve each row's `insiderUuid`/`insiderName` from `/api/jobs`; never replace the column with the global primary insider label.
 
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.

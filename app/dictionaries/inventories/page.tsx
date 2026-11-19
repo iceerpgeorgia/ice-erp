@@ -11,8 +11,12 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Download, Plus, Pencil, Trash2 } from "lucide-react";
+import { Download, Plus, Pencil, Trash2, Search, Settings, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { exportRowsToXlsx } from "@/lib/export-xlsx";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/figma/ui/popover";
+import { ColumnFilterPopover } from "@/components/figma/shared/column-filter-popover";
+import { ClearFiltersButton } from "@/components/figma/shared/clear-filters-button";
+import { useTableFilters } from "@/components/figma/shared/use-table-filters";
 
 interface Inventory {
   id: number;
@@ -32,6 +36,28 @@ interface Inventory {
 }
 
 interface Option { uuid: string; label: string; }
+type ColumnKey = keyof Inventory;
+type ColumnConfig = {
+  key: ColumnKey;
+  label: string;
+  visible: boolean;
+  sortable: boolean;
+  filterable: boolean;
+  width: number;
+  format?: "boolean" | "date";
+};
+
+const defaultColumns: ColumnConfig[] = [
+  { key: "name", label: "Name", visible: true, sortable: true, filterable: true, width: 260 },
+  { key: "inventory_group_name", label: "Group", visible: true, sortable: true, filterable: true, width: 220 },
+  { key: "dimension_name", label: "Dimension", visible: true, sortable: true, filterable: true, width: 180 },
+  { key: "internal_number", label: "Internal #", visible: true, sortable: true, filterable: true, width: 160 },
+  { key: "is_nonbalance", label: "Non-balance", visible: true, sortable: true, filterable: true, format: "boolean", width: 130 },
+  { key: "is_capex", label: "CapEx", visible: true, sortable: true, filterable: true, format: "boolean", width: 100 },
+  { key: "is_active", label: "Status", visible: true, sortable: true, filterable: true, format: "boolean", width: 110 },
+  { key: "createdAt", label: "Created", visible: false, sortable: true, filterable: false, format: "date", width: 170 },
+  { key: "updatedAt", label: "Updated", visible: false, sortable: true, filterable: false, format: "date", width: 170 },
+];
 
 const emptyForm = {
   name: "", producer_uuid: "", inventory_group_uuid: "", dimension_uuid: "",
@@ -49,6 +75,36 @@ export default function InventoriesPage() {
   const [formData, setFormData] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
+
+  const {
+    filters,
+    searchTerm,
+    sortColumn,
+    sortDirection,
+    currentPage,
+    pageSize,
+    sortedData,
+    paginatedData,
+    totalPages,
+    getColumnValues,
+    setSearchTerm,
+    handleSort,
+    setCurrentPage,
+    setPageSize,
+    handleFilterChange,
+    clearFilters,
+    activeFilterCount,
+  } = useTableFilters<Inventory, ColumnKey>({
+    data: rows,
+    columns,
+    defaultSortColumn: "name",
+    defaultSortDirection: "asc",
+    filtersStorageKey: "inventoriesFiltersV1",
+    pageSize: 200,
+  });
+
+  const visibleColumns = columns.filter((column) => column.visible);
 
   useEffect(() => { fetchAll(); fetchLookups(); }, []);
 
@@ -130,72 +186,169 @@ export default function InventoriesPage() {
   const selectCls = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Inventories</h1>
-          <p className="text-muted-foreground mt-1">Manage inventory dictionary</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={rows.length === 0}
-            onClick={() => exportRowsToXlsx({ rows, columns: [
-              { key: "name" as any, label: "Name", visible: true },
-              { key: "inventory_group_name" as any, label: "Group", visible: true },
-              { key: "dimension_name" as any, label: "Dimension", visible: true },
-              { key: "internal_number" as any, label: "Internal #", visible: true },
-              { key: "is_nonbalance" as any, label: "Non-balance", visible: true },
-              { key: "is_capex" as any, label: "CapEx", visible: true },
-              { key: "is_active" as any, label: "Active", visible: true },
-            ], fileName: `inventories_${new Date().toISOString().slice(0,10)}.xlsx`, sheetName: "Inventories" })}>
-            <Download className="h-4 w-4 mr-2" />Export XLSX
-          </Button>
-          <Button onClick={handleAdd}><Plus className="w-4 h-4 mr-2" />Add Inventory</Button>
+    <div className="flex flex-col h-screen bg-gray-50">
+      <div className="sticky top-0 z-30 flex-shrink-0 bg-white border-b shadow-sm">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold">Inventories</h1>
+              <p className="text-sm text-muted-foreground mt-1">Manage inventory dictionary</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={sortedData.length === 0}
+                onClick={() => exportRowsToXlsx({
+                  rows: sortedData,
+                  columns: columns.map((column) => ({ ...column, key: column.key as any })),
+                  fileName: `inventories_${new Date().toISOString().slice(0, 10)}.xlsx`,
+                  sheetName: "Inventories",
+                })}
+              >
+                <Download className="h-4 w-4 mr-2" />Export XLSX
+              </Button>
+              <Button onClick={handleAdd}><Plus className="w-4 h-4 mr-2" />Add Inventory</Button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4 mt-4">
+            <div className="flex items-center gap-2 flex-1">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search inventories..."
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              <ClearFiltersButton
+                activeCount={activeFilterCount + (searchTerm ? 1 : 0)}
+                onClear={() => {
+                  clearFilters();
+                  setSearchTerm("");
+                }}
+              />
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2" />Columns</Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-60">
+                <div className="space-y-2">
+                  {columns.map((column) => (
+                    <label key={column.key} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={column.visible}
+                        onCheckedChange={(checked) =>
+                          setColumns((current) => current.map((item) =>
+                            item.key === column.key ? { ...item, visible: Boolean(checked) } : item
+                          ))
+                        }
+                      />
+                      {column.label}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
 
-      {loading ? <div className="text-center py-12">Loading…</div> : (
-        <div className="border rounded-lg overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Group</TableHead>
-                <TableHead>Dimension</TableHead>
-                <TableHead>Internal #</TableHead>
-                <TableHead>Non-balance</TableHead>
-                <TableHead>CapEx</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">No inventories found.</TableCell></TableRow>
-              ) : rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.name}</TableCell>
-                  <TableCell>{row.inventory_group_name}</TableCell>
-                  <TableCell>{row.dimension_name}</TableCell>
-                  <TableCell>{row.internal_number}</TableCell>
-                  <TableCell>{row.is_nonbalance ? "Yes" : "No"}</TableCell>
-                  <TableCell>{row.is_capex ? "Yes" : "No"}</TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${row.is_active ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}`}>
-                      {row.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(row)}><Pencil className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(row.id)}><Trash2 className="w-4 h-4" /></Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-2 bg-white border-b text-sm">
+        <span>Total records: {sortedData.length}</span>
+        <div className="flex items-center gap-2">
+          <span>Rows per page</span>
+          <select
+            value={pageSize}
+            onChange={(event) => setPageSize(Number(event.target.value))}
+            className="h-8 rounded border bg-white px-2"
+          >
+            {[50, 100, 200, 500].map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
         </div>
-      )}
+      </div>
+
+      <div className="flex-1 overflow-auto bg-white">
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-white">
+            <TableRow>
+              {visibleColumns.map((column) => (
+                <TableHead key={column.key} style={{ width: column.width, minWidth: column.width }}>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 min-w-0"
+                      onClick={() => column.sortable && handleSort(column.key)}
+                    >
+                      <span className="truncate font-medium">{column.label}</span>
+                      {sortColumn === column.key && (sortDirection === "asc"
+                        ? <ArrowUp className="h-3 w-3 text-muted-foreground" />
+                        : <ArrowDown className="h-3 w-3 text-muted-foreground" />)}
+                    </button>
+                    {column.filterable && (
+                      <ColumnFilterPopover
+                        columnKey={column.key}
+                        columnLabel={column.label}
+                        values={getColumnValues(column.key)}
+                        activeFilter={filters.get(column.key)}
+                        onAdvancedFilterChange={(filter) => handleFilterChange(column.key, filter)}
+                        onSort={(direction) => handleSort(column.key)}
+                        columnFormat={column.format}
+                        renderValue={(value) => column.format === "boolean" ? (value ? "Yes" : "No") : String(value ?? "(Blank)")}
+                      />
+                    )}
+                  </div>
+                </TableHead>
+              ))}
+              <TableHead className="text-right" style={{ width: 100 }}>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow><TableCell colSpan={visibleColumns.length + 1} className="text-center py-12">Loading...</TableCell></TableRow>
+            ) : paginatedData.length === 0 ? (
+              <TableRow><TableCell colSpan={visibleColumns.length + 1} className="text-center py-12 text-muted-foreground">No inventories found</TableCell></TableRow>
+            ) : paginatedData.map((row) => (
+              <TableRow key={row.id}>
+                {visibleColumns.map((column) => (
+                  <TableCell key={column.key} style={{ width: column.width, minWidth: column.width }}>
+                    {column.key === "is_active" ? (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${row.is_active ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}`}>
+                        {row.is_active ? "Active" : "Inactive"}
+                      </span>
+                    ) : column.format === "boolean" ? (
+                      row[column.key] ? "Yes" : "No"
+                    ) : (
+                      String(row[column.key] ?? "")
+                    )}
+                  </TableCell>
+                ))}
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(row)} title="Edit"><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(row.id)} title="Deactivate"><Trash2 className="w-4 h-4" /></Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <div className="flex-shrink-0 flex items-center justify-between bg-white border-t px-6 py-3 text-sm">
+        <span>Showing {sortedData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, sortedData.length)} of {sortedData.length} records</span>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span>Page {currentPage} of {totalPages}</span>
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">

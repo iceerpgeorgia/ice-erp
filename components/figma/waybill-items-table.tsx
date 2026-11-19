@@ -449,7 +449,7 @@ export function WaybillItemsTable() {
       });
       try {
         const requestParams = {
-          limit: 10000,
+          limit: 2000,
           offset: 0,
           includeFacets: false,
           ...(appliedSearch.trim() && { search: appliedSearch.trim() }),
@@ -479,35 +479,48 @@ export function WaybillItemsTable() {
           (requestParams as any).advancedFilters = advancedArr;
         }
 
-        const queryString = new URLSearchParams();
-        Object.entries(requestParams).forEach(([key, value]) => {
-          if (value === undefined || value === null) return;
-          if (typeof value === 'boolean') queryString.set(key, String(value));
-          else if (typeof value === 'number') queryString.set(key, String(value));
-          else if (typeof value === 'string') queryString.set(key, value);
-          else queryString.set(key, JSON.stringify(value));
-        });
+        const allRows: WaybillItem[] = [];
+        let expectedTotal = 0;
+        let offset = 0;
+        let usePost = false;
+        let urlLength = 0;
 
-        const urlLength = `/api/waybill-items?${queryString.toString()}`.length;
-        const usePost = urlLength > 2000;
-
-        let res;
-        if (usePost) {
-          res = await fetch('/api/waybill-items', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestParams),
+        while (offset < 50000) {
+          const pageParams = { ...requestParams, limit: 2000, offset };
+          const queryString = new URLSearchParams();
+          Object.entries(pageParams).forEach(([key, value]) => {
+            if (value === undefined || value === null) return;
+            if (typeof value === 'boolean') queryString.set(key, String(value));
+            else if (typeof value === 'number') queryString.set(key, String(value));
+            else if (typeof value === 'string') queryString.set(key, value);
+            else queryString.set(key, JSON.stringify(value));
           });
-        } else {
-          res = await fetch(`/api/waybill-items?${queryString.toString()}`);
+
+          urlLength = `/api/waybill-items?${queryString.toString()}`.length;
+          usePost = urlLength > 2000;
+          const res = usePost
+            ? await fetch('/api/waybill-items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pageParams),
+              })
+            : await fetch(`/api/waybill-items?${queryString.toString()}`);
+          const body = await res.json();
+          if (!res.ok) throw new Error(body?.error || 'Failed to load waybill items');
+
+          const rows = Array.isArray(body.data) ? body.data : [];
+          allRows.push(...rows);
+          expectedTotal = Number(body.total || expectedTotal || rows.length);
+          setData([...allRows]);
+          setTotal(expectedTotal);
+
+          offset += rows.length;
+          if (rows.length < 2000 || offset >= expectedTotal) break;
         }
 
-        const body = await res.json();
-        setData(body.data || []);
-        setTotal(body.total || 0);
         logFilter('FETCH_ALL_ITEMS_SUCCESS', { 
-          dataCount: (body.data || []).length,
-          total: body.total || 0,
+          dataCount: allRows.length,
+          total: expectedTotal,
           usePost,
           urlLength,
           appliedFiltersCount: columnFilters.length + advancedFilters.size,

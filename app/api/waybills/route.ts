@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { resolveInsiderSelection } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { syncWaybillPayment } from '@/lib/waybills/sync-waybill-payment';
@@ -47,6 +47,7 @@ const parseMonthBoundary = (value: string | null, mode: 'start' | 'endExclusive'
 const serializeWaybill = (row: any) => ({
   ...row,
   id: toNumber(row.id),
+  check: Boolean(row.project_uuid || row.financial_code_uuid || row.corresponding_account),
   sum: row.sum?.toString() ?? null,
   transportation_sum: row.transportation_sum?.toString() ?? null,
   transportation_cost: row.transportation_cost?.toString() ?? null,
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest) {
       );
     }
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(Number(searchParams.get('limit') || 200), 2000);
+    const limit = Math.min(Number(searchParams.get('limit') || 200), 50000);
     const offset = Math.max(Number(searchParams.get('offset') || 0), 0);
     const search = (searchParams.get('search') || '').trim();
     const includeFacets = searchParams.get('includeFacets') === 'true';
@@ -118,6 +119,7 @@ export async function GET(req: NextRequest) {
       'project_uuid',
       'financial_code_uuid',
       'corresponding_account',
+      'check',
       'transportation_beginning_time',
       'submission_time',
       'cancellation_time',
@@ -250,6 +252,35 @@ export async function GET(req: NextRequest) {
       entries.forEach(([key, value]) => {
         if (key === 'counteragent_name') return;
         const { nonBlank, includeBlank, requireNonBlank } = value;
+
+        if (key === 'check') {
+          const boolValues = new Set(
+            nonBlank
+              .map((item) => item.toLowerCase())
+              .filter((item) => item === 'true' || item === 'false')
+          );
+          if (boolValues.size === 1) {
+            if (boolValues.has('true')) {
+              clauses.push({
+                OR: [
+                  { project_uuid: { not: null } },
+                  { financial_code_uuid: { not: null } },
+                  { corresponding_account: { not: null } },
+                ],
+              });
+            } else {
+              clauses.push({
+                project_uuid: null,
+                financial_code_uuid: null,
+                OR: [
+                  { corresponding_account: null },
+                  { corresponding_account: '' },
+                ],
+              });
+            }
+          }
+          return;
+        }
 
         if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
           if (UUID_FILTER_FIELDS.has(key)) {
@@ -498,13 +529,15 @@ export async function GET(req: NextRequest) {
             { id: Prisma.SortOrder.desc },
           ];
 
-    const rows = await prisma.rs_waybills_in_api.findMany({
+    const rows = await withRetry(() => prisma.rs_waybills_in_api.findMany({
       where,
       orderBy,
       ...(exportAll ? {} : { take: limit, skip: offset }),
-    });
-    const total = await prisma.rs_waybills_in_api.count({ where });
-    const missingCounteragentCount = await prisma.rs_waybills_in_api.count({ where: missingCounteragentWhere });
+    }));
+    const total = await withRetry(() => prisma.rs_waybills_in_api.count({ where }));
+    const missingCounteragentCount = await withRetry(() =>
+      prisma.rs_waybills_in_api.count({ where: missingCounteragentWhere })
+    );
 
     const counteragentUuids = Array.from(
       new Set(rows.map((row: any) => row.counteragent_uuid).filter(Boolean))

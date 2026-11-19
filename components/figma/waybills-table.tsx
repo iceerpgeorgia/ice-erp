@@ -82,7 +82,7 @@ type ColumnConfig = {
 };
 
 const defaultColumns: ColumnConfig[] = [
-  { key: 'check', label: 'Check', visible: true, sortable: true, filterable: true, format: 'boolean', width: 80 },
+  { key: 'check', label: 'Check', visible: true, sortable: false, filterable: true, format: 'boolean', width: 80 },
   { key: 'waybill_no', label: 'Waybill', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'state', label: 'Status', visible: true, sortable: true, filterable: true, width: 120 },
   { key: 'condition', label: 'Condition', visible: true, sortable: true, filterable: true, width: 140 },
@@ -728,7 +728,7 @@ export function WaybillsTable() {
       try {
         // Build request parameters
         const requestParams = {
-          limit: 10000,
+          limit: 2000,
           offset: 0,
           includeFacets: false,
           ...(appliedSearch.trim() && { search: appliedSearch.trim() }),
@@ -760,40 +760,54 @@ export function WaybillsTable() {
           (requestParams as any).advancedFilters = advancedArr;
         }
 
-        // Check if URL would exceed typical browser limits (~2000 chars); use POST for large payloads
-        const queryString = new URLSearchParams();
-        Object.entries(requestParams).forEach(([key, value]) => {
-          if (value === undefined || value === null) return;
-          if (typeof value === 'boolean') queryString.set(key, String(value));
-          else if (typeof value === 'number') queryString.set(key, String(value));
-          else if (typeof value === 'string') queryString.set(key, value);
-          else queryString.set(key, JSON.stringify(value));
-        });
+        const allRows: Waybill[] = [];
+        let expectedTotal = 0;
+        let offset = 0;
+        let usePost = false;
+        let urlLength = 0;
 
-        const urlLength = `/api/waybills?${queryString.toString()}`.length;
-        const usePost = urlLength > 2000;
-
-        let res;
-        if (usePost) {
-          res = await fetch('/api/waybills', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestParams),
+        while (offset < 50000) {
+          const pageParams = { ...requestParams, limit: 2000, offset };
+          const queryString = new URLSearchParams();
+          Object.entries(pageParams).forEach(([key, value]) => {
+            if (value === undefined || value === null) return;
+            if (typeof value === 'boolean') queryString.set(key, String(value));
+            else if (typeof value === 'number') queryString.set(key, String(value));
+            else if (typeof value === 'string') queryString.set(key, value);
+            else queryString.set(key, JSON.stringify(value));
           });
-        } else {
-          res = await fetch(`/api/waybills?${queryString.toString()}`);
+
+          urlLength = `/api/waybills?${queryString.toString()}`.length;
+          usePost = urlLength > 2000;
+          const res = usePost
+            ? await fetch('/api/waybills', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pageParams),
+              })
+            : await fetch(`/api/waybills?${queryString.toString()}`);
+          const body = await res.json();
+          if (!res.ok) throw new Error(body?.error || 'Failed to load waybills');
+
+          const rows = Array.isArray(body.data) ? body.data : [];
+          allRows.push(...rows);
+          expectedTotal = Number(body.total || expectedTotal || rows.length);
+          if (offset === 0) {
+            setMissingCounteragentCount(Number(body.missingCounteragentCount || 0));
+          }
+          setData([...allRows]);
+          setTotal(expectedTotal);
+
+          offset += rows.length;
+          if (rows.length < 2000 || offset >= expectedTotal) break;
         }
 
-        const body = await res.json();
-        setData(body.data || []);
-        setTotal(body.total || 0);
-        setMissingCounteragentCount(Number(body.missingCounteragentCount || 0));
         logFilter('FETCH_ALL_WAYBILLS_SUCCESS', { 
-          dataCount: (body.data || []).length,
-          total: body.total || 0,
+          dataCount: allRows.length,
+          total: expectedTotal,
           usePost,
           urlLength,
-          missingCounteragentCount: body.missingCounteragentCount || 0,
+          missingCounteragentCount,
           appliedFiltersCount: columnFilters.length + advancedFilters.size,
           hasSearch: !!appliedSearch,
           hasPeriodFrom: !!periodFrom,
@@ -1065,6 +1079,9 @@ export function WaybillsTable() {
 
   // Per-field: compute facets from currently loaded data (instant, no API calls)
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
+    if (columnKey === 'check') {
+      return [true, false];
+    }
     const values = new Set<any>();
     data.forEach((row) => {
       const value = (row as any)[columnKey];
@@ -1107,6 +1124,9 @@ export function WaybillsTable() {
       return financialCodeLabelMap.get(String(value)) || String(value);
     }
     if (columnKey === 'vat') {
+      return value ? 'Yes' : 'No';
+    }
+    if (columnKey === 'check') {
       return value ? 'Yes' : 'No';
     }
     if (columnKey === 'date') {
