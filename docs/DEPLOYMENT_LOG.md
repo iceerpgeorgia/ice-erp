@@ -1,5 +1,18 @@
 # Deployment Log
 
+## 2026-11-19
+- Summary: Align Jobs, Waybills, Waybill Items, and Inventories table behavior.
+- Changes:
+  - Jobs rows display the insider derived from each bound project while preserving multi-project bindings.
+  - Waybill Check exposes a real Yes/No value and supports filtering by computed state.
+  - Waybills and Waybill Items load complete datasets in sequential chunks for full-data client filtering.
+  - Waybill Items default sorting uses item `waybill_no` instead of invalid relation `waybill.no`.
+  - Inventories uses the Waybill Items-style search, facets, sorting, columns, export, rows-per-page, and pagination shell.
+  - Large list/count Prisma calls are sequential and retry pool/closed-connection failures.
+- Commit: d204d33
+- Production: https://ice-jp80rt5qv-iceerp.vercel.app
+- Status: Production alias and updated routes verified.
+
 ## 2026-11-18
 - Summary: Enable salary payment binding, scope bank transaction payment options by counteragent and bank-account insider, and stabilize bank account loading/display.
 - Changes:
