@@ -30,6 +30,8 @@ export type LlmMatchItem = {
   goodsName: string;
   goodsCode: string | null;
   unit: string | null;
+  // The item's dimension (from the unit map). Only inventories with this dimension are candidates.
+  dimensionUuid: string | null;
   supplier: string | null;
 };
 
@@ -88,6 +90,8 @@ const formatInventoryLabel = (row: {
  * excludeItemId leaves that row out of the history candidates (used by the accuracy test).
  */
 export async function loadLlmCandidates(item: LlmMatchItem, excludeItemId?: bigint): Promise<LlmCandidate[]> {
+  // Units must match: without a dimension nothing qualifies.
+  if (!item.dimensionUuid) return [];
   const rows = await withRetry(() =>
     prisma.$queryRawUnsafe<
       Array<{
@@ -104,7 +108,8 @@ export async function loadLlmCandidates(item: LlmMatchItem, excludeItemId?: bigi
        inv AS (
          SELECT v.uuid, similarity(waybill_norm_name(v.name), t.n) AS s, NULL::text AS bound_goods_name
            FROM inventories v, target t
-          WHERE v.insider_uuid = $2::uuid AND v.is_active AND waybill_norm_name(v.name) % t.n
+          WHERE v.insider_uuid = $2::uuid AND v.is_active AND v.dimension_uuid = $4::uuid
+            AND waybill_norm_name(v.name) % t.n
           ORDER BY s DESC
           LIMIT ${INVENTORY_CANDIDATES}
        ),
@@ -112,7 +117,9 @@ export async function loadLlmCandidates(item: LlmMatchItem, excludeItemId?: bigi
          SELECT * FROM (
            SELECT DISTINCT ON (h.inventory_uuid)
                   h.inventory_uuid AS uuid, similarity(waybill_norm_name(h.goods_name), t.n) AS s, h.goods_name AS bound_goods_name
-             FROM rs_waybills_in_items h, target t
+             FROM rs_waybills_in_items h
+             JOIN inventories hv ON hv.uuid = h.inventory_uuid AND hv.dimension_uuid = $4::uuid,
+                  target t
             WHERE h.insider_uuid = $2::uuid AND h.inventory_uuid IS NOT NULL
               AND h.id <> $3
               AND waybill_norm_name(h.goods_name) % t.n
@@ -135,7 +142,8 @@ export async function loadLlmCandidates(item: LlmMatchItem, excludeItemId?: bigi
         ORDER BY m.s DESC`,
       item.goodsName,
       item.insiderUuid,
-      excludeItemId ?? BigInt(-1)
+      excludeItemId ?? BigInt(-1),
+      item.dimensionUuid
     )
   );
 
@@ -232,9 +240,9 @@ export async function runLlmInventoryMatch(options: { limit?: number } = {}): Pr
 
   const queue = await withRetry(() =>
     prisma.$queryRawUnsafe<
-      Array<{ id: bigint; insider_uuid: string; goods_name: string; goods_code: string | null; unit: string | null; supplier: string | null }>
+      Array<{ id: bigint; insider_uuid: string; goods_name: string; goods_code: string | null; unit: string | null; dimension_uuid: string | null; supplier: string | null }>
     >(
-      `SELECT i.id, i.insider_uuid::text AS insider_uuid, i.goods_name, i.goods_code, i.unit,
+      `SELECT i.id, i.insider_uuid::text AS insider_uuid, i.goods_name, i.goods_code, i.unit, i.dimension_uuid::text AS dimension_uuid,
               w.counteragent_name AS supplier
          FROM rs_waybills_in_items i
          LEFT JOIN rs_waybills_in_api w ON w.rs_id = i.rs_id
@@ -242,6 +250,7 @@ export async function runLlmInventoryMatch(options: { limit?: number } = {}): Pr
           AND i.inventory_uuid IS NULL
           AND i.inventory_llm_checked_at IS NULL
           AND i.goods_name IS NOT NULL
+          AND i.dimension_uuid IS NOT NULL
         ORDER BY i.id DESC
         LIMIT $1`,
       limit
@@ -255,6 +264,7 @@ export async function runLlmInventoryMatch(options: { limit?: number } = {}): Pr
       goodsName: row.goods_name,
       goodsCode: row.goods_code,
       unit: row.unit,
+      dimensionUuid: row.dimension_uuid,
       supplier: row.supplier,
     }));
 

@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Search, Eye, Edit2, Settings, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { InventoryCellPicker, type InventoryOption } from './inventory-cell-picker';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { BLANK_FACET_TOKEN } from './shared/table-filters';
 import type { ColumnFilter, ColumnFormat } from './shared/table-filters';
@@ -41,6 +42,8 @@ type WaybillItem = {
   taxation?: string | null;
   inventory_uuid?: string | null;
   inventory_name?: string | null;
+  // 'OK' / 'Mismatch' when bound (inventory dimension vs item unit), '' when unbound.
+  inventory_unit_check?: string | null;
   suggested_inventory_uuid?: string | null;
   suggested_inventory_name?: string | null;
   // Pending items with the same goods name and suggestion (this row included).
@@ -97,7 +100,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'quantity', label: 'Quantity', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
   { key: 'unit_price', label: 'Unit Price', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
   { key: 'total_price', label: 'Total Price', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
-  { key: 'inventory_name', label: 'Inventory', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'inventory_name', label: 'Inventory', visible: true, sortable: true, filterable: true, width: 260 },
+  { key: 'inventory_unit_check', label: 'Unit Check', visible: true, sortable: false, filterable: true, width: 110 },
   // Inventory suggestion from the insert trigger; a person confirms it (suggest only).
   { key: 'suggested_inventory_name', label: 'Suggested Inventory', visible: true, sortable: false, filterable: true, width: 260 },
   { key: 'inventory_match_status', label: 'Match Status', visible: true, sortable: false, filterable: true, width: 130 },
@@ -862,6 +866,7 @@ export function WaybillItemsTable() {
               inventory_uuid: row.suggested_inventory_uuid ?? row.inventory_uuid,
               inventory_name: row.suggested_inventory_name || row.inventory_name,
               inventory_match_status: 'confirmed',
+              inventory_unit_check: 'OK',
               suggestion_group_count: 0,
             }
           : row
@@ -907,6 +912,99 @@ export function WaybillItemsTable() {
     void confirmSuggestions(rowsToConfirm.map((row) => row.id));
   }, [confirmSuggestions]);
 
+  // Inventory picker options: loaded once in the background when the page opens, grouped by
+  // dimension so each row only offers inventories with its own unit.
+  const [inventoryOptionsByDimension, setInventoryOptionsByDimension] = useState<Map<string, InventoryOption[]> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/waybill-items/inventory-options');
+        const body = await res.json();
+        if (!res.ok) throw new Error(body?.error || 'Failed to load inventories');
+        const byDimension = new Map<string, InventoryOption[]>();
+        for (const [uuid, label, dimensionUuid] of body.data as Array<[string, string, string | null]>) {
+          if (!dimensionUuid) continue;
+          const list = byDimension.get(dimensionUuid) ?? [];
+          list.push({ uuid, label, search: label.toLowerCase() });
+          byDimension.set(dimensionUuid, list);
+        }
+        if (!cancelled) setInventoryOptionsByDimension(byDimension);
+      } catch (error) {
+        console.error('Failed to load inventory options:', error);
+        if (!cancelled) setInventoryOptionsByDimension(new Map());
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const inventoryLabelByUuid = useMemo(() => {
+    const labels = new Map<string, string>();
+    inventoryOptionsByDimension?.forEach((list) => list.forEach((option) => labels.set(option.uuid, option.label)));
+    return labels;
+  }, [inventoryOptionsByDimension]);
+
+  // Picking an inventory for one row also fills every unbound item with the same goods name and
+  // unit; the server counts them first (dryRun) so the user can confirm.
+  const [bindingIds, setBindingIds] = useState<Set<number>>(new Set());
+  const pickInventory = useCallback(async (row: WaybillItem, inventoryUuid: string | null) => {
+    const post = async (dryRun: boolean) => {
+      const res = await fetch('/api/waybill-items/bind-inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: row.id, inventory_uuid: inventoryUuid, dryRun }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || 'Failed to bind inventory');
+      return body;
+    };
+    setBindingIds((current) => new Set(current).add(row.id));
+    try {
+      if (inventoryUuid) {
+        const { groupCount } = await post(true);
+        if (groupCount > 0) {
+          const message = `${groupCount} more unbound item${groupCount === 1 ? ' has' : 's have'} the goods name "${row.goods_name}" and unit "${row.unit ?? ''}".\n\nBind all ${groupCount + 1} items to:\n${inventoryLabelByUuid.get(inventoryUuid) ?? inventoryUuid}?`;
+          if (!window.confirm(message)) return;
+        }
+      }
+      const body = await post(false);
+      const updated = new Set<number>(Array.isArray(body.updated) ? body.updated : []);
+      const label = inventoryUuid ? inventoryLabelByUuid.get(inventoryUuid) ?? '' : '';
+      setData((rows) => rows.map((item) => {
+        if (!updated.has(item.id)) return item;
+        if (!inventoryUuid) {
+          return {
+            ...item,
+            inventory_uuid: null,
+            inventory_name: '',
+            inventory_unit_check: '',
+            inventory_match_status: item.suggested_inventory_uuid ? 'suggested' : 'none',
+          };
+        }
+        return {
+          ...item,
+          inventory_uuid: inventoryUuid,
+          inventory_name: label,
+          inventory_unit_check: 'OK',
+          inventory_match_status: item.suggested_inventory_uuid === inventoryUuid ? 'confirmed' : 'manual',
+          suggestion_group_count: 0,
+        };
+      }));
+    } catch (error) {
+      console.error('Failed to bind inventory:', error);
+      alert(error instanceof Error ? error.message : 'Failed to bind inventory');
+    } finally {
+      setBindingIds((current) => {
+        const next = new Set(current);
+        next.delete(row.id);
+        return next;
+      });
+    }
+  }, [inventoryLabelByUuid]);
+
   const renderedRows = useMemo(() => {
     if (paginatedData.length === 0) {
       return (
@@ -948,7 +1046,37 @@ export function WaybillItemsTable() {
               className="overflow-hidden px-3 py-2"
               style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
             >
-              {col.key === 'suggested_inventory_name' && row.suggested_inventory_name ? (
+              {col.key === 'inventory_name' ? (
+                <InventoryCellPicker
+                  valueUuid={row.inventory_uuid}
+                  valueLabel={row.inventory_name}
+                  options={
+                    !inventoryOptionsByDimension
+                      ? null
+                      : row.dimension_uuid
+                        ? inventoryOptionsByDimension.get(row.dimension_uuid) ?? []
+                        : []
+                  }
+                  disabledReason={
+                    row.dimension_uuid
+                      ? null
+                      : `Unit "${row.unit ?? ''}" is not mapped to a dimension. Map it in Unit Text → Dimension Mapping first.`
+                  }
+                  busy={bindingIds.has(row.id)}
+                  onSelect={(inventoryUuid) => void pickInventory(row, inventoryUuid)}
+                />
+              ) : col.key === 'inventory_unit_check' ? (
+                row.inventory_unit_check === 'Mismatch' ? (
+                  <span
+                    className="rounded border border-red-300 bg-red-50 px-1.5 py-0.5 text-xs text-red-700"
+                    title="The bound inventory's dimension differs from this item's unit"
+                  >
+                    Mismatch
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">{row.inventory_unit_check || ''}</span>
+                )
+              ) : col.key === 'suggested_inventory_name' && row.suggested_inventory_name ? (
                 <div className="flex items-center gap-2">
                   <div
                     className="min-w-0 flex-1 truncate"
@@ -1008,7 +1136,7 @@ export function WaybillItemsTable() {
         </tr>
       );
     });
-  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, confirmingIds, confirmRows]);
+  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, confirmingIds, confirmRows, inventoryOptionsByDimension, bindingIds, pickInventory]);
 
   const resetBulkEdit = () => {
     setBulkProjectUuid('');

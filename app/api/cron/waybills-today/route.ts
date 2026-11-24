@@ -2,6 +2,7 @@
 import { getRsCredentialsMap } from '@/lib/integrations/rsge/client';
 import { runWaybillSync, WaybillSyncResult } from '@/lib/waybills/run-waybill-sync';
 import { runWaybillItemsSync, WaybillItemsSyncResult } from '@/lib/waybills/run-waybill-items-sync';
+import { resolveCustomUnits } from '@/lib/waybills/resolve-custom-units';
 
 export const dynamic = 'force-dynamic';
 // Waybills + items sync: allow 2 min to accommodate the extra items API call.
@@ -51,7 +52,10 @@ export async function GET(req: NextRequest) {
 
   const { from, to } = getTbilisiTodayRange();
 
-  type InsiderResult = WaybillSyncResult & WaybillItemsSyncResult & { insider_uuid: string };
+  type InsiderResult = WaybillSyncResult & WaybillItemsSyncResult & {
+    insider_uuid: string;
+    custom_units: { updated_items: number; message?: string };
+  };
   const results: InsiderResult[] = [];
 
   for (const cred of credMap) {
@@ -84,7 +88,24 @@ export async function GET(req: NextRequest) {
       itemsResult = { items_inserted: 0, items_skipped: 0, items_errors: 0, message: msg };
     }
 
-    results.push({ insider_uuid: cred.insiderUuid, ...waybillResult, ...itemsResult });
+    // Custom-unit ("სხვ") items from the last two days: fetch the real unit text from RS so the
+    // item gets a dimension through the unit map. Older unresolved ones are left to the backfill route.
+    let customUnits: { updated_items: number; message?: string } = { updated_items: 0 };
+    try {
+      const resolved = await resolveCustomUnits([cred], {
+        insiderUuid: cred.insiderUuid,
+        createdSince: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        limit: 30,
+        delayMs: 100,
+      });
+      customUnits = { updated_items: resolved.updated_items };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[GET /api/cron/waybills-today] insider ${cred.insiderUuid} custom units error:`, msg);
+      customUnits = { updated_items: 0, message: msg };
+    }
+
+    results.push({ insider_uuid: cred.insiderUuid, ...waybillResult, ...itemsResult, custom_units: customUnits });
   }
 
   const totals = results.reduce(

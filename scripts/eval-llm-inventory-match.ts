@@ -22,9 +22,9 @@ async function main() {
   const client = new Anthropic();
 
   const rows = await prisma.$queryRawUnsafe<
-    Array<{ id: bigint; insider_uuid: string; goods_name: string; goods_code: string | null; unit: string | null; supplier: string | null; inventory_uuid: string }>
+    Array<{ id: bigint; insider_uuid: string; goods_name: string; goods_code: string | null; unit: string | null; dimension_uuid: string | null; supplier: string | null; inventory_uuid: string }>
   >(
-    `SELECT i.id, i.insider_uuid::text AS insider_uuid, i.goods_name, i.goods_code, i.unit,
+    `SELECT i.id, i.insider_uuid::text AS insider_uuid, i.goods_name, i.goods_code, i.unit, i.dimension_uuid::text AS dimension_uuid,
             w.counteragent_name AS supplier, i.inventory_uuid::text AS inventory_uuid
        FROM rs_waybills_in_items i
        LEFT JOIN rs_waybills_in_api w ON w.rs_id = i.rs_id
@@ -55,6 +55,7 @@ async function main() {
       goodsName: row.goods_name,
       goodsCode: row.goods_code,
       unit: row.unit,
+      dimensionUuid: row.dimension_uuid,
       supplier: row.supplier,
     };
     const candidates = await loadLlmCandidates(item, row.id);

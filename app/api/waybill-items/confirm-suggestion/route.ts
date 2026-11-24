@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { getRequiredInsider } from '@/lib/required-insider';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { UNIT_MISMATCH_MESSAGE, isUnitMismatchError } from '@/lib/waybills/unit-mismatch';
 
 // Binds items to their suggested inventory. Confirming an item also confirms every identical pending
 // suggestion: same insider, same normalised goods name and same suggested inventory.
@@ -63,6 +64,9 @@ export async function POST(req: NextRequest) {
       identicalConfirmed: confirmedIds.filter((id) => !ids.includes(id)).length,
     });
   } catch (error: any) {
+    if (isUnitMismatchError(error)) {
+      return NextResponse.json({ error: UNIT_MISMATCH_MESSAGE }, { status: 409 });
+    }
     console.error('[waybill-items/confirm-suggestion] POST error', error);
     return NextResponse.json({ error: error?.message || 'Server error' }, { status: 500 });
   }
