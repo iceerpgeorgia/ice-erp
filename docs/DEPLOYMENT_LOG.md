@@ -5422,3 +5422,11 @@
 - Commit: 9c0d70a
 - Production: https://ice-nnu6w6qgm-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; first opens checked locally (options rendered on first click).
+
+## 2026-11-25 (3)
+- Summary: Map RS unit texts to dimensions by drag and drop on the Dimensions page.
+- Changes:
+  - app/dictionaries/dimensions/page.tsx: Matched RS Units column (draggable chips with item counts) and Unmapped RS units tray; drop on a dimension row maps the unit via PATCH /api/rs-unit-dimension-map (asks before moving a mapped unit).
+- Commit: 1736f15
+- Production: https://ice-dg4fvt1x3-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; chips, row highlight and move confirmation checked locally (move cancelled, no data changed).
