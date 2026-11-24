@@ -5402,3 +5402,15 @@
 - Commit: 67f9964
 - Production: https://ice-lsrjdsljn-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; columns, filters, facets and sort checked locally; Tbilisi dates matched Postgres on 2,000 waybills.
+
+## 2026-11-25
+- Summary: Inline inventory picker on Waybill Items with strict unit ↔ dimension matching.
+- Changes:
+  - Migration 20261125120000_waybill_items_unit_dimension_rules (applied before deploy): item dimension follows rs_unit_dimension_map (3 missing units mapped, unknown units added unmapped), mismatched bindings rejected (23514), suggestions within the item's dimension, 471 mismatched pending suggestions redone (74 replaced, 397 re-queued for LLM).
+  - Inventory column is an inline searchable picker; options from /api/waybill-items/inventory-options load in the background; /api/waybill-items/bind-inventory binds the row plus unbound items with the same goods name and unit.
+  - Unit Check column (OK / Mismatch) with filter; 979 older mismatched bindings flagged.
+  - LLM step candidates limited to the item's dimension.
+  - Custom RS unit "სხვ": resolveCustomUnits in the hourly waybills-today cron; backfill-unit-txt route uses it.
+- Commit: e605234
+- Production: https://ice-2ovg3m945-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; migration, strict check and group bind tested in rolled-back transactions; picker, dryRun counts and Unit Check filter checked locally.
