@@ -5382,3 +5382,12 @@
 - Commit: d00d929
 - Production: https://ice-47q6nr0zj-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; group confirm verified with a rolled-back transaction.
+
+## 2026-11-24 (5)
+- Summary: Filter waybill items by suggested inventory.
+- Changes:
+  - Suggested Inventory column filterable (facet values, blank / non-blank, text conditions) via INVENTORY_LABEL_COLUMNS in /api/waybill-items.
+  - Inventory column non-blank-only filter fixed.
+- Commit: 0ec5a33
+- Production: https://ice-4nkskoaha-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; filter counts checked locally against the database.
