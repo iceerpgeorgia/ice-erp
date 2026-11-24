@@ -4,6 +4,7 @@ import { prisma, withRetry } from '@/lib/prisma';
 import { resolveInsiderSelection } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { syncWaybillPayment } from '@/lib/waybills/sync-waybill-payment';
+import { formatActivationDate, parseActivationDateRange } from '@/lib/waybills/activation-date';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -22,13 +23,6 @@ const UUID_FILTER_FIELDS = new Set(['counteragent_uuid', 'driver_uuid', 'project
 const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
 
 const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
-
-const formatDate = (value: Date) => {
-  const day = String(value.getUTCDate()).padStart(2, '0');
-  const month = String(value.getUTCMonth() + 1).padStart(2, '0');
-  const year = String(value.getUTCFullYear());
-  return `${day}.${month}.${year}`;
-};
 
 const parseMonthBoundary = (value: string | null, mode: 'start' | 'endExclusive') => {
   if (!value) return null;
@@ -52,7 +46,7 @@ const serializeWaybill = (row: any) => ({
   transportation_sum: row.transportation_sum?.toString() ?? null,
   transportation_cost: row.transportation_cost?.toString() ?? null,
   activation_time: row.activation_time ? new Date(row.activation_time).toISOString() : null,
-  date: row.activation_time ? formatDate(new Date(row.activation_time)) : null,
+  date: formatActivationDate(row.activation_time),
   transportation_beginning_time: row.transportation_beginning_time
     ? new Date(row.transportation_beginning_time).toISOString()
     : null,
@@ -341,17 +335,7 @@ export async function GET(req: NextRequest) {
 
         if (key === 'date') {
           const ranges = nonBlank
-            .map((value) => value.trim())
-            .map((value) => {
-              const parts = value.split('.');
-              if (parts.length !== 3) return null;
-              const [day, month, year] = parts;
-              const start = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
-              if (Number.isNaN(start.getTime())) return null;
-              const end = new Date(start);
-              end.setUTCDate(start.getUTCDate() + 1);
-              return { start, end };
-            })
+            .map((value) => parseActivationDateRange(value))
             .filter((range): range is { start: Date; end: Date } => Boolean(range));
           if (ranges.length > 0) {
             const dateOr: Prisma.rs_waybills_in_apiWhereInput[] = ranges.map((range) => ({
@@ -640,13 +624,11 @@ export async function GET(req: NextRequest) {
                 where: facetWhere,
                 distinct: ['activation_time'],
                 select: { activation_time: true },
-                take: facetLimit,
                 orderBy: { activation_time: 'desc' },
               });
-              const values = rows
-                .map((row: any) => row.activation_time)
-                .map((value) => (value ? formatDate(new Date(value)) : ''));
-              return [field, Array.from(new Set(values))] as const;
+              // Many timestamps share a day, so limit the days, not the timestamps.
+              const values = rows.map((row: any) => formatActivationDate(row.activation_time) ?? '');
+              return [field, Array.from(new Set(values)).slice(0, facetLimit)] as const;
             }
 
             if (field === 'vat') {

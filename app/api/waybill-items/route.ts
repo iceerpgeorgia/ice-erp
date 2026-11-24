@@ -4,6 +4,7 @@ import { prisma, withRetry } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { getRequiredInsider } from "@/lib/required-insider";
 import { requireAuth, isAuthError } from "@/lib/auth-guard";
+import { formatActivationDate, parseActivationDateRange } from '@/lib/waybills/activation-date';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_FILTER_FIELDS = new Set(['project_uuid', 'financial_code_uuid', 'dimension_uuid', 'inventory_uuid']);
@@ -108,14 +109,14 @@ export async function GET(req: NextRequest) {
       'corresponding_account', 'import_batch_id', 'dimension_uuid', 'dimension_name', 
       'waybill_state', 'waybill_condition', 'waybill_category', 'waybill_type',
       'waybill_counteragent_name', 'waybill_counteragent_inn', 'waybill_vat', 'waybill_sum',
-      'waybill_driver', 'waybill_vehicle', 'waybill_activation_time',
+      'waybill_driver', 'waybill_vehicle', 'waybill_activation_time', 'waybill_activation_date',
       'inventory_match_status', 'inventory_match_method', 'suggested_inventory_name',
     ]);
 
     const allowedSortColumns = new Set([
       'waybill_no', 'goods_code', 'goods_name', 'unit', 'quantity', 'unit_price', 'total_price',
       'taxation', 'inventory_name', 'project_uuid', 'financial_code_uuid', 'corresponding_account',
-      'dimension_name', 'waybill_activation_time', 'id', 'created_at'
+      'dimension_name', 'waybill_activation_time', 'waybill_activation_date', 'id', 'created_at'
     ]);
 
     // Build base search
@@ -204,8 +205,27 @@ export async function GET(req: NextRequest) {
         const { nonBlank, includeBlank, requireNonBlank } = value;
         const fieldName = key.replace('waybill_', '');
 
+        // Activation Date is the Tbilisi day of activation_time; each dd.mm.yyyy value is a day range.
+        if (fieldName === 'activation_date') {
+          const dayClauses: Prisma.rs_waybills_in_itemsWhereInput[] = nonBlank
+            .map((day) => parseActivationDateRange(day))
+            .filter((range): range is { start: Date; end: Date } => Boolean(range))
+            .map((range) => ({ waybill: { activation_time: { gte: range.start, lt: range.end } } }));
+          if (includeBlank) dayClauses.push({ waybill: { activation_time: null } });
+          if (dayClauses.length > 0) {
+            clauses.push({ OR: dayClauses });
+          } else if (requireNonBlank) {
+            clauses.push({ waybill: { activation_time: { not: null } } });
+          }
+          return;
+        }
+
         if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
           if (fieldName === 'vat') return;
+          if (fieldName === 'activation_time') {
+            clauses.push({ waybill: { activation_time: { not: null } } });
+            return;
+          }
           clauses.push({
             AND: [
               { waybill: { [fieldName]: { not: null } } } as Prisma.rs_waybills_in_itemsWhereInput,
@@ -366,7 +386,10 @@ export async function GET(req: NextRequest) {
           }
         })();
 
-        if (key.startsWith('waybill_')) {
+        if (key === 'waybill_activation_date') {
+          // Derived date label, not a column: text operators cannot run on it in the database.
+          continue;
+        } else if (key.startsWith('waybill_')) {
           const fieldName = key.replace('waybill_', '');
           clauses.push({ waybill: { [fieldName]: prismaOp } } as Prisma.rs_waybills_in_itemsWhereInput);
         } else if (key === 'dimension_name') {
@@ -408,7 +431,9 @@ export async function GET(req: NextRequest) {
     // Build order by
     const orderBy: any = {};
     if (allowedSortColumns.has(sortColumn)) {
-      if (sortColumn.startsWith('waybill_') && sortColumn !== 'waybill_no') {
+      if (sortColumn === 'waybill_activation_date') {
+        orderBy['waybill'] = { activation_time: sortDirection };
+      } else if (sortColumn.startsWith('waybill_') && sortColumn !== 'waybill_no') {
         const fieldName = sortColumn.replace('waybill_', '');
         orderBy['waybill'] = { [fieldName]: sortDirection };
       } else if (sortColumn === 'inventory_name') {
@@ -538,6 +563,16 @@ export async function GET(req: NextRequest) {
           .filter((value) => matchesSearch(String(value)))
           .sort((a, b) => String(a).localeCompare(String(b)))
           .slice(0, facetLimit);
+      } else if (facetField === 'waybill_activation_date') {
+        const waybillRows = await withRetry(() => prisma.rs_waybills_in_api.findMany({
+          where: { waybill_items: { some: facetWhere } },
+          distinct: ['activation_time'],
+          select: { activation_time: true },
+          orderBy: { activation_time: 'desc' },
+        }));
+        values = Array.from(new Set(waybillRows.map((row) => formatActivationDate(row.activation_time) ?? '')))
+          .filter((value) => matchesSearch(value))
+          .slice(0, facetLimit);
       } else {
         // waybill_* columns: distinct values from waybills that have items matching the facet scope.
         const fieldName = facetField.startsWith('waybill_')
@@ -624,6 +659,7 @@ export async function GET(req: NextRequest) {
       waybill_driver: row.waybill?.driver ?? null,
       waybill_vehicle: row.waybill?.vehicle ?? null,
       waybill_activation_time: row.waybill?.activation_time ? new Date(row.waybill.activation_time).toISOString() : null,
+      waybill_activation_date: formatActivationDate(row.waybill?.activation_time),
       waybill_transportation_sum: row.waybill?.transportation_sum ? row.waybill.transportation_sum.toString() : null,
       waybill_transportation_cost: row.waybill?.transportation_cost ? row.waybill.transportation_cost.toString() : null,
       waybill_shipping_address: row.waybill?.shipping_address ?? null,
@@ -768,6 +804,7 @@ export async function POST(req: NextRequest) {
         waybill_driver: created.waybill?.driver ?? null,
         waybill_vehicle: created.waybill?.vehicle ?? null,
         waybill_activation_time: created.waybill?.activation_time ? new Date(created.waybill.activation_time).toISOString() : null,
+        waybill_activation_date: formatActivationDate(created.waybill?.activation_time),
         waybill_transportation_sum: created.waybill?.transportation_sum ? created.waybill.transportation_sum.toString() : null,
         waybill_transportation_cost: created.waybill?.transportation_cost ? created.waybill.transportation_cost.toString() : null,
         waybill_shipping_address: created.waybill?.shipping_address ?? null,
@@ -889,6 +926,7 @@ export async function PATCH(req: NextRequest) {
       waybill_driver: updated.waybill?.driver ?? null,
       waybill_vehicle: updated.waybill?.vehicle ?? null,
       waybill_activation_time: updated.waybill?.activation_time ? new Date(updated.waybill.activation_time).toISOString() : null,
+      waybill_activation_date: formatActivationDate(updated.waybill?.activation_time),
       waybill_transportation_sum: updated.waybill?.transportation_sum ? updated.waybill.transportation_sum.toString() : null,
       waybill_transportation_cost: updated.waybill?.transportation_cost ? updated.waybill.transportation_cost.toString() : null,
       waybill_shipping_address: updated.waybill?.shipping_address ?? null,

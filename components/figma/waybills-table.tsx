@@ -98,12 +98,12 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'transportation_sum', label: 'Transport Amount', visible: true, sortable: true, filterable: true, format: 'number', width: 140 },
   { key: 'departure_address', label: 'Departure Place', visible: true, sortable: true, filterable: true, width: 260 },
   { key: 'shipping_address', label: 'Delivery Address', visible: true, sortable: true, filterable: true, width: 260 },
-  { key: 'activation_time', label: 'Activation Date', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'activation_time', label: 'Activation Time', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'date', label: 'Activation Date', visible: true, sortable: true, filterable: true, width: 130 },
   { key: 'transportation_beginning_time', label: 'Transport Start', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
   { key: 'submission_time', label: 'Submission Date', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
   { key: 'cancellation_time', label: 'Cancellation Date', visible: false, sortable: true, filterable: true, format: 'datetime', width: 190 },
   { key: 'note', label: 'Note', visible: false, sortable: true, filterable: true, width: 260 },
-  { key: 'date', label: 'Date', visible: false, sortable: true, filterable: true, width: 120 },
   { key: 'period', label: 'Period', visible: false, sortable: true, filterable: true, format: 'period', width: 120 },
   { key: 'rs_id', label: 'RS ID', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'transportation_cost', label: 'Transport Cost', visible: false, sortable: true, filterable: true, format: 'number', width: 140 },
@@ -492,9 +492,26 @@ export function WaybillsTable() {
             width: savedCol.width,
           };
         });
-        const savedKeys = new Set(validSavedColumns.map((col) => col.key));
-        const newColumns = defaultColumns.filter((col) => !savedKeys.has(col.key));
-        setColumns([...updatedSavedColumns, ...newColumns]);
+        // Columns added since the layout was saved go right after their neighbour in the defaults.
+        const merged = [...updatedSavedColumns];
+        defaultColumns.forEach((col, index) => {
+          if (merged.some((existing) => existing.key === col.key)) return;
+          const previousKey = index > 0 ? defaultColumns[index - 1].key : null;
+          const previousIndex = previousKey ? merged.findIndex((existing) => existing.key === previousKey) : -1;
+          merged.splice(previousIndex + 1, 0, col);
+        });
+        // One-off: the old hidden "Date" column became "Activation Date"; show it next to Activation Time.
+        const activationDateFlag = 'waybillsActivationDateShown';
+        if (!localStorage.getItem(activationDateFlag)) {
+          const dateIndex = merged.findIndex((col) => col.key === 'date');
+          if (dateIndex >= 0) {
+            const [dateColumn] = merged.splice(dateIndex, 1);
+            const timeIndex = merged.findIndex((col) => col.key === 'activation_time');
+            merged.splice(timeIndex + 1, 0, { ...dateColumn, visible: true });
+          }
+          localStorage.setItem(activationDateFlag, '1');
+        }
+        setColumns(merged);
       } catch (error) {
         console.error('Failed to parse saved columns:', error);
         setColumns(defaultColumns);

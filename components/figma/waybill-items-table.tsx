@@ -70,6 +70,7 @@ type WaybillItem = {
   waybill_driver?: string | null;
   waybill_vehicle?: string | null;
   waybill_activation_time?: string | null;
+  waybill_activation_date?: string | null;
   waybill_transportation_sum?: string | null;
   waybill_transportation_cost?: string | null;
   waybill_shipping_address?: string | null;
@@ -117,10 +118,20 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'waybill_driver', label: 'Driver', visible: false, sortable: true, filterable: true, width: 200 },
   { key: 'waybill_vehicle', label: 'Auto', visible: false, sortable: true, filterable: true, width: 160 },
   { key: 'waybill_transportation_sum', label: 'Transport Amount', visible: false, sortable: true, filterable: true, format: 'number', width: 140 },
-  { key: 'waybill_activation_time', label: 'Activation Date', visible: false, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'waybill_activation_time', label: 'Activation Time', visible: false, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'waybill_activation_date', label: 'Activation Date', visible: true, sortable: true, filterable: true, width: 130 },
   { key: 'waybill_departure_address', label: 'Departure Place', visible: false, sortable: true, filterable: true, width: 260 },
   { key: 'waybill_shipping_address', label: 'Delivery Address', visible: false, sortable: true, filterable: true, width: 260 },
 ];
+
+// dd.mm.yyyy day labels, newest first.
+const sortDayLabels = (values: any[]) => {
+  const toTime = (value: any) => {
+    const match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(value ?? '').trim());
+    return match ? Date.UTC(Number(match[3]), Number(match[2]) - 1, Number(match[1])) : 0;
+  };
+  return [...values].sort((a, b) => toTime(b) - toTime(a));
+};
 
 // Date columns: filter labels show dd.mm.yyyy and are searched in the browser on that label.
 const isDateColumn = (format?: ColumnConfig['format']) => format === 'date' || format === 'datetime';
@@ -272,9 +283,15 @@ export function WaybillItemsTable() {
             width: savedCol.width,
           };
         });
-        const savedKeys = new Set(validSavedColumns.map((col) => col.key));
-        const newColumns = defaultColumns.filter((col) => !savedKeys.has(col.key));
-        setColumns([...updatedSavedColumns, ...newColumns]);
+        // Columns added since the layout was saved go right after their neighbour in the defaults.
+        const merged = [...updatedSavedColumns];
+        defaultColumns.forEach((col, index) => {
+          if (merged.some((existing) => existing.key === col.key)) return;
+          const previousKey = index > 0 ? defaultColumns[index - 1].key : null;
+          const previousIndex = previousKey ? merged.findIndex((existing) => existing.key === previousKey) : -1;
+          merged.splice(previousIndex + 1, 0, col);
+        });
+        setColumns(merged);
       } catch (error) {
         console.error('Failed to parse saved columns:', error);
         setColumns(defaultColumns);
@@ -1448,7 +1465,13 @@ export function WaybillItemsTable() {
                         values={getUniqueValues(col.key)}
                         onOpen={() => loadFacetValues(col.key)}
                         onFacetSearch={isDateColumn(col.format) ? undefined : (search) => loadFacetValues(col.key, search)}
-                        sortValues={isDateColumn(col.format) ? sortDateRawValues : undefined}
+                        sortValues={
+                          col.key === 'waybill_activation_date'
+                            ? sortDayLabels
+                            : isDateColumn(col.format)
+                              ? sortDateRawValues
+                              : undefined
+                        }
                         activeFilters={filtersMap.get(col.key) || new Set()}
                         activeFilter={advancedFilters.get(col.key)}
                         onFilterChange={(values) => {
