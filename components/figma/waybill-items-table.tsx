@@ -43,6 +43,8 @@ type WaybillItem = {
   inventory_name?: string | null;
   suggested_inventory_uuid?: string | null;
   suggested_inventory_name?: string | null;
+  // Pending items with the same goods name and suggestion (this row included).
+  suggestion_group_count?: number;
   inventory_match_method?: string | null;
   inventory_match_score?: number | null;
   inventory_match_status?: string | null;
@@ -843,11 +845,15 @@ export function WaybillItemsTable() {
               inventory_uuid: row.suggested_inventory_uuid ?? row.inventory_uuid,
               inventory_name: row.suggested_inventory_name || row.inventory_name,
               inventory_match_status: 'confirmed',
+              suggestion_group_count: 0,
             }
           : row
       )));
-      if (body.skipped > 0) {
-        alert(`${confirmed.size} confirmed, ${body.skipped} skipped (no longer waiting for confirmation).`);
+      const notes: string[] = [];
+      if (body.identicalConfirmed > 0) notes.push(`${body.identicalConfirmed} identical items confirmed with them`);
+      if (body.skipped > 0) notes.push(`${body.skipped} skipped (no longer waiting for confirmation)`);
+      if (notes.length > 0) {
+        alert(`${confirmed.size} items confirmed: ${notes.join('; ')}.`);
       }
     } catch (error) {
       console.error('Failed to confirm inventory suggestions:', error);
@@ -861,12 +867,28 @@ export function WaybillItemsTable() {
     }
   }, []);
 
-  const selectedSuggestedIds = useMemo(
-    () => paginatedData
-      .filter((row) => selectedIds.has(row.id) && row.inventory_match_status === 'suggested')
-      .map((row) => row.id),
+  const selectedSuggestedRows = useMemo(
+    () => paginatedData.filter((row) => selectedIds.has(row.id) && row.inventory_match_status === 'suggested'),
     [paginatedData, selectedIds]
   );
+  const selectedSuggestedIds = useMemo(() => selectedSuggestedRows.map((row) => row.id), [selectedSuggestedRows]);
+
+  // Confirming a row confirms every identical pending suggestion, so show the full count first.
+  const confirmRows = useCallback((rowsToConfirm: WaybillItem[]) => {
+    const groups = new Map<string, number>();
+    rowsToConfirm.forEach((row) => {
+      const key = `${row.suggested_inventory_uuid}|${String(row.goods_name ?? '').trim().replace(/\s+/g, ' ').toLowerCase()}`;
+      groups.set(key, Math.max(groups.get(key) ?? 0, row.suggestion_group_count ?? 1));
+    });
+    const totalItems = Array.from(groups.values()).reduce((sum, count) => sum + Math.max(count, 1), 0);
+    if (totalItems > rowsToConfirm.length) {
+      const message = rowsToConfirm.length === 1
+        ? `${totalItems} items have the goods name "${rowsToConfirm[0].goods_name}" with the same suggestion:\n${rowsToConfirm[0].suggested_inventory_name}\n\nConfirm all ${totalItems}?`
+        : `These ${rowsToConfirm.length} selected suggestions, with their identical items, confirm ${totalItems} items in total. Continue?`;
+      if (!window.confirm(message)) return;
+    }
+    void confirmSuggestions(rowsToConfirm.map((row) => row.id));
+  }, [confirmSuggestions]);
 
   const renderedRows = useMemo(() => {
     if (paginatedData.length === 0) {
@@ -921,14 +943,26 @@ export function WaybillItemsTable() {
                   >
                     {row.suggested_inventory_name}
                   </div>
+                  {row.inventory_match_status === 'suggested' && (row.suggestion_group_count ?? 0) > 1 && (
+                    <span
+                      className="shrink-0 rounded border px-1 text-xs text-muted-foreground"
+                      title={`${row.suggestion_group_count} items with this goods name have the same suggestion; confirming one confirms all`}
+                    >
+                      ×{row.suggestion_group_count}
+                    </span>
+                  )}
                   {row.inventory_match_status === 'suggested' && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-6 shrink-0 px-2"
-                      title="Bind this item to the suggested inventory"
+                      title={
+                        (row.suggestion_group_count ?? 0) > 1
+                          ? `Bind all ${row.suggestion_group_count} identical items to the suggested inventory`
+                          : 'Bind this item to the suggested inventory'
+                      }
                       disabled={confirmingIds.has(row.id)}
-                      onClick={() => confirmSuggestions([row.id])}
+                      onClick={() => confirmRows([row])}
                     >
                       <Check className="h-3 w-3" />
                     </Button>
@@ -957,7 +991,7 @@ export function WaybillItemsTable() {
         </tr>
       );
     });
-  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, confirmingIds, confirmSuggestions]);
+  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, confirmingIds, confirmRows]);
 
   const resetBulkEdit = () => {
     setBulkProjectUuid('');
@@ -1308,7 +1342,7 @@ export function WaybillItemsTable() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => confirmSuggestions(selectedSuggestedIds)}
+              onClick={() => confirmRows(selectedSuggestedRows)}
               disabled={selectedSuggestedIds.some((id) => confirmingIds.has(id))}
             >
               <Check className="mr-1 h-4 w-4" />

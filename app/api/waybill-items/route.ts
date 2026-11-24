@@ -544,6 +544,25 @@ export async function GET(req: NextRequest) {
       facets = { [facetField]: Array.from(new Set(values)) };
     }
 
+    // Identical pending suggestions (same insider, goods name and suggested inventory) for the
+    // suggested rows on this page; confirming one confirms the whole group.
+    const suggestedIds = rows.filter((row) => row.inventory_match_status === 'suggested').map((row) => row.id);
+    const groupCounts = new Map<string, number>();
+    if (suggestedIds.length > 0) {
+      const counts = await withRetry(() => prisma.$queryRaw<Array<{ id: bigint; n: number }>>`
+        SELECT i.id, (
+          SELECT count(*)::int FROM rs_waybills_in_items j
+           WHERE j.insider_uuid = i.insider_uuid
+             AND j.inventory_match_status = 'suggested'
+             AND j.inventory_uuid IS NULL
+             AND j.suggested_inventory_uuid = i.suggested_inventory_uuid
+             AND waybill_norm_name(j.goods_name) = waybill_norm_name(i.goods_name)
+        ) AS n
+          FROM rs_waybills_in_items i
+         WHERE i.id IN (${Prisma.join(suggestedIds)})`);
+      counts.forEach((row) => groupCounts.set(String(row.id), Number(row.n)));
+    }
+
     const data = rows.map((row) => ({
       // Item fields
       id: Number(row.id),
@@ -562,6 +581,7 @@ export async function GET(req: NextRequest) {
       inventory_uuid: row.inventory_uuid,
       inventory_name: formatInventoryLabel(row.inventory),
       suggested_inventory_uuid: row.suggested_inventory_uuid,
+      suggestion_group_count: groupCounts.get(String(row.id)) ?? 0,
       suggested_inventory_name: row.suggested_inventory ? formatInventoryLabel(row.suggested_inventory) : '',
       inventory_match_method: row.inventory_match_method,
       inventory_match_score: row.inventory_match_score === null ? null : Number(row.inventory_match_score),
