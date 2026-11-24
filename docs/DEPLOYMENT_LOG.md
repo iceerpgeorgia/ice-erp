@@ -5430,3 +5430,15 @@
 - Commit: 1736f15
 - Production: https://ice-dg4fvt1x3-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; chips, row highlight and move confirmation checked locally (move cancelled, no data changed).
+
+## 2026-11-25 (4)
+- Summary: Size-aware AI candidates and step 5 (closest size or variant) inventory suggestions.
+- Changes:
+  - Migration 20261125180000_waybill_items_expanded_suggestions (applied before deploy): method 'expanded' allowed.
+  - lib/waybills/llm-inventory-match.ts: candidates include the most similar inventories carrying every goods size; extra specs allowed; article codes and percentages are not sizes; one call answers exact (step 4, 'llm') and closest (step 5, 'expanded'); code downgrades exact picks missing a size.
+  - Waybill Items: ≈ marker on step 5 suggestions.
+  - Eval (120 items, effort low): step 4 29 suggestions / 69% agree; step 5 15 / 47%; total 44 (was 29).
+  - Rerun of unmatched items (status none, unbound) started after deploy.
+- Commit: 472a74a
+- Production: https://ice-qs1t7ra93-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
