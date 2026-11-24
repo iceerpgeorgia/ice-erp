@@ -10,7 +10,7 @@ import { Label } from './ui/label';
 import { Combobox } from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
-import { Search, Eye, Edit2, Settings, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Eye, Edit2, Settings, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { BLANK_FACET_TOKEN } from './shared/table-filters';
@@ -41,6 +41,12 @@ type WaybillItem = {
   taxation?: string | null;
   inventory_uuid?: string | null;
   inventory_name?: string | null;
+  suggested_inventory_uuid?: string | null;
+  suggested_inventory_name?: string | null;
+  inventory_match_method?: string | null;
+  inventory_match_score?: number | null;
+  inventory_match_status?: string | null;
+  inventory_matched_at?: string | null;
   project_uuid?: string | null;
   financial_code_uuid?: string | null;
   corresponding_account?: string | null;
@@ -89,6 +95,10 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'unit_price', label: 'Unit Price', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
   { key: 'total_price', label: 'Total Price', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
   { key: 'inventory_name', label: 'Inventory', visible: true, sortable: true, filterable: true, width: 200 },
+  // Inventory suggestion from the insert trigger; a person confirms it (suggest only).
+  { key: 'suggested_inventory_name', label: 'Suggested Inventory', visible: true, sortable: false, filterable: false, width: 260 },
+  { key: 'inventory_match_status', label: 'Match Status', visible: true, sortable: false, filterable: true, width: 130 },
+  { key: 'inventory_match_method', label: 'Match Method', visible: false, sortable: false, filterable: true, width: 130 },
   { key: 'taxation', label: 'Taxation', visible: true, sortable: true, filterable: true, width: 120 },
   { key: 'project_uuid', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'financial_code_uuid', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 220 },
@@ -109,6 +119,16 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'waybill_departure_address', label: 'Departure Place', visible: false, sortable: true, filterable: true, width: 260 },
   { key: 'waybill_shipping_address', label: 'Delivery Address', visible: false, sortable: true, filterable: true, width: 260 },
 ];
+
+// Date columns: filter labels show dd.mm.yyyy and are searched in the browser on that label.
+const isDateColumn = (format?: ColumnConfig['format']) => format === 'date' || format === 'datetime';
+// Newest first by the real timestamp; sorting the dd.mm.yyyy labels as text would be wrong.
+const sortDateRawValues = (values: any[]) =>
+  [...values].sort((a, b) => {
+    const ta = a ? new Date(a).getTime() : 0;
+    const tb = b ? new Date(b).getTime() : 0;
+    return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+  });
 
 const formatCell = (value: any, format?: ColumnConfig['format']) => {
   if (value === null || value === undefined || value === '') return '';
@@ -147,12 +167,26 @@ const formatCell = (value: any, format?: ColumnConfig['format']) => {
   return String(value);
 };
 
+// Filter lists can exceed the URL length limit (HTTP 431); long reads are sent as a POST body.
+const MAX_QUERY_URL_LENGTH = 1500;
+function fetchWaybillItemsQuery(params: URLSearchParams) {
+  const query = params.toString();
+  if (query.length <= MAX_QUERY_URL_LENGTH) return fetch(`/api/waybill-items?${query}`);
+  return fetch('/api/waybill-items/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.fromEntries(params.entries())),
+  });
+}
+
 export function WaybillItemsTable() {
   const filtersStorageKey = 'waybillItemsFiltersV1';
   const [data, setData] = useState<WaybillItem[]>([]);
   const [total, setTotal] = useState(0);
   const [facetValues, setFacetValues] = useState<Map<ColumnKey, any[]>>(new Map());
   const facetRequestsRef = useRef(new Map<string, Promise<void>>());
+  const facetSignatureRef = useRef(new Map<ColumnKey, string>());
+  const latestFacetRequestRef = useRef(new Map<ColumnKey, string>());
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -443,7 +477,7 @@ export function WaybillItemsTable() {
       try {
         const params = buildQueryParams({ includeFacets: false });
         params.set('skipCount', 'true');
-        const res = await fetch(`/api/waybill-items?${params.toString()}`);
+        const res = await fetchWaybillItemsQuery(new URLSearchParams(params.toString()));
         const body = await res.json();
         if (!res.ok) throw new Error(body?.error || 'Failed to load waybill items');
         setData(Array.isArray(body.data) ? body.data : []);
@@ -451,7 +485,7 @@ export function WaybillItemsTable() {
 
         const countParams = buildQueryParams({ includeFacets: false, page: 1, pageSize: 1 });
         countParams.set('countOnly', 'true');
-        void fetch(`/api/waybill-items?${countParams.toString()}`)
+        void fetchWaybillItemsQuery(new URLSearchParams(countParams.toString()))
           .then(async (countRes) => {
             const countBody = await countRes.json();
             if (!countRes.ok) throw new Error(countBody?.error || 'Failed to count waybill items');
@@ -663,33 +697,40 @@ export function WaybillItemsTable() {
     return Array.from(values).sort();
   }, [data, facetValues]);
 
+  // Each column's options are keyed by the exact request (search, period, filters, sort).
+  // A list is reused only while that request is unchanged, so options never go stale.
   const loadFacetValues = useCallback(async (columnKey: ColumnKey, search = '') => {
-    if (!search && facetValues.has(columnKey)) return;
-    const requestKey = `${columnKey}:${search.trim().toLowerCase()}`;
-    const pending = facetRequestsRef.current.get(requestKey);
-    if (pending) return pending;
-
-    const request = (async () => {
     const params = buildQueryParams({ includeFacets: true, page: 1, pageSize: 1 });
     params.set('facetField', columnKey);
     params.set('facetLimit', '50000');
     params.set('facetOnly', 'true');
     if (search.trim()) params.set('facetSearch', search.trim());
+    const signature = params.toString();
+
+    if (facetSignatureRef.current.get(columnKey) === signature) return;
+    const pending = facetRequestsRef.current.get(signature);
+    if (pending) return pending;
+    latestFacetRequestRef.current.set(columnKey, signature);
+
+    const request = (async () => {
       try {
-        const res = await fetch(`/api/waybill-items?${params.toString()}`);
+        const res = await fetchWaybillItemsQuery(new URLSearchParams(signature));
         const body = await res.json();
         if (!res.ok) throw new Error(body?.error || 'Failed to load filter values');
+        // Ignore responses superseded by a newer request for the same column.
+        if (latestFacetRequestRef.current.get(columnKey) !== signature) return;
         const values = Array.isArray(body.facets?.[columnKey]) ? body.facets[columnKey] : [];
+        facetSignatureRef.current.set(columnKey, signature);
         setFacetValues((current) => new Map(current).set(columnKey, values));
       } catch (error) {
         console.error('Failed to load waybill item facet values:', error);
       } finally {
-        facetRequestsRef.current.delete(requestKey);
+        facetRequestsRef.current.delete(signature);
       }
     })();
-    facetRequestsRef.current.set(requestKey, request);
+    facetRequestsRef.current.set(signature, request);
     return request;
-  }, [buildQueryParams, facetValues]);
+  }, [buildQueryParams]);
 
   const filteredData = useMemo(() => data, [data]);
 
@@ -722,8 +763,10 @@ export function WaybillItemsTable() {
     if (columnKey === 'waybill_vat') {
       return value ? 'Yes' : 'No';
     }
+    const columnFormat = columns.find((col) => col.key === columnKey)?.format;
+    if (isDateColumn(columnFormat)) return formatCell(value, columnFormat);
     return String(value);
-  }, [financialCodeLabelMap, projectLabelMap, projects]);
+  }, [columns, financialCodeLabelMap, projectLabelMap, projects]);
 
   const runSearch = () => {
     const nextSearch = search.trim();
@@ -779,6 +822,52 @@ export function WaybillItemsTable() {
     });
   }, []);
 
+  // Binds items to their suggested inventory; the server only changes rows still 'suggested'.
+  const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
+  const confirmSuggestions = useCallback(async (ids: number[]) => {
+    if (ids.length === 0) return;
+    setConfirmingIds((current) => new Set([...current, ...ids]));
+    try {
+      const res = await fetch('/api/waybill-items/confirm-suggestion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error || 'Failed to confirm suggestions');
+      const confirmed = new Set<number>(Array.isArray(body.confirmed) ? body.confirmed : []);
+      setData((rows) => rows.map((row) => (
+        confirmed.has(row.id)
+          ? {
+              ...row,
+              inventory_uuid: row.suggested_inventory_uuid ?? row.inventory_uuid,
+              inventory_name: row.suggested_inventory_name || row.inventory_name,
+              inventory_match_status: 'confirmed',
+            }
+          : row
+      )));
+      if (body.skipped > 0) {
+        alert(`${confirmed.size} confirmed, ${body.skipped} skipped (no longer waiting for confirmation).`);
+      }
+    } catch (error) {
+      console.error('Failed to confirm inventory suggestions:', error);
+      alert(error instanceof Error ? error.message : 'Failed to confirm suggestions');
+    } finally {
+      setConfirmingIds((current) => {
+        const next = new Set(current);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+    }
+  }, []);
+
+  const selectedSuggestedIds = useMemo(
+    () => paginatedData
+      .filter((row) => selectedIds.has(row.id) && row.inventory_match_status === 'suggested')
+      .map((row) => row.id),
+    [paginatedData, selectedIds]
+  );
+
   const renderedRows = useMemo(() => {
     if (paginatedData.length === 0) {
       return (
@@ -820,12 +909,39 @@ export function WaybillItemsTable() {
               className="overflow-hidden px-3 py-2"
               style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
             >
-              <div
-                className="truncate"
-                title={String(formatCell(getCellValue(row, col.key), col.format))}
-              >
-                {formatCell(getCellValue(row, col.key), col.format)}
-              </div>
+              {col.key === 'suggested_inventory_name' && row.suggested_inventory_name ? (
+                <div className="flex items-center gap-2">
+                  <div
+                    className="min-w-0 flex-1 truncate"
+                    title={`${row.suggested_inventory_name} (${row.inventory_match_method ?? ''}${
+                      row.inventory_match_method === 'fuzzy' && row.inventory_match_score !== null && row.inventory_match_score !== undefined
+                        ? ` ${Math.round(row.inventory_match_score * 100)}%`
+                        : ''
+                    })`}
+                  >
+                    {row.suggested_inventory_name}
+                  </div>
+                  {row.inventory_match_status === 'suggested' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 shrink-0 px-2"
+                      title="Bind this item to the suggested inventory"
+                      disabled={confirmingIds.has(row.id)}
+                      onClick={() => confirmSuggestions([row.id])}
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className="truncate"
+                  title={String(formatCell(getCellValue(row, col.key), col.format))}
+                >
+                  {formatCell(getCellValue(row, col.key), col.format)}
+                </div>
+              )}
             </td>
           ))}
           <td className="px-3 py-2" style={{ width: 96, minWidth: 96, maxWidth: 96 }}>
@@ -841,7 +957,7 @@ export function WaybillItemsTable() {
         </tr>
       );
     });
-  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer]);
+  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, confirmingIds, confirmSuggestions]);
 
   const resetBulkEdit = () => {
     setBulkProjectUuid('');
@@ -949,7 +1065,7 @@ export function WaybillItemsTable() {
       const exportFilters = buildQueryParams({ includeFacets: false, includePagination: false }).get('filters');
       if (exportFilters) params.set('filters', exportFilters);
 
-      const response = await fetch(`/api/waybill-items?${params.toString()}`);
+      const response = await fetchWaybillItemsQuery(new URLSearchParams(params.toString()));
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body?.error || 'Failed to export items');
       const exportData: WaybillItem[] = Array.isArray(body.data) ? body.data : [];
@@ -1188,6 +1304,17 @@ export function WaybillItemsTable() {
               </DialogContent>
             </Dialog>
           )}
+          {selectedSuggestedIds.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => confirmSuggestions(selectedSuggestedIds)}
+              disabled={selectedSuggestedIds.some((id) => confirmingIds.has(id))}
+            >
+              <Check className="mr-1 h-4 w-4" />
+              Confirm suggestions ({selectedSuggestedIds.length})
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -1286,7 +1413,8 @@ export function WaybillItemsTable() {
                         columnLabel={col.label}
                         values={getUniqueValues(col.key)}
                         onOpen={() => loadFacetValues(col.key)}
-                        onFacetSearch={(search) => loadFacetValues(col.key, search)}
+                        onFacetSearch={isDateColumn(col.format) ? undefined : (search) => loadFacetValues(col.key, search)}
+                        sortValues={isDateColumn(col.format) ? sortDateRawValues : undefined}
                         activeFilters={filtersMap.get(col.key) || new Set()}
                         activeFilter={advancedFilters.get(col.key)}
                         onFilterChange={(values) => {

@@ -22,6 +22,21 @@ const formatInventoryLabel = (inventory: any) =>
     .map(String)
     .join(' | ');
 
+// Same month-boundary parsing as /api/waybills so both pages share one date filter.
+const parseMonthBoundary = (value: string | null, mode: 'start' | 'endExclusive') => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}$/.test(trimmed)) return null;
+  const [yearStr, monthStr] = trimmed.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null;
+  if (mode === 'start') {
+    return new Date(Date.UTC(year, month - 1, 1));
+  }
+  return new Date(Date.UTC(year, month, 1));
+};
+
 function formatDate(date: string | Date | undefined): string {
   if (!date) return "";
   const d = new Date(date);
@@ -88,7 +103,8 @@ export async function GET(req: NextRequest) {
       'corresponding_account', 'import_batch_id', 'dimension_uuid', 'dimension_name', 
       'waybill_state', 'waybill_condition', 'waybill_category', 'waybill_type',
       'waybill_counteragent_name', 'waybill_counteragent_inn', 'waybill_vat', 'waybill_sum',
-      'waybill_driver', 'waybill_vehicle', 'waybill_activation_time'
+      'waybill_driver', 'waybill_vehicle', 'waybill_activation_time',
+      'inventory_match_status', 'inventory_match_method',
     ]);
 
     const allowedSortColumns = new Set([
@@ -135,7 +151,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Build filter clauses
-    const buildFilterClauses = async (): Promise<Prisma.rs_waybills_in_itemsWhereInput[]> => {
+    // excludeField drops one column's own filter so its facet options show every other active filter.
+    const buildFilterClauses = async (excludeField?: string): Promise<Prisma.rs_waybills_in_itemsWhereInput[]> => {
       const clauses: Prisma.rs_waybills_in_itemsWhereInput[] = [];
       let inventoryLabels: Array<{ uuid: string; label: string }> | null = null;
       const getInventoryLabels = async () => {
@@ -158,7 +175,7 @@ export async function GET(req: NextRequest) {
       };
 
       const entries = parsedFilterEntries
-        .filter(([key]) => allowedFilterFields.has(key))
+        .filter(([key]) => allowedFilterFields.has(key) && key !== excludeField)
         .map(([key, values]) => {
           const list = Array.isArray(values) ? values : [];
           const normalized = list
@@ -298,7 +315,7 @@ export async function GET(req: NextRequest) {
 
       // Handle advanced text filters
       for (const [key, filter] of parsedAdvancedFilters) {
-        if (!allowedFilterFields.has(key)) continue;
+        if (!allowedFilterFields.has(key) || key === excludeField) continue;
         const val = String(filter.value || '').trim();
         if (!val) continue;
         const op = filter.operator || 'contains';
@@ -349,17 +366,31 @@ export async function GET(req: NextRequest) {
       return clauses;
     };
 
-    const filterClauses = await buildFilterClauses();
+    // Period filter applies to the waybill activation time, as on the Waybills page.
+    const periodFromDate = parseMonthBoundary(searchParams.get('periodFrom'), 'start');
+    const periodToExclusiveDate = parseMonthBoundary(searchParams.get('periodTo'), 'endExclusive');
+    const periodClause: Prisma.rs_waybills_in_itemsWhereInput | null =
+      periodFromDate && periodToExclusiveDate
+        ? { waybill: { activation_time: { gte: periodFromDate, lt: periodToExclusiveDate } } }
+        : periodFromDate
+          ? { waybill: { activation_time: { gte: periodFromDate } } }
+          : periodToExclusiveDate
+            ? { waybill: { activation_time: { lt: periodToExclusiveDate } } }
+            : null;
 
-    // Build WHERE clause - only use AND if there are actual conditions
-    const conditions: Prisma.rs_waybills_in_itemsWhereInput[] = [];
-    if (Object.keys(baseSearch).length > 0) conditions.push(baseSearch);
-    if (filterClauses.length > 0) conditions.push(...filterClauses);
-
-    const where: Prisma.rs_waybills_in_itemsWhereInput = 
-      conditions.length > 0 
+    // Build WHERE clause - only use AND if there are actual conditions.
+    // excludeField omits that column's own filter (used for facet options).
+    const buildWhere = async (excludeField?: string): Promise<Prisma.rs_waybills_in_itemsWhereInput> => {
+      const filterClauses = await buildFilterClauses(excludeField);
+      const conditions: Prisma.rs_waybills_in_itemsWhereInput[] = [];
+      if (Object.keys(baseSearch).length > 0) conditions.push(baseSearch);
+      if (periodClause) conditions.push(periodClause);
+      if (filterClauses.length > 0) conditions.push(...filterClauses);
+      return conditions.length > 0
         ? { AND: [...conditions, { insider_uuid: insider.insiderUuid }] }
         : { insider_uuid: insider.insiderUuid };
+    };
+    const where = await buildWhere();
 
     // Build order by
     const orderBy: any = {};
@@ -394,6 +425,14 @@ export async function GET(req: NextRequest) {
             },
           },
           dimension: { select: { dimension: true } },
+          suggested_inventory: {
+            select: {
+              name: true,
+              internal_number: true,
+              inventory_group: { select: { name: true } },
+              dimension: { select: { dimension: true } },
+            },
+          },
           waybill: {
             select: {
               rs_id: true,
@@ -422,116 +461,84 @@ export async function GET(req: NextRequest) {
 
     let facets: Record<string, any[]> | undefined;
     if (includeFacets && allowedFilterFields.has(facetField)) {
+      // Options follow the search, period and every active filter except this column's own filter.
+      const facetWhere = await buildWhere(facetField);
       const directFields = new Set([
         'waybill_no', 'goods_code', 'goods_name', 'unit', 'quantity', 'unit_price',
         'total_price', 'taxation', 'inventory_uuid', 'project_uuid', 'financial_code_uuid',
         'corresponding_account', 'import_batch_id', 'dimension_uuid',
+        'inventory_match_status', 'inventory_match_method',
       ]);
+      const matchesSearch = (value: string) =>
+        !facetSearch || value.toLowerCase().includes(facetSearch.toLowerCase());
+      const toFacetValue = (value: any) => {
+        if (value === null || value === undefined) return '';
+        // Dates must stay ISO so the filter can match them back in the database.
+        if (value instanceof Date) return value.toISOString();
+        return typeof value === 'object' ? value.toString() : value;
+      };
       let values: any[] = [];
 
       if (facetField === 'inventory_name') {
-        const inventoryRows = await withRetry(() => prisma.inventories.findMany({
-          where: {
-            insider_uuid: insider.insiderUuid,
-            waybill_items: {
-              some: { insider_uuid: insider.insiderUuid },
-            },
-          },
+        const itemRows = await withRetry(() => prisma.rs_waybills_in_items.findMany({
+          where: facetWhere,
+          distinct: ['inventory_uuid'],
           select: {
-            name: true,
-            internal_number: true,
-            inventory_group: { select: { name: true } },
-            dimension: { select: { dimension: true } },
+            inventory: {
+              select: {
+                name: true,
+                internal_number: true,
+                inventory_group: { select: { name: true } },
+                dimension: { select: { dimension: true } },
+              },
+            },
           },
         }));
-        values = inventoryRows
-          .map((inventory) => formatInventoryLabel(inventory))
-          .filter(Boolean)
-          .filter((label) => !facetSearch || label.toLowerCase().includes(facetSearch.toLowerCase()))
+        values = itemRows.map((row) => (row.inventory ? formatInventoryLabel(row.inventory) : ''));
+        values = Array.from(new Set(values))
+          .filter((value) => matchesSearch(value))
           .sort((a, b) => a.localeCompare(b))
           .slice(0, facetLimit);
-        if (!facetSearch) {
-          const blankItem = await withRetry(() => prisma.rs_waybills_in_items.findFirst({
-            where: {
-              insider_uuid: insider.insiderUuid,
-              inventory_uuid: null,
-            },
-            select: { id: true },
-          }));
-          if (blankItem) values.unshift('');
-        }
       } else if (facetField === 'dimension_name') {
-        const dimensionRows = await withRetry(() => prisma.rs_waybills_in_items.findMany({
-          where: { insider_uuid: insider.insiderUuid, dimension_uuid: { not: null } },
+        const itemRows = await withRetry(() => prisma.rs_waybills_in_items.findMany({
+          where: facetWhere,
           distinct: ['dimension_uuid'],
           select: { dimension: { select: { dimension: true } } },
         }));
-        values = dimensionRows
-          .map((row) => row.dimension?.dimension ?? '')
-          .filter((value) => value !== '')
-          .filter((value) => !facetSearch || value.toLowerCase().includes(facetSearch.toLowerCase()))
+        values = itemRows.map((row) => row.dimension?.dimension ?? '');
+        values = Array.from(new Set(values))
+          .filter((value) => matchesSearch(value))
           .sort((a, b) => a.localeCompare(b))
           .slice(0, facetLimit);
-        if (!facetSearch) {
-          const blankItem = await withRetry(() => prisma.rs_waybills_in_items.findFirst({
-            where: { insider_uuid: insider.insiderUuid, dimension_uuid: null },
-            select: { id: true },
-          }));
-          if (blankItem) values.unshift('');
-        }
       } else if (directFields.has(facetField)) {
-        const columnValues = facetSearch
-          ? await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
-              `SELECT DISTINCT "${facetField}" AS value
-               FROM rs_waybills_in_items
-               WHERE insider_uuid = $1::uuid
-                 AND CAST("${facetField}" AS text) ILIKE $2
-               ORDER BY value NULLS FIRST
-               LIMIT $3`,
-              insider.insiderUuid,
-              `%${facetSearch}%`,
-              facetLimit
-            )
-          : await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
-              `SELECT DISTINCT "${facetField}" AS value
-               FROM rs_waybills_in_items
-               WHERE insider_uuid = $1::uuid
-               ORDER BY value NULLS FIRST
-               LIMIT $2`,
-              insider.insiderUuid,
-              facetLimit
-            );
-        values = columnValues.map((row) => row.value ?? '');
+        const itemRows = await withRetry(() => prisma.rs_waybills_in_items.findMany({
+          where: facetWhere,
+          distinct: [facetField as any],
+          select: { [facetField]: true } as Prisma.rs_waybills_in_itemsSelect,
+          take: 50000,
+        }));
+        values = itemRows.map((row: any) => toFacetValue(row[facetField]));
+        values = Array.from(new Set(values))
+          .filter((value) => matchesSearch(String(value)))
+          .sort((a, b) => String(a).localeCompare(String(b)))
+          .slice(0, facetLimit);
       } else {
+        // waybill_* columns: distinct values from waybills that have items matching the facet scope.
         const fieldName = facetField.startsWith('waybill_')
           ? facetField.slice('waybill_'.length)
           : facetField;
-        const relationField = fieldName;
-        if (relationField && /^[a-z_]+$/.test(relationField)) {
-          const relatedValues = facetSearch
-            ? await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
-                `SELECT DISTINCT w."${relationField}" AS value
-                 FROM rs_waybills_in_items i
-                 INNER JOIN rs_waybills_in_api w ON w.rs_id = i.rs_id
-                 WHERE i.insider_uuid = $1::uuid
-                   AND CAST(w."${relationField}" AS text) ILIKE $2
-                 ORDER BY value NULLS FIRST
-                 LIMIT $3`,
-                insider.insiderUuid,
-                `%${facetSearch}%`,
-                facetLimit
-              )
-            : await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
-                `SELECT DISTINCT w."${relationField}" AS value
-                 FROM rs_waybills_in_items i
-                 INNER JOIN rs_waybills_in_api w ON w.rs_id = i.rs_id
-                 WHERE i.insider_uuid = $1::uuid
-                 ORDER BY value NULLS FIRST
-                 LIMIT $2`,
-                insider.insiderUuid,
-                facetLimit
-              );
-          values = relatedValues.map((row) => row.value ?? '');
+        if (fieldName && /^[a-z_]+$/.test(fieldName)) {
+          const waybillRows = await withRetry(() => prisma.rs_waybills_in_api.findMany({
+            where: { waybill_items: { some: facetWhere } },
+            distinct: [fieldName as any],
+            select: { [fieldName]: true } as Prisma.rs_waybills_in_apiSelect,
+            take: 50000,
+          }));
+          values = waybillRows.map((row: any) => toFacetValue(row[fieldName]));
+          values = Array.from(new Set(values))
+            .filter((value) => matchesSearch(String(value)))
+            .sort((a, b) => String(a).localeCompare(String(b)))
+            .slice(0, facetLimit);
         }
       }
       facets = { [facetField]: Array.from(new Set(values)) };
@@ -554,6 +561,12 @@ export async function GET(req: NextRequest) {
       taxation: row.taxation,
       inventory_uuid: row.inventory_uuid,
       inventory_name: formatInventoryLabel(row.inventory),
+      suggested_inventory_uuid: row.suggested_inventory_uuid,
+      suggested_inventory_name: row.suggested_inventory ? formatInventoryLabel(row.suggested_inventory) : '',
+      inventory_match_method: row.inventory_match_method,
+      inventory_match_score: row.inventory_match_score === null ? null : Number(row.inventory_match_score),
+      inventory_match_status: row.inventory_match_status,
+      inventory_matched_at: row.inventory_matched_at ? row.inventory_matched_at.toISOString() : null,
       project_uuid: row.project_uuid,
       financial_code_uuid: row.financial_code_uuid,
       corresponding_account: row.corresponding_account,

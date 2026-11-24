@@ -1062,7 +1062,8 @@ model inventories {
   insider_uuid         String                 @db.Uuid
   dimension            dimensions?            @relation(fields: [dimension_uuid], references: [uuid])
   inventory_group      inventory_groups?      @relation(fields: [inventory_group_uuid], references: [uuid])
-  waybill_items        rs_waybills_in_items[]
+  waybill_items        rs_waybills_in_items[] @relation("WaybillItemInventory")
+  suggested_waybill_items rs_waybills_in_items[] @relation("WaybillItemSuggestedInventory")
 
   @@index([producer_uuid])
   @@index([inventory_group_uuid])
@@ -1114,8 +1115,15 @@ model rs_waybills_in_items {
   vat_type              String?
   a_id                  String?
   dimension_uuid        String?             @db.Uuid
+  // Inventory suggestion filled by the trg_waybill_items_inventory_match trigger (suggest only).
+  suggested_inventory_uuid String?          @db.Uuid
+  inventory_match_method   String?
+  inventory_match_score    Decimal?         @db.Decimal(5, 4)
+  inventory_match_status   String?
+  inventory_matched_at     DateTime?        @db.Timestamptz(6)
   dimension             dimensions?         @relation(fields: [dimension_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
-  inventory             inventories?        @relation(fields: [inventory_uuid], references: [uuid])
+  inventory             inventories?        @relation("WaybillItemInventory", fields: [inventory_uuid], references: [uuid])
+  suggested_inventory   inventories?        @relation("WaybillItemSuggestedInventory", fields: [suggested_inventory_uuid], references: [uuid], onDelete: SetNull, onUpdate: NoAction)
   waybill               rs_waybills_in_api? @relation(fields: [rs_id], references: [rs_id])
 
   @@index([rs_id])

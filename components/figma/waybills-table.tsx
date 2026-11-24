@@ -112,6 +112,16 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'corresponding_account', label: 'Corresponding Account', visible: true, sortable: true, filterable: true, width: 180 },
 ];
 
+// Date columns: filter labels show dd.mm.yyyy and are searched in the browser on that label.
+const isDateColumn = (format?: ColumnConfig['format']) => format === 'date' || format === 'datetime';
+// Newest first by the real timestamp; sorting the dd.mm.yyyy labels as text would be wrong.
+const sortDateRawValues = (values: any[]) =>
+  [...values].sort((a, b) => {
+    const ta = a ? new Date(a).getTime() : 0;
+    const tb = b ? new Date(b).getTime() : 0;
+    return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+  });
+
 const formatCell = (value: any, format?: ColumnConfig['format']) => {
   if (value === null || value === undefined || value === '') return '';
   if (format === 'boolean') return value ? 'Yes' : 'No';
@@ -148,6 +158,18 @@ const formatCell = (value: any, format?: ColumnConfig['format']) => {
   }
   return String(value);
 };
+
+// Filter lists can exceed the URL length limit (HTTP 431); long reads are sent as a POST body.
+const MAX_QUERY_URL_LENGTH = 1500;
+function fetchWaybillsQuery(params: URLSearchParams) {
+  const query = params.toString();
+  if (query.length <= MAX_QUERY_URL_LENGTH) return fetch(`/api/waybills?${query}`);
+  return fetch('/api/waybills/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.fromEntries(params.entries())),
+  });
+}
 
 export function WaybillsTable() {
   const requiredInsiderName = useRequiredInsiderName();
@@ -190,6 +212,8 @@ export function WaybillsTable() {
   const [pageSize, setPageSize] = useState(200);
   const [facetValues, setFacetValues] = useState<Map<ColumnKey, any[]>>(new Map());
   const facetRequestsRef = useRef(new Map<string, Promise<void>>());
+  const facetSignatureRef = useRef(new Map<ColumnKey, string>());
+  const latestFacetRequestRef = useRef(new Map<ColumnKey, string>());
   const [isInitialized, setIsInitialized] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
 
@@ -662,7 +686,7 @@ export function WaybillsTable() {
         includeFacets: false,
       });
       params.set('skipCount', 'true');
-      const res = await fetch(`/api/waybills?${params.toString()}`);
+      const res = await fetchWaybillsQuery(new URLSearchParams(params.toString()));
       const body = await res.json();
       if (!res.ok) throw new Error(body?.error || 'Failed to load waybills');
       setData(body.data || []);
@@ -674,7 +698,7 @@ export function WaybillsTable() {
         includeFacets: false,
       });
       countParams.set('countOnly', 'true');
-      void fetch(`/api/waybills?${countParams.toString()}`)
+      void fetchWaybillsQuery(new URLSearchParams(countParams.toString()))
         .then(async (countRes) => {
           const countBody = await countRes.json();
           if (!countRes.ok) throw new Error(countBody?.error || 'Failed to count waybills');
@@ -998,13 +1022,10 @@ export function WaybillsTable() {
     return Array.from(values).sort();
   }, [data, facetValues]);
 
+  // Each column's options are keyed by the exact request (search, period, filters, sort).
+  // A list is reused only while that request is unchanged, so options never go stale.
   const loadFacetValues = useCallback(async (columnKey: ColumnKey, search = '') => {
-    if (columnKey === 'check' || (!search && facetValues.has(columnKey))) return;
-    const requestKey = `${columnKey}:${search.trim().toLowerCase()}`;
-    const pending = facetRequestsRef.current.get(requestKey);
-    if (pending) return pending;
-
-    const request = (async () => {
+    if (columnKey === 'check') return;
     const params = buildWaybillsQueryParams({ includeFacets: true, includePagination: true });
     params.set('facetField', columnKey);
     params.set('facetLimit', '50000');
@@ -1012,21 +1033,32 @@ export function WaybillsTable() {
     if (search.trim()) params.set('facetSearch', search.trim());
     params.set('limit', '1');
     params.set('offset', '0');
+    const signature = params.toString();
+
+    if (facetSignatureRef.current.get(columnKey) === signature) return;
+    const pending = facetRequestsRef.current.get(signature);
+    if (pending) return pending;
+    latestFacetRequestRef.current.set(columnKey, signature);
+
+    const request = (async () => {
       try {
-        const res = await fetch(`/api/waybills?${params.toString()}`);
+        const res = await fetchWaybillsQuery(new URLSearchParams(signature));
         const body = await res.json();
         if (!res.ok) throw new Error(body?.error || 'Failed to load filter values');
+        // Ignore responses superseded by a newer request for the same column.
+        if (latestFacetRequestRef.current.get(columnKey) !== signature) return;
         const values = Array.isArray(body.facets?.[columnKey]) ? body.facets[columnKey] : [];
+        facetSignatureRef.current.set(columnKey, signature);
         setFacetValues((current) => new Map(current).set(columnKey, values));
       } catch (error) {
         console.error('Failed to load waybill facet values:', error);
       } finally {
-        facetRequestsRef.current.delete(requestKey);
+        facetRequestsRef.current.delete(signature);
       }
     })();
-    facetRequestsRef.current.set(requestKey, request);
+    facetRequestsRef.current.set(signature, request);
     return request;
-  }, [buildWaybillsQueryParams, facetValues]);
+  }, [buildWaybillsQueryParams]);
 
   const filteredData = useMemo(() => data, [data]);
 
@@ -1063,11 +1095,10 @@ export function WaybillsTable() {
     if (columnKey === 'check') {
       return value ? 'Yes' : 'No';
     }
-    if (columnKey === 'date') {
-      return String(value);
-    }
+    const columnFormat = columns.find((col) => col.key === columnKey)?.format;
+    if (isDateColumn(columnFormat)) return formatCell(value, columnFormat);
     return String(value);
-  }, [financialCodeLabelMap, projectLabelMap, projects]);
+  }, [columns, financialCodeLabelMap, projectLabelMap, projects]);
 
   const sortPeriodValues = useCallback((values: any[]) => {
     const parsePeriod = (value: any) => {
@@ -1390,7 +1421,7 @@ export function WaybillsTable() {
       const exportFilters = buildWaybillsQueryParams({ includeFacets: false, includePagination: false }).get('filters');
       if (exportFilters) params.set('filters', exportFilters);
 
-      const response = await fetch(`/api/waybills?${params.toString()}`);
+      const response = await fetchWaybillsQuery(new URLSearchParams(params.toString()));
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body?.error || 'Failed to export waybills');
       const exportData: Waybill[] = Array.isArray(body.data) ? body.data : [];
@@ -1809,13 +1840,16 @@ export function WaybillsTable() {
                         columnFormat={col.format}
                         renderValue={(value) => renderFilterValue(col.key, value)}
                         onOpen={() => loadFacetValues(col.key)}
-                        onFacetSearch={(search) => loadFacetValues(col.key, search)}
+                        // Date search runs on the shown dd.mm.yyyy label in the popover, not on the server.
+                        onFacetSearch={isDateColumn(col.format) ? undefined : (search) => loadFacetValues(col.key, search)}
                         sortValues={
                           col.key === 'period'
                             ? sortPeriodValues
                             : col.key === 'date'
                               ? sortDateValues
-                              : undefined
+                              : isDateColumn(col.format)
+                                ? sortDateRawValues
+                                : undefined
                         }
                       />
                     )}
