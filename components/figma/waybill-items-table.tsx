@@ -98,7 +98,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'total_price', label: 'Total Price', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
   { key: 'inventory_name', label: 'Inventory', visible: true, sortable: true, filterable: true, width: 200 },
   // Inventory suggestion from the insert trigger; a person confirms it (suggest only).
-  { key: 'suggested_inventory_name', label: 'Suggested Inventory', visible: true, sortable: false, filterable: false, width: 260 },
+  { key: 'suggested_inventory_name', label: 'Suggested Inventory', visible: true, sortable: false, filterable: true, width: 260 },
   { key: 'inventory_match_status', label: 'Match Status', visible: true, sortable: false, filterable: true, width: 130 },
   { key: 'inventory_match_method', label: 'Match Method', visible: false, sortable: false, filterable: true, width: 130 },
   { key: 'taxation', label: 'Taxation', visible: true, sortable: true, filterable: true, width: 120 },

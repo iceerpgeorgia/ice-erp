@@ -8,6 +8,11 @@ import { requireAuth, isAuthError } from "@/lib/auth-guard";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_FILTER_FIELDS = new Set(['project_uuid', 'financial_code_uuid', 'dimension_uuid', 'inventory_uuid']);
 const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
+// Columns shown as inventory labels and the UUID column each one filters on.
+const INVENTORY_LABEL_COLUMNS: Record<string, 'inventory_uuid' | 'suggested_inventory_uuid'> = {
+  inventory_name: 'inventory_uuid',
+  suggested_inventory_name: 'suggested_inventory_uuid',
+};
 
 const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
 
@@ -104,7 +109,7 @@ export async function GET(req: NextRequest) {
       'waybill_state', 'waybill_condition', 'waybill_category', 'waybill_type',
       'waybill_counteragent_name', 'waybill_counteragent_inn', 'waybill_vat', 'waybill_sum',
       'waybill_driver', 'waybill_vehicle', 'waybill_activation_time',
-      'inventory_match_status', 'inventory_match_method',
+      'inventory_match_status', 'inventory_match_method', 'suggested_inventory_name',
     ]);
 
     const allowedSortColumns = new Set([
@@ -260,19 +265,26 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        if (key === 'inventory_name') {
+        // Inventory label columns: resolve the shown "Internal # | Group | Dimension | Name" label
+        // back to the UUID column (inventory_uuid or suggested_inventory_uuid).
+        const labelColumn = INVENTORY_LABEL_COLUMNS[key];
+        if (labelColumn) {
+          if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
+            clauses.push({ [labelColumn]: { not: null } } as Prisma.rs_waybills_in_itemsWhereInput);
+            continue;
+          }
           const selected = new Set(nonBlank);
           const matchingUuids = (await getInventoryLabels())
             .filter((inventory) => selected.has(inventory.label))
             .map((inventory) => inventory.uuid);
           if (matchingUuids.length > 0 && includeBlank) {
-            clauses.push({ OR: [{ inventory_uuid: { in: matchingUuids } }, { inventory_uuid: null }] });
+            clauses.push({ OR: [{ [labelColumn]: { in: matchingUuids } }, { [labelColumn]: null }] } as Prisma.rs_waybills_in_itemsWhereInput);
           } else if (matchingUuids.length > 0) {
-            clauses.push({ inventory_uuid: { in: matchingUuids } });
+            clauses.push({ [labelColumn]: { in: matchingUuids } } as Prisma.rs_waybills_in_itemsWhereInput);
           } else if (includeBlank) {
-            clauses.push({ inventory_uuid: null });
+            clauses.push({ [labelColumn]: null } as Prisma.rs_waybills_in_itemsWhereInput);
           } else {
-            clauses.push({ inventory_uuid: { in: [] } });
+            clauses.push({ [labelColumn]: { in: [] } } as Prisma.rs_waybills_in_itemsWhereInput);
           }
           continue;
         }
@@ -320,7 +332,8 @@ export async function GET(req: NextRequest) {
         if (!val) continue;
         const op = filter.operator || 'contains';
 
-        if (key === 'inventory_name') {
+        const advancedLabelColumn = INVENTORY_LABEL_COLUMNS[key];
+        if (advancedLabelColumn) {
           const matches = (label: string) => {
             const normalized = label.toLowerCase();
             const needle = val.toLowerCase();
@@ -337,7 +350,7 @@ export async function GET(req: NextRequest) {
           const matchingUuids = (await getInventoryLabels())
             .filter((inventory) => matches(inventory.label))
             .map((inventory) => inventory.uuid);
-          clauses.push({ inventory_uuid: { in: matchingUuids } });
+          clauses.push({ [advancedLabelColumn]: { in: matchingUuids } } as Prisma.rs_waybills_in_itemsWhereInput);
           continue;
         }
 
@@ -479,22 +492,25 @@ export async function GET(req: NextRequest) {
       };
       let values: any[] = [];
 
-      if (facetField === 'inventory_name') {
+      if (facetField === 'inventory_name' || facetField === 'suggested_inventory_name') {
+        const inventorySelect = {
+          select: {
+            name: true,
+            internal_number: true,
+            inventory_group: { select: { name: true } },
+            dimension: { select: { dimension: true } },
+          },
+        };
+        const isSuggested = facetField === 'suggested_inventory_name';
         const itemRows = await withRetry(() => prisma.rs_waybills_in_items.findMany({
           where: facetWhere,
-          distinct: ['inventory_uuid'],
-          select: {
-            inventory: {
-              select: {
-                name: true,
-                internal_number: true,
-                inventory_group: { select: { name: true } },
-                dimension: { select: { dimension: true } },
-              },
-            },
-          },
+          distinct: [isSuggested ? 'suggested_inventory_uuid' : 'inventory_uuid'],
+          select: isSuggested ? { suggested_inventory: inventorySelect } : { inventory: inventorySelect },
         }));
-        values = itemRows.map((row) => (row.inventory ? formatInventoryLabel(row.inventory) : ''));
+        values = itemRows.map((row: any) => {
+          const inventory = isSuggested ? row.suggested_inventory : row.inventory;
+          return inventory ? formatInventoryLabel(inventory) : '';
+        });
         values = Array.from(new Set(values))
           .filter((value) => matchesSearch(value))
           .sort((a, b) => a.localeCompare(b))
