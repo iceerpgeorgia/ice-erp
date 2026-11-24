@@ -5336,3 +5336,15 @@
 - Commit: 2988807
 - Production: https://ice-1fjbsmj1e-iceerp.vercel.app
 - Status: Production alias `ice-erp.vercel.app` verified on the new deployment.
+
+## 2026-11-24
+- Summary: Server-side paging for Waybills and Waybill Items; fix dimension_name filters returning HTTP 500.
+- Changes:
+  - app/api/waybill-items/route.ts: dimension_name filters, advanced filters and facets map to the dimension relation; facet/count/page options added.
+  - app/api/waybills/route.ts: facet-only, count-only and skip-count options; searchable facet values.
+  - components/figma/waybill-items-table.tsx and waybills-table.tsx: load one server page, count separately, on-demand facet values.
+  - components/figma/shared/column-filter-popover.tsx: loads options on open, server search, virtualized list.
+  - AGENTS.md: documented server-side paging and the dimension_name relation rule.
+- Commit: d9c9061
+- Production: https://ice-z5ksr2uk3-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed. Endpoint test over HTTP not run (API requires sign-in); dimension queries verified directly against the database.
