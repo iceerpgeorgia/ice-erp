@@ -10,7 +10,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Download, Plus, Pencil, Trash2 } from "lucide-react";
+import { Download, Plus, Pencil, Trash2, GripVertical } from "lucide-react";
 import { exportRowsToXlsx } from "@/lib/export-xlsx";
 
 interface Dimension {
@@ -22,6 +22,17 @@ interface Dimension {
   updatedAt: string;
 }
 
+// RS unit texts from waybill items (rs_unit_dimension_map), shown as draggable chips.
+interface UnitText {
+  id: number;
+  unit_text: string;
+  dimension_uuid: string | null;
+  is_active: boolean;
+  item_count: number;
+}
+
+const UNIT_DRAG_TYPE = "application/x-rs-unit-id";
+
 export default function DimensionsPage() {
   const [rows, setRows] = useState<Dimension[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +42,80 @@ export default function DimensionsPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { fetchAll(); }, []);
+  // RS unit texts: drag a chip onto a dimension row to map (or remap) it. The database moves every
+  // waybill item with that unit text to the dimension and redoes their inventory suggestions.
+  const [units, setUnits] = useState<UnitText[]>([]);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [movingUnitId, setMovingUnitId] = useState<number | null>(null);
+
+  const fetchUnits = async () => {
+    try {
+      const res = await fetch("/api/rs-unit-dimension-map");
+      if (res.ok) {
+        const result = await res.json();
+        setUnits(Array.isArray(result?.data) ? result.data : []);
+      }
+    } catch (err) { console.error("Failed to fetch RS unit texts:", err); }
+  };
+
+  useEffect(() => { fetchAll(); fetchUnits(); }, []);
+
+  const unmappedUnits = units.filter((u) => u.is_active && !u.dimension_uuid);
+  const unitsByDimension = new Map<string, UnitText[]>();
+  units.forEach((u) => {
+    if (!u.dimension_uuid) return;
+    const list = unitsByDimension.get(u.dimension_uuid) ?? [];
+    list.push(u);
+    unitsByDimension.set(u.dimension_uuid, list);
+  });
+  unitsByDimension.forEach((list) => list.sort((a, b) => b.item_count - a.item_count));
+
+  const moveUnit = async (unitId: number, dimension: Dimension) => {
+    const unit = units.find((u) => u.id === unitId);
+    if (!unit || unit.dimension_uuid === dimension.uuid) return;
+    if (unit.dimension_uuid) {
+      const from = rows.find((r) => r.uuid === unit.dimension_uuid)?.dimension ?? "another dimension";
+      const ok = confirm(
+        `Move unit "${unit.unit_text}" (${unit.item_count} waybill items) from ${from} to ${dimension.dimension}?\n\n` +
+        "Its items move to the new dimension and their pending inventory suggestions are redone. Items already bound to an inventory of the old dimension will show Unit Check = Mismatch."
+      );
+      if (!ok) return;
+    }
+    setMovingUnitId(unitId);
+    try {
+      const res = await fetch(`/api/rs-unit-dimension-map?id=${unitId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dimension_uuid: dimension.uuid }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to map unit");
+      setUnits((current) => current.map((u) => (u.id === unitId ? { ...u, dimension_uuid: dimension.uuid } : u)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to map unit");
+    } finally {
+      setMovingUnitId(null);
+    }
+  };
+
+  const renderUnitChip = (unit: UnitText, unmapped = false) => (
+    <span
+      key={unit.id}
+      draggable={movingUnitId === null}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(UNIT_DRAG_TYPE, String(unit.id));
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      title={`${unit.item_count} waybill items with unit "${unit.unit_text}". Drag onto a dimension to map it.`}
+      className={`inline-flex cursor-grab items-center gap-1 rounded-md border px-2 py-0.5 text-xs active:cursor-grabbing ${
+        unmapped ? "border-amber-400 bg-amber-50 text-amber-900" : "bg-background"
+      } ${movingUnitId === unit.id ? "opacity-50" : ""}`}
+    >
+      <GripVertical className="h-3 w-3 opacity-40" />
+      <span className="font-medium">{unit.unit_text}</span>
+      <span className="text-muted-foreground">{unit.item_count}</span>
+    </span>
+  );
 
   const fetchAll = async () => {
     try {
@@ -83,12 +167,31 @@ export default function DimensionsPage() {
         </div>
       </div>
 
+      <div className="mb-4 rounded-lg border p-3">
+        <div className="mb-2 text-sm font-medium">
+          Unmapped RS units{unmappedUnits.length > 0 ? ` (${unmappedUnits.length})` : ""}
+        </div>
+        {unmappedUnits.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Every RS unit text from waybill items is mapped. Drag a chip from the Matched RS Units column onto another dimension to remap it.
+          </p>
+        ) : (
+          <>
+            <p className="mb-2 text-sm text-muted-foreground">
+              Waybill items with these units have no dimension, so no inventory can be bound to them. Drag each chip onto its dimension below.
+            </p>
+            <div className="flex flex-wrap gap-2">{unmappedUnits.map((u) => renderUnitChip(u, true))}</div>
+          </>
+        )}
+      </div>
+
       {loading ? <div className="text-center py-12">Loading…</div> : (
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Dimension</TableHead>
+                <TableHead>Matched RS Units</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -96,10 +199,33 @@ export default function DimensionsPage() {
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground">No dimensions found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">No dimensions found.</TableCell></TableRow>
               ) : rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  onDragOver={(e) => {
+                    if (!row.is_active || !e.dataTransfer.types.includes(UNIT_DRAG_TYPE)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (dropTarget !== row.uuid) setDropTarget(row.uuid);
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropTarget(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDropTarget(null);
+                    const unitId = Number(e.dataTransfer.getData(UNIT_DRAG_TYPE));
+                    if (unitId) void moveUnit(unitId, row);
+                  }}
+                  className={dropTarget === row.uuid ? "bg-primary/10 outline outline-2 outline-primary" : ""}
+                >
                   <TableCell className="font-medium">{row.dimension}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(unitsByDimension.get(row.uuid) ?? []).map((u) => renderUnitChip(u))}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${row.is_active ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}`}>
                       {row.is_active ? "Active" : "Inactive"}
