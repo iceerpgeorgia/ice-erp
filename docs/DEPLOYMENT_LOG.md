@@ -5372,3 +5372,13 @@
 - Commit: 0e995a5
 - Production: https://ice-nfvfa7dr5-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; production cron verified with limit=1 (HTTP 200, no errors).
+
+## 2026-11-24 (4)
+- Summary: Confirm identical waybill item inventory suggestions together.
+- Changes:
+  - Migration 20261124200000_waybill_items_suggestion_groups_index (applied before deploy).
+  - /api/waybill-items returns suggestion_group_count; Waybill Items shows xN and asks before confirming a group.
+  - /api/waybill-items/confirm-suggestion confirms every pending item with the same goods name and suggested inventory.
+- Commit: d00d929
+- Production: https://ice-47q6nr0zj-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; group confirm verified with a rolled-back transaction.
