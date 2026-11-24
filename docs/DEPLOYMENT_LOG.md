@@ -5348,3 +5348,15 @@
 - Commit: d9c9061
 - Production: https://ice-z5ksr2uk3-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed. Endpoint test over HTTP not run (API requires sign-in); dimension queries verified directly against the database.
+
+## 2026-11-24 (2)
+- Summary: Waybill item inventory suggestions on insert; waybill filter fixes.
+- Changes:
+  - Migration 20261124120000_waybill_items_inventory_suggestions (applied before deploy): insert trigger suggests an inventory (exact name, latest earlier binding, trigram with matching numeric tokens); suggest only; existing rows marked legacy; binding time recorded on every inventory change.
+  - Waybill Items: Suggested Inventory and Match Status columns, per-row and bulk confirm via POST /api/waybill-items/confirm-suggestion.
+  - Waybill Items applies the period filter; facet options follow active filters; facet cache refreshes on filter change.
+  - Long filter requests use POST /api/waybill-items/query and /api/waybills/query (fixes HTTP 431).
+  - Date filters show and search dd.mm.yyyy and sort by real date.
+- Commit: e29f48a
+- Production: https://ice-nj3ap88ba-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; trigger verified with rolled-back inserts.
