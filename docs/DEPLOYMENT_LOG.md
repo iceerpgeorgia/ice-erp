@@ -5414,3 +5414,11 @@
 - Commit: e605234
 - Production: https://ice-2ovg3m945-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; migration, strict check and group bind tested in rolled-back transactions; picker, dryRun counts and Unit Check filter checked locally.
+
+## 2026-11-25 (2)
+- Summary: Inventory picker shows its options on the first open.
+- Changes:
+  - components/figma/inventory-cell-picker.tsx: scroll element kept in state so the virtualized list renders once it mounts.
+- Commit: 9c0d70a
+- Production: https://ice-nnu6w6qgm-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; first opens checked locally (options rendered on first click).
