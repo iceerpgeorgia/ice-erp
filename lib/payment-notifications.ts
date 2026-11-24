@@ -466,11 +466,14 @@ function escapeHtml(str: string): string {
 /**
  * Send email using Gmail API with Service Account JSON or Gmail SMTP
  */
-async function sendEmail(emailData: {
+// Shared Gmail sender (service account first, app-password SMTP as fallback). fromName defaults to
+// "Payment Notifications"; other notices pass their own.
+export async function sendEmail(emailData: {
   to: string;
   subject: string;
   text: string;
   html: string;
+  fromName?: string;
 }) {
   console.log('[Email Service] ============================================');
   console.log('[Email Service] Starting email send process');
@@ -531,7 +534,7 @@ async function sendEmail(emailData: {
 
         console.log('[Email Service] Sending email...');
         const result = await transporter.sendMail({
-          from: `"Payment Notifications" <${gmailSenderEmail}>`,
+          from: `"${emailData.fromName ?? 'Payment Notifications'}" <${gmailSenderEmail}>`,
           to: emailData.to,
           subject: emailData.subject,
           text: emailData.text,
@@ -580,7 +583,7 @@ async function sendEmail(emailData: {
 
         console.log('[Email Service] Sending email via SMTP...');
         const result = await transporter.sendMail({
-          from: `"Payment Notifications" <${gmailUser}>`,
+          from: `"${emailData.fromName ?? 'Payment Notifications'}" <${gmailUser}>`,
           to: emailData.to,
           subject: emailData.subject,
           text: emailData.text,

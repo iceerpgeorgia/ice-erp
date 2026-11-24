@@ -1147,6 +1147,14 @@ model rs_unit_dimension_map {
   created_at     DateTime    @default(now()) @db.Timestamptz(6)
   updated_at     DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
   unit_text      String      @unique
+  // Claude's classification of an unmapped unit text (lib/waybills/llm-unit-mapping.ts).
+  ai_checked_at     DateTime?   @db.Timestamptz(6)
+  ai_dimension_uuid String?     @db.Uuid
+  ai_confidence     Decimal?    @db.Decimal(5, 4)
+  ai_reason         String?
+  // True when dimension_uuid was set by Claude rather than by a person.
+  ai_mapped         Boolean     @default(false)
+  admin_notified_at DateTime?   @db.Timestamptz(6)
   dimension      dimensions? @relation(fields: [dimension_uuid], references: [uuid], onUpdate: NoAction)
 
   @@index([dimension_uuid], map: "rs_unit_dim_map_dim_uuid_idx")

@@ -79,6 +79,11 @@ export async function PATCH(req: NextRequest) {
       include: { dimension: { select: { uuid: true, dimension: true } } },
     });
 
+    // A person chose this mapping: it is no longer Claude's.
+    if (dimension_uuid !== undefined) {
+      await prisma.$executeRawUnsafe(`UPDATE rs_unit_dimension_map SET ai_mapped = false WHERE id = $1`, updated.id);
+    }
+
     await logAudit({ table: "rs_unit_dimension_map", recordId: updated.id, action: "update" });
 
     return NextResponse.json({
