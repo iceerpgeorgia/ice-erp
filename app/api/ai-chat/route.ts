@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
+// claude-3-5-haiku-20241022 was retired (API answered 404 not_found), which broke every chat message.
+const AI_CHAT_MODEL = 'claude-haiku-5-5';
+
 function getAnthropicClient(): Anthropic | null {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
@@ -152,7 +155,7 @@ LANGUAGE: Respond ONLY in ${detectedLanguage === 'georgian' ? 'Georgian' : 'Engl
 
     console.log('[AI-CHAT] Calling Anthropic API with', {
       messageCount: userMessages.length,
-      model: 'claude-3-5-haiku-20241022',
+      model: AI_CHAT_MODEL,
       detectedLanguage,
       hasApiKey: !!process.env.ANTHROPIC_API_KEY,
       incomingMessageCount: messages.length,
@@ -171,7 +174,7 @@ LANGUAGE: Respond ONLY in ${detectedLanguage === 'georgian' ? 'Georgian' : 'Engl
 
     // Call Anthropic API
     const completion = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: AI_CHAT_MODEL,
       max_tokens: 1024,
       system: systemMessage.content,
       messages: userMessages.map(m => ({
@@ -180,7 +183,11 @@ LANGUAGE: Respond ONLY in ${detectedLanguage === 'georgian' ? 'Georgian' : 'Engl
       })),
     });
 
-    const assistantMessage = completion.content[0]?.type === 'text' ? completion.content[0].text : '';
+    // Current models may start with a thinking block; the answer is the text blocks after it.
+    const assistantMessage = completion.content
+      .map((block) => (block.type === 'text' ? block.text : ''))
+      .join('')
+      .trim();
 
     console.log('[AI-CHAT] Anthropic response received:', {
       hasContent: !!assistantMessage,
@@ -201,7 +208,7 @@ LANGUAGE: Respond ONLY in ${detectedLanguage === 'georgian' ? 'Georgian' : 'Engl
     return NextResponse.json({
       role: 'assistant',
       content: assistantMessage,
-      model: 'claude-3-5-haiku-20241022',
+      model: AI_CHAT_MODEL,
       usage: {
         input_tokens: completion.usage?.input_tokens,
         output_tokens: completion.usage?.output_tokens,
