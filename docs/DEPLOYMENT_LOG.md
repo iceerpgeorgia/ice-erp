@@ -5360,3 +5360,15 @@
 - Commit: e29f48a
 - Production: https://ice-nj3ap88ba-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; trigger verified with rolled-back inserts.
+
+## 2026-11-24 (3)
+- Summary: Step 4 (LLM) of waybill item inventory suggestions with Claude Haiku 5.5.
+- Changes:
+  - Migration 20261124180000_waybill_items_llm_suggestions (applied before deploy): llm method, inventory_llm_checked_at, queue and goods-name trigram indexes.
+  - lib/waybills/llm-inventory-match.ts: exact-product matching among trigram candidates, other-size candidates filtered out, suggestions at confidence >= 0.7, suggest only.
+  - Cron /api/cron/waybill-items-llm-match at 30 4-16 * * * (UTC).
+  - @anthropic-ai/sdk upgraded 0.24 -> 1.13.
+  - Backlog of unmatched items processed with scripts/run-llm-inventory-backlog.ts.
+- Commit: 0e995a5
+- Production: https://ice-nfvfa7dr5-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; production cron verified with limit=1 (HTTP 200, no errors).
