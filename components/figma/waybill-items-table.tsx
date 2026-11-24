@@ -151,6 +151,8 @@ export function WaybillItemsTable() {
   const filtersStorageKey = 'waybillItemsFiltersV1';
   const [data, setData] = useState<WaybillItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [facetValues, setFacetValues] = useState<Map<ColumnKey, any[]>>(new Map());
+  const facetRequestsRef = useRef(new Map<string, Promise<void>>());
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -432,103 +434,30 @@ export function WaybillItemsTable() {
     fetchOptions();
   }, []);
 
-  // Fetch ALL waybill items on mount, then do client-side filtering/sorting/pagination
+  // Load the active server page; filtering and totals remain database-wide.
   useEffect(() => {
     if (!filtersInitialized) return;
-    
-    const fetchAllItems = async () => {
+
+    const fetchItemsPage = async () => {
       setLoading(true);
-      logFilter('FETCH_ALL_ITEMS_START', {
-        appliedSearch,
-        periodFrom,
-        periodTo,
-        sortColumn,
-        sortDirection,
-        columnFiltersCount: columnFilters.length,
-        advancedFiltersCount: advancedFilters.size
-      });
       try {
-        const requestParams = {
-          limit: 2000,
-          offset: 0,
-          includeFacets: false,
-          ...(appliedSearch.trim() && { search: appliedSearch.trim() }),
-          ...(periodFrom && { periodFrom }),
-          ...(periodTo && { periodTo }),
-          ...(sortColumn && { sortColumn }),
-          ...(sortDirection && { sortDirection }),
-        };
+        const params = buildQueryParams({ includeFacets: false });
+        params.set('skipCount', 'true');
+        const res = await fetch(`/api/waybill-items?${params.toString()}`);
+        const body = await res.json();
+        if (!res.ok) throw new Error(body?.error || 'Failed to load waybill items');
+        setData(Array.isArray(body.data) ? body.data : []);
+        setLoading(false);
 
-        const serializedFilters = columnFilters.reduce<Array<[string, any[]]>>((acc: Array<[string, any[]]>, filter: { id: string; value: any[] }) => {
-          if (typeof filter.id !== 'string' || !Array.isArray(filter.value)) return acc;
-          const selectedValues = filter.value.map((v: any) => v === BLANK_FACET_TOKEN ? '' : (v === null || v === undefined ? '' : v));
-          if (selectedValues.length === 0) return acc;
-          acc.push([filter.id as ColumnKey, selectedValues]);
-          return acc;
-        }, []);
-        
-        if (serializedFilters.length > 0) {
-          (requestParams as any).filters = serializedFilters;
-        }
-        
-        if (advancedFilters.size > 0) {
-          const advancedArr: Array<[string, any]> = [];
-          advancedFilters.forEach((filter, key) => {
-            advancedArr.push([key, filter]);
-          });
-          (requestParams as any).advancedFilters = advancedArr;
-        }
-
-        const allRows: WaybillItem[] = [];
-        let expectedTotal = 0;
-        let offset = 0;
-        let usePost = false;
-        let urlLength = 0;
-
-        while (offset < 50000) {
-          const pageParams = { ...requestParams, limit: 2000, offset };
-          const queryString = new URLSearchParams();
-          Object.entries(pageParams).forEach(([key, value]) => {
-            if (value === undefined || value === null) return;
-            if (typeof value === 'boolean') queryString.set(key, String(value));
-            else if (typeof value === 'number') queryString.set(key, String(value));
-            else if (typeof value === 'string') queryString.set(key, value);
-            else queryString.set(key, JSON.stringify(value));
-          });
-
-          urlLength = `/api/waybill-items?${queryString.toString()}`.length;
-          usePost = urlLength > 2000;
-          const res = usePost
-            ? await fetch('/api/waybill-items', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(pageParams),
-              })
-            : await fetch(`/api/waybill-items?${queryString.toString()}`);
-          const body = await res.json();
-          if (!res.ok) throw new Error(body?.error || 'Failed to load waybill items');
-
-          const rows = Array.isArray(body.data) ? body.data : [];
-          allRows.push(...rows);
-          expectedTotal = Number(body.total || expectedTotal || rows.length);
-          setData([...allRows]);
-          setTotal(expectedTotal);
-
-          offset += rows.length;
-          if (rows.length < 2000 || offset >= expectedTotal) break;
-        }
-
-        logFilter('FETCH_ALL_ITEMS_SUCCESS', { 
-          dataCount: allRows.length,
-          total: expectedTotal,
-          usePost,
-          urlLength,
-          appliedFiltersCount: columnFilters.length + advancedFilters.size,
-          hasSearch: !!appliedSearch,
-          hasPeriodFrom: !!periodFrom,
-          hasPeriodTo: !!periodTo
-        });
-        setCurrentPage(1);
+        const countParams = buildQueryParams({ includeFacets: false, page: 1, pageSize: 1 });
+        countParams.set('countOnly', 'true');
+        void fetch(`/api/waybill-items?${countParams.toString()}`)
+          .then(async (countRes) => {
+            const countBody = await countRes.json();
+            if (!countRes.ok) throw new Error(countBody?.error || 'Failed to count waybill items');
+            setTotal(Number(countBody.total || 0));
+          })
+          .catch((error) => console.error('Failed to update waybill item total:', error));
       } catch (err) {
         logFilter('FETCH_ALL_ITEMS_ERROR', { error: err instanceof Error ? err.message : String(err) });
         console.error('Failed to load waybill items', err);
@@ -538,8 +467,8 @@ export function WaybillItemsTable() {
       }
     };
 
-    fetchAllItems();
-  }, [filtersInitialized, appliedSearch, periodFrom, periodTo, sortColumn, sortDirection, columnFilters, advancedFilters]);
+    void fetchItemsPage();
+  }, [filtersInitialized, currentPage, pageSize, appliedSearch, periodFrom, periodTo, sortColumn, sortDirection, columnFilters, advancedFilters, buildQueryParams]);
 
   useEffect(() => {
     const applyPendingResize = () => {
@@ -723,22 +652,49 @@ export function WaybillItemsTable() {
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
 
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
+    if (facetValues.has(columnKey)) {
+      return facetValues.get(columnKey) || [];
+    }
     const values = new Set<any>();
     data.forEach((row) => {
       const value = (row as any)[columnKey];
       values.add(value === null || value === undefined ? '' : value);
     });
     return Array.from(values).sort();
-  }, [data]);
+  }, [data, facetValues]);
+
+  const loadFacetValues = useCallback(async (columnKey: ColumnKey, search = '') => {
+    if (!search && facetValues.has(columnKey)) return;
+    const requestKey = `${columnKey}:${search.trim().toLowerCase()}`;
+    const pending = facetRequestsRef.current.get(requestKey);
+    if (pending) return pending;
+
+    const request = (async () => {
+    const params = buildQueryParams({ includeFacets: true, page: 1, pageSize: 1 });
+    params.set('facetField', columnKey);
+    params.set('facetLimit', '50000');
+    params.set('facetOnly', 'true');
+    if (search.trim()) params.set('facetSearch', search.trim());
+      try {
+        const res = await fetch(`/api/waybill-items?${params.toString()}`);
+        const body = await res.json();
+        if (!res.ok) throw new Error(body?.error || 'Failed to load filter values');
+        const values = Array.isArray(body.facets?.[columnKey]) ? body.facets[columnKey] : [];
+        setFacetValues((current) => new Map(current).set(columnKey, values));
+      } catch (error) {
+        console.error('Failed to load waybill item facet values:', error);
+      } finally {
+        facetRequestsRef.current.delete(requestKey);
+      }
+    })();
+    facetRequestsRef.current.set(requestKey, request);
+    return request;
+  }, [buildQueryParams, facetValues]);
 
   const filteredData = useMemo(() => data, [data]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
-    return filteredData.slice(start, end);
-  }, [filteredData, currentPage, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const paginatedData = useMemo(() => data, [data]);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
@@ -976,7 +932,7 @@ export function WaybillItemsTable() {
   };
 
   const handleExportXlsx = async () => {
-    if (filteredData.length === 0) {
+    if (total === 0) {
       alert('No data to export');
       return;
     }
@@ -1236,7 +1192,7 @@ export function WaybillItemsTable() {
             variant="outline"
             size="sm"
             onClick={handleExportXlsx}
-            disabled={isExporting || filteredData.length === 0}
+            disabled={isExporting || total === 0}
           >
             {isExporting ? 'Exporting...' : 'Export XLSX'}
           </Button>
@@ -1244,7 +1200,7 @@ export function WaybillItemsTable() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-        <div>Total records: {filteredData.length}</div>
+        <div>Total records: {total}</div>
         <div className="flex items-center gap-2">
           <span>Rows per page</span>
           <select
@@ -1329,6 +1285,8 @@ export function WaybillItemsTable() {
                         columnKey={col.key}
                         columnLabel={col.label}
                         values={getUniqueValues(col.key)}
+                        onOpen={() => loadFacetValues(col.key)}
+                        onFacetSearch={(search) => loadFacetValues(col.key, search)}
                         activeFilters={filtersMap.get(col.key) || new Set()}
                         activeFilter={advancedFilters.get(col.key)}
                         onFilterChange={(values) => {

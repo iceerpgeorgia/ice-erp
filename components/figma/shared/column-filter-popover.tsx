@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Filter, Search } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Button } from '../ui/button';
@@ -157,6 +158,8 @@ export function ColumnFilterPopover({
   maxOptions = 250,
   renderValue,
   sortValues,
+  onOpen,
+  onFacetSearch,
 }: {
   columnKey: string;
   columnLabel: string;
@@ -175,8 +178,11 @@ export function ColumnFilterPopover({
   maxOptions?: number;
   renderValue?: (value: any) => string;
   sortValues?: (values: any[], renderValue?: (value: any) => string) => any[];
+  onOpen?: () => void | Promise<void>;
+  onFacetSearch?: (search: string) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+  const [optionsLoading, setOptionsLoading] = useState(false);
 
   // Determine available modes based on column format
   const inferredMode = inferFilterMode(columnFormat);
@@ -191,6 +197,19 @@ export function ColumnFilterPopover({
     normalizeFacetSelection(new Set(resolvedActiveFilters), renderValue)
   );
   const [filterSearchTerm, setFilterSearchTerm] = useState('');
+  const onFacetSearchRef = React.useRef(onFacetSearch);
+  onFacetSearchRef.current = onFacetSearch;
+
+  React.useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      const handler = onFacetSearchRef.current;
+      if (!handler) return;
+      setOptionsLoading(true);
+      Promise.resolve(handler(filterSearchTerm)).finally(() => setOptionsLoading(false));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [filterSearchTerm, open]);
 
   // ── Mode switching ────────────────────────────────────────────────────────
   type FilterTab = 'facet' | 'condition';
@@ -248,15 +267,22 @@ export function ColumnFilterPopover({
     return defaultSortValues(filteredValues, renderValue);
   }, [filteredValues, renderValue, sortValues]);
 
-  const visibleValues = useMemo(
-    () => sortedFilteredValues.slice(0, maxOptions),
-    [sortedFilteredValues, maxOptions]
-  );
+  const facetScrollRef = React.useRef<HTMLDivElement>(null);
+  const facetVirtualizer = useVirtualizer({
+    count: sortedFilteredValues.length,
+    getScrollElement: () => facetScrollRef.current,
+    estimateSize: () => 32,
+    overscan: 8,
+  });
 
   // ── Open / close ──────────────────────────────────────────────────────────
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (nextOpen) {
+      if (onOpen) {
+        setOptionsLoading(true);
+        Promise.resolve(onOpen()).finally(() => setOptionsLoading(false));
+      }
       const resolved = activeFilter?.mode === 'facet'
         ? activeFilter.values
         : (activeFilters ?? new Set<any>());
@@ -477,33 +503,46 @@ export function ColumnFilterPopover({
                     className="pl-7 h-8 text-sm"
                   />
                 </div>
-                <div className="space-y-1 max-h-48 overflow-auto border rounded p-2">
-                  {sortedFilteredValues.length === 0 ? (
+                <div ref={facetScrollRef} className="max-h-48 overflow-auto border rounded p-2">
+                  {optionsLoading ? (
+                    <div className="text-xs text-muted-foreground py-6 text-center">Loading options...</div>
+                  ) : sortedFilteredValues.length === 0 ? (
                     <div className="text-xs text-muted-foreground py-2 text-center">No values found</div>
                   ) : (
-                    <>
-                      {sortedFilteredValues.length > maxOptions && (
-                        <div className="text-xs text-muted-foreground pb-2">
-                          Showing first {maxOptions}. Refine search to see more.
-                        </div>
-                      )}
-                      {visibleValues.map((value) => {
+                    <div
+                      className="relative w-full"
+                      style={{ height: `${facetVirtualizer.getTotalSize()}px` }}
+                    >
+                      {facetVirtualizer.getVirtualItems().map((virtualItem) => {
+                        const value = sortedFilteredValues[virtualItem.index];
                         const valueLabel = getFacetLabel(value, renderValue);
                         const valueKey = value === BLANK_FACET_TOKEN ? '__blank__' : String(value);
                         return (
-                          <div key={`${columnKey}-${valueKey}`} className="flex items-center space-x-2 py-1">
+                          <div
+                            key={`${columnKey}-${valueKey}`}
+                            className="absolute left-0 right-0 flex items-center gap-2 py-1 overflow-hidden"
+                            style={{
+                              height: `${virtualItem.size}px`,
+                              transform: `translateY(${virtualItem.start}px)`,
+                            }}
+                          >
                             <Checkbox
                               id={`${columnKey}-${valueKey}`}
+                              className="shrink-0"
                               checked={tempSelected.has(value)}
                               onCheckedChange={() => handleToggle(value)}
                             />
-                            <label htmlFor={`${columnKey}-${valueKey}`} className="text-sm flex-1 cursor-pointer">
+                            <label
+                              htmlFor={`${columnKey}-${valueKey}`}
+                              className="text-sm flex-1 min-w-0 cursor-pointer truncate whitespace-nowrap"
+                              title={valueLabel}
+                            >
                               {valueLabel}
                             </label>
                           </div>
                         );
                       })}
-                    </>
+                    </div>
                   )}
                 </div>
               </>

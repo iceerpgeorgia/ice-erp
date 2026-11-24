@@ -373,7 +373,11 @@ The official unit list is fetched via `get_waybill_units` SOAP method. Verified 
 ### Waybill Check Column
 - `rs_waybills_in_api` check state is computed as `project_uuid OR financial_code_uuid OR corresponding_account`; expose it as boolean `check` from `/api/waybills` for correct Yes/No facet values and filtering.
 - In `/api/waybill-items`, `waybill_no` is an item-level column; only `waybill_*` header columns such as `waybill_activation_time` sort through the `waybill` relation. Rewriting `waybill_no` as `waybill.no` causes Prisma validation failure and HTTP 500.
-- Waybill and Waybill Items tables load the full scoped dataset in sequential 2,000-row chunks for client-side filtering; single huge requests can monopolize the one-connection Prisma pool and hide rows behind the old cap.
+- Waybill Items renders `inventory_name` as `Internal # | Group | Dimension | Name`; facet and advanced filters must resolve this composite label back to inventory UUIDs.
+- Waybill Items `dimension_name` is not a column on `rs_waybills_in_items`; filters, advanced filters and facets must map it to the `dimension` relation (`dimension: { dimension: ... }`, blank = `dimension_uuid IS NULL`). Passing it as a plain column makes Prisma throw and the route return HTTP 500.
+- Waybill and Waybill Items use server-side pagination for row data and on-demand one-field facet endpoints; never preload the full 14k/40k datasets just to populate filter menus.
+- When opened, facet popups fetch the complete distinct option set, show loading state, and use row virtualization; server-side search avoids client-side DOM work for targeted matches.
+- Page rows load first with `skipCount=true`; exact global totals load separately with `countOnly=true` so the table becomes interactive before expensive counts finish.
 - Retry long list/count queries when Prisma reports pool acquisition timeout or PgBouncer/driver "Server has closed the connection".
 
 When a waybill is bound (or re-bound) to a project, the system automatically creates and maintains a corresponding `payments` record and a `payments_ledger` entry.

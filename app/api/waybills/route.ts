@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma, withRetry } from '@/lib/prisma';
 import { resolveInsiderSelection } from '@/lib/insider-selection';
@@ -76,6 +76,15 @@ export async function GET(req: NextRequest) {
     const offset = Math.max(Number(searchParams.get('offset') || 0), 0);
     const search = (searchParams.get('search') || '').trim();
     const includeFacets = searchParams.get('includeFacets') === 'true';
+    const facetField = searchParams.get('facetField') || '';
+    const facetOnly = searchParams.get('facetOnly') === 'true';
+    const countOnly = searchParams.get('countOnly') === 'true';
+    const skipCount = searchParams.get('skipCount') === 'true';
+    const facetSearch = (searchParams.get('facetSearch') || '').trim();
+    const facetLimit = Math.min(
+      Math.max(Number(searchParams.get('facetLimit') || 250), 1),
+      50000
+    );
     const sortColumn = searchParams.get('sortColumn') || '';
     const sortDirection = searchParams.get('sortDirection') === 'asc' ? 'asc' : 'desc';
     const filtersParam = searchParams.get('filters');
@@ -529,13 +538,13 @@ export async function GET(req: NextRequest) {
             { id: Prisma.SortOrder.desc },
           ];
 
-    const rows = await withRetry(() => prisma.rs_waybills_in_api.findMany({
+    const rows = facetOnly || countOnly ? [] : await withRetry(() => prisma.rs_waybills_in_api.findMany({
       where,
       orderBy,
       ...(exportAll ? {} : { take: limit, skip: offset }),
     }));
-    const total = await withRetry(() => prisma.rs_waybills_in_api.count({ where }));
-    const missingCounteragentCount = await withRetry(() =>
+    const total = facetOnly || skipCount ? 0 : await withRetry(() => prisma.rs_waybills_in_api.count({ where }));
+    const missingCounteragentCount = facetOnly || skipCount ? 0 : await withRetry(() =>
       prisma.rs_waybills_in_api.count({ where: missingCounteragentWhere })
     );
 
@@ -558,7 +567,9 @@ export async function GET(req: NextRequest) {
 
     let facets: Record<string, any[]> | undefined;
     if (includeFacets) {
-      const facetFields = Array.from(allowedFilterFields);
+      const facetFields = facetField && allowedFilterFields.has(facetField)
+        ? [facetField]
+        : Array.from(allowedFilterFields);
 
       // Only build per-field WHERE clauses for fields that currently have an active filter.
       // For all other fields the global `where` (already computed above) is identical to
@@ -588,12 +599,24 @@ export async function GET(req: NextRequest) {
           // otherwise reuse the already-computed global `where`.
           const facetWhere = fieldWhereMap.get(field) ?? where;
           try {
+            if (field === 'check') {
+              return [field, [true, false]] as const;
+            }
+
             if (field === 'counteragent_name') {
+              const counteragentWhere = facetSearch
+                ? {
+                    OR: [
+                      { counteragent: { contains: facetSearch, mode: Prisma.QueryMode.insensitive } },
+                      { name: { contains: facetSearch, mode: Prisma.QueryMode.insensitive } },
+                    ],
+                  }
+                : {};
               const uuids = await prisma.rs_waybills_in_api.findMany({
                 where: facetWhere,
                 distinct: ['counteragent_uuid'],
                 select: { counteragent_uuid: true },
-                take: 300,
+                take: facetLimit,
                 orderBy: { counteragent_uuid: 'asc' },
               });
               const ids = uuids
@@ -601,7 +624,7 @@ export async function GET(req: NextRequest) {
                 .filter((value: any) => value !== null && value !== undefined);
               if (ids.length === 0) return [field, []] as const;
               const counteragents = await prisma.counteragents.findMany({
-                where: { counteragent_uuid: { in: ids } },
+                where: { counteragent_uuid: { in: ids }, ...counteragentWhere },
                 select: { counteragent: true, name: true },
               });
               const values = counteragents
@@ -617,7 +640,7 @@ export async function GET(req: NextRequest) {
                 where: facetWhere,
                 distinct: ['activation_time'],
                 select: { activation_time: true },
-                take: 200,
+                take: facetLimit,
                 orderBy: { activation_time: 'desc' },
               });
               const values = rows
@@ -633,14 +656,28 @@ export async function GET(req: NextRequest) {
                 select: { vat: true },
               });
               const values = rows.map((row: any) => (row.vat === true ? 'true' : 'false'));
-              return [field, Array.from(new Set(values))] as const;
+              return [field, Array.from(new Set(values)).slice(0, facetLimit)] as const;
             }
 
+            const searchableFacetFields = new Set([
+              'waybill_no', 'state', 'condition', 'category', 'type',
+              'counteragent_inn', 'driver', 'vehicle', 'rs_id',
+              'shipping_address', 'departure_address',
+              'corresponding_account', 'note',
+            ]);
+            const searchedFacetWhere = facetSearch && searchableFacetFields.has(field)
+              ? {
+                  AND: [
+                    facetWhere,
+                    { [field]: { contains: facetSearch, mode: Prisma.QueryMode.insensitive } },
+                  ],
+                } as Prisma.rs_waybills_in_apiWhereInput
+              : facetWhere;
             const rows = await prisma.rs_waybills_in_api.findMany({
-              where: facetWhere,
+              where: searchedFacetWhere,
               distinct: [field as any],
               select: { [field]: true } as Prisma.rs_waybills_in_apiSelect,
-              take: 200,
+              take: facetLimit,
               orderBy: { [field]: 'asc' } as Prisma.rs_waybills_in_apiOrderByWithRelationInput,
             });
             const values = rows

@@ -189,6 +189,7 @@ export function WaybillsTable() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(200);
   const [facetValues, setFacetValues] = useState<Map<ColumnKey, any[]>>(new Map());
+  const facetRequestsRef = useRef(new Map<string, Promise<void>>());
   const [isInitialized, setIsInitialized] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
 
@@ -660,11 +661,27 @@ export function WaybillsTable() {
         pageSize: options?.pageSize,
         includeFacets: false,
       });
+      params.set('skipCount', 'true');
       const res = await fetch(`/api/waybills?${params.toString()}`);
       const body = await res.json();
+      if (!res.ok) throw new Error(body?.error || 'Failed to load waybills');
       setData(body.data || []);
-      setTotal(body.total || 0);
-      setMissingCounteragentCount(Number(body.missingCounteragentCount || 0));
+      setLoading(false);
+
+      const countParams = buildWaybillsQueryParams({
+        page: 1,
+        pageSize: 1,
+        includeFacets: false,
+      });
+      countParams.set('countOnly', 'true');
+      void fetch(`/api/waybills?${countParams.toString()}`)
+        .then(async (countRes) => {
+          const countBody = await countRes.json();
+          if (!countRes.ok) throw new Error(countBody?.error || 'Failed to count waybills');
+          setTotal(Number(countBody.total || 0));
+          setMissingCounteragentCount(Number(countBody.missingCounteragentCount || 0));
+        })
+        .catch((error) => console.error('Failed to update waybill total:', error));
     } catch (err) {
       console.error('Failed to load waybills', err);
       alert('Failed to load waybills');
@@ -709,123 +726,11 @@ export function WaybillsTable() {
     fetchOptions();
   }, []);
 
-  // OPTIMIZATION: Fetch ALL waybills once on mount, then do client-side filtering/sorting/pagination
+  // Load only the active server page. Filters and totals remain database-wide.
   useEffect(() => {
     if (!filtersInitialized) return; // Wait for filters to be initialized from URL/localStorage
-    
-    const fetchAllWaybills = async () => {
-      setLoading(true);
-      logFilter('FETCH_ALL_WAYBILLS_START', {
-        appliedSearch,
-        periodFrom,
-        periodTo,
-        showMissingCounteragents,
-        sortColumn,
-        sortDirection,
-        columnFiltersCount: columnFilters.length,
-        advancedFiltersCount: advancedFilters.size
-      });
-      try {
-        // Build request parameters
-        const requestParams = {
-          limit: 2000,
-          offset: 0,
-          includeFacets: false,
-          ...(appliedSearch.trim() && { search: appliedSearch.trim() }),
-          ...(periodFrom && { periodFrom }),
-          ...(periodTo && { periodTo }),
-          ...(showMissingCounteragents && { missingCounteragents: true }),
-          ...(sortColumn && { sortColumn }),
-          ...(sortDirection && { sortDirection }),
-        };
-
-        // Serialize filters
-        const serializedFilters = columnFilters.reduce<Array<[string, any[]]>>((acc: Array<[string, any[]]>, filter: { id: string; value: any[] }) => {
-          if (typeof filter.id !== 'string' || !Array.isArray(filter.value)) return acc;
-          const selectedValues = filter.value.map((v: any) => v === BLANK_FACET_TOKEN ? '' : (v === null || v === undefined ? '' : v));
-          if (selectedValues.length === 0) return acc;
-          acc.push([filter.id as ColumnKey, selectedValues]);
-          return acc;
-        }, []);
-        
-        if (serializedFilters.length > 0) {
-          (requestParams as any).filters = serializedFilters;
-        }
-        
-        if (advancedFilters.size > 0) {
-          const advancedArr: Array<[string, any]> = [];
-          advancedFilters.forEach((filter, key) => {
-            advancedArr.push([key, filter]);
-          });
-          (requestParams as any).advancedFilters = advancedArr;
-        }
-
-        const allRows: Waybill[] = [];
-        let expectedTotal = 0;
-        let offset = 0;
-        let usePost = false;
-        let urlLength = 0;
-
-        while (offset < 50000) {
-          const pageParams = { ...requestParams, limit: 2000, offset };
-          const queryString = new URLSearchParams();
-          Object.entries(pageParams).forEach(([key, value]) => {
-            if (value === undefined || value === null) return;
-            if (typeof value === 'boolean') queryString.set(key, String(value));
-            else if (typeof value === 'number') queryString.set(key, String(value));
-            else if (typeof value === 'string') queryString.set(key, value);
-            else queryString.set(key, JSON.stringify(value));
-          });
-
-          urlLength = `/api/waybills?${queryString.toString()}`.length;
-          usePost = urlLength > 2000;
-          const res = usePost
-            ? await fetch('/api/waybills', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(pageParams),
-              })
-            : await fetch(`/api/waybills?${queryString.toString()}`);
-          const body = await res.json();
-          if (!res.ok) throw new Error(body?.error || 'Failed to load waybills');
-
-          const rows = Array.isArray(body.data) ? body.data : [];
-          allRows.push(...rows);
-          expectedTotal = Number(body.total || expectedTotal || rows.length);
-          if (offset === 0) {
-            setMissingCounteragentCount(Number(body.missingCounteragentCount || 0));
-          }
-          setData([...allRows]);
-          setTotal(expectedTotal);
-
-          offset += rows.length;
-          if (rows.length < 2000 || offset >= expectedTotal) break;
-        }
-
-        logFilter('FETCH_ALL_WAYBILLS_SUCCESS', { 
-          dataCount: allRows.length,
-          total: expectedTotal,
-          usePost,
-          urlLength,
-          missingCounteragentCount,
-          appliedFiltersCount: columnFilters.length + advancedFilters.size,
-          hasSearch: !!appliedSearch,
-          hasPeriodFrom: !!periodFrom,
-          hasPeriodTo: !!periodTo
-        });
-        // Reset to page 1 when data changes
-        setCurrentPage(1);
-      } catch (err) {
-        logFilter('FETCH_ALL_WAYBILLS_ERROR', { error: err instanceof Error ? err.message : String(err) });
-        console.error('Failed to load waybills', err);
-        alert('Failed to load waybills');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAllWaybills();
-  }, [filtersInitialized, appliedSearch, periodFrom, periodTo, showMissingCounteragents, sortColumn, sortDirection, columnFilters, advancedFilters]);
+    void fetchWaybills();
+  }, [filtersInitialized, currentPage, pageSize, appliedSearch, periodFrom, periodTo, showMissingCounteragents, sortColumn, sortDirection, columnFilters, advancedFilters, fetchWaybills]);
 
   useEffect(() => {
     const applyPendingResize = () => {
@@ -1082,23 +987,52 @@ export function WaybillsTable() {
     if (columnKey === 'check') {
       return [true, false];
     }
+    if (facetValues.has(columnKey)) {
+      return facetValues.get(columnKey) || [];
+    }
     const values = new Set<any>();
     data.forEach((row) => {
       const value = (row as any)[columnKey];
       values.add(value === null || value === undefined ? '' : value);
     });
     return Array.from(values).sort();
-  }, [data]);
+  }, [data, facetValues]);
+
+  const loadFacetValues = useCallback(async (columnKey: ColumnKey, search = '') => {
+    if (columnKey === 'check' || (!search && facetValues.has(columnKey))) return;
+    const requestKey = `${columnKey}:${search.trim().toLowerCase()}`;
+    const pending = facetRequestsRef.current.get(requestKey);
+    if (pending) return pending;
+
+    const request = (async () => {
+    const params = buildWaybillsQueryParams({ includeFacets: true, includePagination: true });
+    params.set('facetField', columnKey);
+    params.set('facetLimit', '50000');
+    params.set('facetOnly', 'true');
+    if (search.trim()) params.set('facetSearch', search.trim());
+    params.set('limit', '1');
+    params.set('offset', '0');
+      try {
+        const res = await fetch(`/api/waybills?${params.toString()}`);
+        const body = await res.json();
+        if (!res.ok) throw new Error(body?.error || 'Failed to load filter values');
+        const values = Array.isArray(body.facets?.[columnKey]) ? body.facets[columnKey] : [];
+        setFacetValues((current) => new Map(current).set(columnKey, values));
+      } catch (error) {
+        console.error('Failed to load waybill facet values:', error);
+      } finally {
+        facetRequestsRef.current.delete(requestKey);
+      }
+    })();
+    facetRequestsRef.current.set(requestKey, request);
+    return request;
+  }, [buildWaybillsQueryParams, facetValues]);
 
   const filteredData = useMemo(() => data, [data]);
 
   // Client-side pagination
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
-    return filteredData.slice(start, end);
-  }, [filteredData, currentPage, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const paginatedData = useMemo(() => data, [data]);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
@@ -1438,7 +1372,7 @@ export function WaybillsTable() {
   };
 
   const handleExportXlsx = async () => {
-    if (filteredData.length === 0) {
+    if (total === 0) {
       alert('No data to export');
       return;
     }
@@ -1745,7 +1679,7 @@ export function WaybillsTable() {
             variant="outline"
             size="sm"
             onClick={handleExportXlsx}
-            disabled={isExporting || filteredData.length === 0}
+            disabled={isExporting || total === 0}
           >
             {isExporting ? 'Exporting...' : 'Export XLSX'}
           </Button>
@@ -1753,7 +1687,7 @@ export function WaybillsTable() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-        <div>Total records: {filteredData.length}</div>
+        <div>Total records: {total}</div>
         <div className="flex items-center gap-2">
           <span>Rows per page</span>
           <select
@@ -1874,6 +1808,8 @@ export function WaybillsTable() {
                         }}
                         columnFormat={col.format}
                         renderValue={(value) => renderFilterValue(col.key, value)}
+                        onOpen={() => loadFacetValues(col.key)}
+                        onFacetSearch={(search) => loadFacetValues(col.key, search)}
                         sortValues={
                           col.key === 'period'
                             ? sortPeriodValues

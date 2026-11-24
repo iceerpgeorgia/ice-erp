@@ -11,6 +11,17 @@ const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
 
 const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
 
+const formatInventoryLabel = (inventory: any) =>
+  [
+    inventory?.internal_number,
+    inventory?.inventory_group?.name,
+    inventory?.dimension?.dimension,
+    inventory?.name,
+  ]
+    .filter(Boolean)
+    .map(String)
+    .join(' | ');
+
 function formatDate(date: string | Date | undefined): string {
   if (!date) return "";
   const d = new Date(date);
@@ -60,6 +71,16 @@ export async function GET(req: NextRequest) {
     const sortDirection = searchParams.get('sortDirection') === 'asc' ? 'asc' : 'desc';
     const filtersParam = searchParams.get('filters');
     const advancedFiltersParam = searchParams.get('advancedFilters');
+    const includeFacets = searchParams.get('includeFacets') === 'true';
+    const facetField = searchParams.get('facetField') || '';
+    const facetOnly = searchParams.get('facetOnly') === 'true';
+    const countOnly = searchParams.get('countOnly') === 'true';
+    const skipCount = searchParams.get('skipCount') === 'true';
+    const facetSearch = (searchParams.get('facetSearch') || '').trim();
+    const facetLimit = Math.min(
+      Math.max(Number(searchParams.get('facetLimit') || 250), 1),
+      50000
+    );
 
     const allowedFilterFields = new Set([
       'waybill_no', 'goods_code', 'goods_name', 'unit', 'quantity', 'unit_price', 'total_price',
@@ -116,6 +137,25 @@ export async function GET(req: NextRequest) {
     // Build filter clauses
     const buildFilterClauses = async (): Promise<Prisma.rs_waybills_in_itemsWhereInput[]> => {
       const clauses: Prisma.rs_waybills_in_itemsWhereInput[] = [];
+      let inventoryLabels: Array<{ uuid: string; label: string }> | null = null;
+      const getInventoryLabels = async () => {
+        if (inventoryLabels) return inventoryLabels;
+        const inventories = await prisma.inventories.findMany({
+          where: { insider_uuid: insider.insiderUuid },
+          select: {
+            uuid: true,
+            name: true,
+            internal_number: true,
+            inventory_group: { select: { name: true } },
+            dimension: { select: { dimension: true } },
+          },
+        });
+        inventoryLabels = inventories.map((inventory) => ({
+          uuid: inventory.uuid,
+          label: formatInventoryLabel(inventory),
+        }));
+        return inventoryLabels;
+      };
 
       const entries = parsedFilterEntries
         .filter(([key]) => allowedFilterFields.has(key))
@@ -186,13 +226,44 @@ export async function GET(req: NextRequest) {
       });
 
       // Process item-level filters
-      itemFilters.forEach(([key, value]) => {
+      for (const [key, value] of itemFilters) {
         const { nonBlank, includeBlank, requireNonBlank } = value;
+
+        // dimension_name lives on the dimensions relation, not on the items table.
+        if (key === 'dimension_name') {
+          if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
+            clauses.push({ dimension_uuid: { not: null } } as Prisma.rs_waybills_in_itemsWhereInput);
+          } else if (nonBlank.length > 0 && includeBlank) {
+            clauses.push({ OR: [{ dimension: { dimension: { in: nonBlank } } }, { dimension_uuid: null }] } as Prisma.rs_waybills_in_itemsWhereInput);
+          } else if (nonBlank.length > 0) {
+            clauses.push({ dimension: { dimension: { in: nonBlank } } } as Prisma.rs_waybills_in_itemsWhereInput);
+          } else if (includeBlank) {
+            clauses.push({ dimension_uuid: null } as Prisma.rs_waybills_in_itemsWhereInput);
+          }
+          continue;
+        }
+
+        if (key === 'inventory_name') {
+          const selected = new Set(nonBlank);
+          const matchingUuids = (await getInventoryLabels())
+            .filter((inventory) => selected.has(inventory.label))
+            .map((inventory) => inventory.uuid);
+          if (matchingUuids.length > 0 && includeBlank) {
+            clauses.push({ OR: [{ inventory_uuid: { in: matchingUuids } }, { inventory_uuid: null }] });
+          } else if (matchingUuids.length > 0) {
+            clauses.push({ inventory_uuid: { in: matchingUuids } });
+          } else if (includeBlank) {
+            clauses.push({ inventory_uuid: null });
+          } else {
+            clauses.push({ inventory_uuid: { in: [] } });
+          }
+          continue;
+        }
 
         if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
           if (UUID_FILTER_FIELDS.has(key)) {
             clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_in_itemsWhereInput);
-            return;
+            continue;
           }
           clauses.push({
             AND: [
@@ -200,7 +271,7 @@ export async function GET(req: NextRequest) {
               { [key]: { not: '' } } as Prisma.rs_waybills_in_itemsWhereInput,
             ],
           });
-          return;
+          continue;
         }
 
         if (UUID_FILTER_FIELDS.has(key)) {
@@ -212,7 +283,7 @@ export async function GET(req: NextRequest) {
           } else if (includeBlank) {
             clauses.push({ [key]: null } as Prisma.rs_waybills_in_itemsWhereInput);
           }
-          return;
+          continue;
         }
 
         // Generic string field
@@ -223,14 +294,35 @@ export async function GET(req: NextRequest) {
         } else if (includeBlank) {
           clauses.push({ [key]: null } as Prisma.rs_waybills_in_itemsWhereInput);
         }
-      });
+      }
 
       // Handle advanced text filters
-      parsedAdvancedFilters.forEach(([key, filter]) => {
-        if (!allowedFilterFields.has(key)) return;
+      for (const [key, filter] of parsedAdvancedFilters) {
+        if (!allowedFilterFields.has(key)) continue;
         const val = String(filter.value || '').trim();
-        if (!val) return;
+        if (!val) continue;
         const op = filter.operator || 'contains';
+
+        if (key === 'inventory_name') {
+          const matches = (label: string) => {
+            const normalized = label.toLowerCase();
+            const needle = val.toLowerCase();
+            switch (op) {
+              case 'notContains': return !normalized.includes(needle);
+              case 'equals': return normalized === needle;
+              case 'notEquals': return normalized !== needle;
+              case 'startsWith': return normalized.startsWith(needle);
+              case 'endsWith': return normalized.endsWith(needle);
+              case 'contains':
+              default: return normalized.includes(needle);
+            }
+          };
+          const matchingUuids = (await getInventoryLabels())
+            .filter((inventory) => matches(inventory.label))
+            .map((inventory) => inventory.uuid);
+          clauses.push({ inventory_uuid: { in: matchingUuids } });
+          continue;
+        }
 
         const prismaOp: Prisma.StringFilter = (() => {
           switch (op) {
@@ -247,10 +339,12 @@ export async function GET(req: NextRequest) {
         if (key.startsWith('waybill_')) {
           const fieldName = key.replace('waybill_', '');
           clauses.push({ waybill: { [fieldName]: prismaOp } } as Prisma.rs_waybills_in_itemsWhereInput);
+        } else if (key === 'dimension_name') {
+          clauses.push({ dimension: { dimension: prismaOp } } as Prisma.rs_waybills_in_itemsWhereInput);
         } else {
           clauses.push({ [key]: prismaOp } as Prisma.rs_waybills_in_itemsWhereInput);
         }
-      });
+      }
 
       return clauses;
     };
@@ -285,13 +379,20 @@ export async function GET(req: NextRequest) {
       orderBy['id'] = 'asc';
     }
 
-    const rows = await withRetry(() => prisma.rs_waybills_in_items.findMany({
+    const rows = facetOnly || countOnly ? [] : await withRetry(() => prisma.rs_waybills_in_items.findMany({
         where,
         orderBy,
         take: limit,
         skip: offset,
         include: { 
-          inventory: { select: { name: true } }, 
+          inventory: {
+            select: {
+              name: true,
+              internal_number: true,
+              inventory_group: { select: { name: true } },
+              dimension: { select: { dimension: true } },
+            },
+          },
           dimension: { select: { dimension: true } },
           waybill: {
             select: {
@@ -317,7 +418,124 @@ export async function GET(req: NextRequest) {
           }
         },
       }));
-    const total = await withRetry(() => prisma.rs_waybills_in_items.count({ where }));
+    const total = facetOnly || skipCount ? 0 : await withRetry(() => prisma.rs_waybills_in_items.count({ where }));
+
+    let facets: Record<string, any[]> | undefined;
+    if (includeFacets && allowedFilterFields.has(facetField)) {
+      const directFields = new Set([
+        'waybill_no', 'goods_code', 'goods_name', 'unit', 'quantity', 'unit_price',
+        'total_price', 'taxation', 'inventory_uuid', 'project_uuid', 'financial_code_uuid',
+        'corresponding_account', 'import_batch_id', 'dimension_uuid',
+      ]);
+      let values: any[] = [];
+
+      if (facetField === 'inventory_name') {
+        const inventoryRows = await withRetry(() => prisma.inventories.findMany({
+          where: {
+            insider_uuid: insider.insiderUuid,
+            waybill_items: {
+              some: { insider_uuid: insider.insiderUuid },
+            },
+          },
+          select: {
+            name: true,
+            internal_number: true,
+            inventory_group: { select: { name: true } },
+            dimension: { select: { dimension: true } },
+          },
+        }));
+        values = inventoryRows
+          .map((inventory) => formatInventoryLabel(inventory))
+          .filter(Boolean)
+          .filter((label) => !facetSearch || label.toLowerCase().includes(facetSearch.toLowerCase()))
+          .sort((a, b) => a.localeCompare(b))
+          .slice(0, facetLimit);
+        if (!facetSearch) {
+          const blankItem = await withRetry(() => prisma.rs_waybills_in_items.findFirst({
+            where: {
+              insider_uuid: insider.insiderUuid,
+              inventory_uuid: null,
+            },
+            select: { id: true },
+          }));
+          if (blankItem) values.unshift('');
+        }
+      } else if (facetField === 'dimension_name') {
+        const dimensionRows = await withRetry(() => prisma.rs_waybills_in_items.findMany({
+          where: { insider_uuid: insider.insiderUuid, dimension_uuid: { not: null } },
+          distinct: ['dimension_uuid'],
+          select: { dimension: { select: { dimension: true } } },
+        }));
+        values = dimensionRows
+          .map((row) => row.dimension?.dimension ?? '')
+          .filter((value) => value !== '')
+          .filter((value) => !facetSearch || value.toLowerCase().includes(facetSearch.toLowerCase()))
+          .sort((a, b) => a.localeCompare(b))
+          .slice(0, facetLimit);
+        if (!facetSearch) {
+          const blankItem = await withRetry(() => prisma.rs_waybills_in_items.findFirst({
+            where: { insider_uuid: insider.insiderUuid, dimension_uuid: null },
+            select: { id: true },
+          }));
+          if (blankItem) values.unshift('');
+        }
+      } else if (directFields.has(facetField)) {
+        const columnValues = facetSearch
+          ? await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
+              `SELECT DISTINCT "${facetField}" AS value
+               FROM rs_waybills_in_items
+               WHERE insider_uuid = $1::uuid
+                 AND CAST("${facetField}" AS text) ILIKE $2
+               ORDER BY value NULLS FIRST
+               LIMIT $3`,
+              insider.insiderUuid,
+              `%${facetSearch}%`,
+              facetLimit
+            )
+          : await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
+              `SELECT DISTINCT "${facetField}" AS value
+               FROM rs_waybills_in_items
+               WHERE insider_uuid = $1::uuid
+               ORDER BY value NULLS FIRST
+               LIMIT $2`,
+              insider.insiderUuid,
+              facetLimit
+            );
+        values = columnValues.map((row) => row.value ?? '');
+      } else {
+        const fieldName = facetField.startsWith('waybill_')
+          ? facetField.slice('waybill_'.length)
+          : facetField;
+        const relationField = fieldName;
+        if (relationField && /^[a-z_]+$/.test(relationField)) {
+          const relatedValues = facetSearch
+            ? await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
+                `SELECT DISTINCT w."${relationField}" AS value
+                 FROM rs_waybills_in_items i
+                 INNER JOIN rs_waybills_in_api w ON w.rs_id = i.rs_id
+                 WHERE i.insider_uuid = $1::uuid
+                   AND CAST(w."${relationField}" AS text) ILIKE $2
+                 ORDER BY value NULLS FIRST
+                 LIMIT $3`,
+                insider.insiderUuid,
+                `%${facetSearch}%`,
+                facetLimit
+              )
+            : await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
+                `SELECT DISTINCT w."${relationField}" AS value
+                 FROM rs_waybills_in_items i
+                 INNER JOIN rs_waybills_in_api w ON w.rs_id = i.rs_id
+                 WHERE i.insider_uuid = $1::uuid
+                 ORDER BY value NULLS FIRST
+                 LIMIT $2`,
+                insider.insiderUuid,
+                facetLimit
+              );
+          values = relatedValues.map((row) => row.value ?? '');
+        }
+      }
+      facets = { [facetField]: Array.from(new Set(values)) };
+    }
 
     const data = rows.map((row) => ({
       // Item fields
@@ -335,7 +553,7 @@ export async function GET(req: NextRequest) {
       total_price: row.total_price ? Number(row.total_price) : null,
       taxation: row.taxation,
       inventory_uuid: row.inventory_uuid,
-      inventory_name: row.inventory?.name ?? "",
+      inventory_name: formatInventoryLabel(row.inventory),
       project_uuid: row.project_uuid,
       financial_code_uuid: row.financial_code_uuid,
       corresponding_account: row.corresponding_account,
@@ -363,7 +581,7 @@ export async function GET(req: NextRequest) {
       waybill_departure_address: row.waybill?.departure_address ?? null,
     }));
 
-    return NextResponse.json({ data, total });
+    return NextResponse.json({ data, total, facets });
   } catch (error: any) {
     console.error("[waybill-items] GET error", error);
     return NextResponse.json({ error: error?.message || "Server error" }, { status: 500 });
@@ -430,7 +648,14 @@ export async function POST(req: NextRequest) {
         updated_at: new Date(),
       },
       include: { 
-        inventory: { select: { name: true } },
+        inventory: {
+          select: {
+            name: true,
+            internal_number: true,
+            inventory_group: { select: { name: true } },
+            dimension: { select: { dimension: true } },
+          },
+        },
         waybill: {
           select: {
             rs_id: true,
@@ -472,7 +697,7 @@ export async function POST(req: NextRequest) {
         total_price: created.total_price ? Number(created.total_price) : null,
         taxation: created.taxation,
         inventory_uuid: created.inventory_uuid,
-        inventory_name: created.inventory?.name ?? "",
+        inventory_name: formatInventoryLabel(created.inventory),
         project_uuid: created.project_uuid,
         financial_code_uuid: created.financial_code_uuid,
         corresponding_account: created.corresponding_account,
@@ -545,7 +770,14 @@ export async function PATCH(req: NextRequest) {
         updated_at: new Date(),
       },
       include: { 
-        inventory: { select: { name: true } },
+        inventory: {
+          select: {
+            name: true,
+            internal_number: true,
+            inventory_group: { select: { name: true } },
+            dimension: { select: { dimension: true } },
+          },
+        },
         waybill: {
           select: {
             rs_id: true,
@@ -586,7 +818,7 @@ export async function PATCH(req: NextRequest) {
       total_price: updated.total_price ? Number(updated.total_price) : null,
       taxation: updated.taxation,
       inventory_uuid: updated.inventory_uuid,
-      inventory_name: updated.inventory?.name ?? "",
+      inventory_name: formatInventoryLabel(updated.inventory),
       project_uuid: updated.project_uuid,
       financial_code_uuid: updated.financial_code_uuid,
       corresponding_account: updated.corresponding_account,
