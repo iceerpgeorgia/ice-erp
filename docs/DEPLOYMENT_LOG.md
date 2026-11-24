@@ -5453,3 +5453,11 @@
 - Commit: a19ba93
 - Production: https://ice-62gq93wp4-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; email not yet exercised (no unmapped units at deploy time).
+
+## 2026-11-25 (6)
+- Summary: AI chat works again.
+- Changes:
+  - app/api/ai-chat/route.ts: model claude-3-5-haiku-20241022 (retired, 404 not_found) replaced by claude-haiku-5-5; reply joins all text blocks (the new model can return a thinking block first).
+- Commit: 6957e01
+- Production: https://ice-28hfw8j6x-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; chat checked locally in Georgian and English (HTTP 200).
