@@ -5442,3 +5442,14 @@
 - Commit: 472a74a
 - Production: https://ice-qs1t7ra93-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
+
+## 2026-11-25 (5)
+- Summary: Claude maps new RS unit texts to dimensions and emails admins.
+- Changes:
+  - Migration 20261125200000_rs_unit_map_ai_check (applied before deploy): ai_checked_at, ai_dimension_uuid, ai_confidence, ai_reason, ai_mapped, admin_notified_at on rs_unit_dimension_map.
+  - lib/waybills/llm-unit-mapping.ts runs at the start of /api/cron/waybill-items-llm-match: confidence >= 0.85 maps the unit; one email per run to admin/system_admin users (mapped + unmapped units, each reported once).
+  - sendEmail in lib/payment-notifications.ts exported with optional sender name; manual mapping resets ai_mapped.
+  - Held-out test: 38 mapped units, 30 auto-mapped (all correct), 8 left for admins.
+- Commit: a19ba93
+- Production: https://ice-62gq93wp4-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; email not yet exercised (no unmapped units at deploy time).
