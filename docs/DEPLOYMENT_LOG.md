@@ -5391,3 +5391,14 @@
 - Commit: 0ec5a33
 - Production: https://ice-4nkskoaha-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; filter counts checked locally against the database.
+
+## 2026-11-24 (6)
+- Summary: Split waybill Activation Time and Activation Date columns.
+- Changes:
+  - Waybills and Waybill Items: "Activation Date" renamed to "Activation Time" (full timestamp); new "Activation Date" column (dd.mm.yyyy, Tbilisi day) next to it.
+  - Server-side filter (Tbilisi day ranges), sort and facet values for Activation Date; Waybills date facet lists every day instead of a limited timestamp sample.
+  - Waybill Items non-blank Activation Time filter fixed; new columns land next to their neighbour in saved layouts.
+  - scripts/llm-inventory-progress.ts added.
+- Commit: 67f9964
+- Production: https://ice-lsrjdsljn-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; columns, filters, facets and sort checked locally; Tbilisi dates matched Postgres on 2,000 waybills.
