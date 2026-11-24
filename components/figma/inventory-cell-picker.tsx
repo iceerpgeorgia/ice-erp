@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronDown, Loader2, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -39,7 +39,9 @@ export function InventoryCellPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
-  const listRef = useRef<HTMLDivElement | null>(null);
+  // State, not a ref: the list mounts after the popover opens, and the virtualizer must re-render
+  // once its scroll element exists, or the first open shows an empty list.
+  const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
 
   const filtered = useMemo(() => {
     if (!options) return [];
@@ -50,7 +52,7 @@ export function InventoryCellPicker({
 
   const virtualizer = useVirtualizer({
     count: filtered.length,
-    getScrollElement: () => listRef.current,
+    getScrollElement: () => listElement,
     estimateSize: () => ROW_HEIGHT,
     overscan: 8,
   });
@@ -134,7 +136,7 @@ export function InventoryCellPicker({
           </div>
         ) : (
           <>
-            <div ref={listRef} className="max-h-[320px] overflow-auto">
+            <div ref={setListElement} className="max-h-[320px] overflow-auto">
               <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
                 {virtualizer.getVirtualItems().map((virtualRow) => {
                   const option = filtered[virtualRow.index];
