@@ -1121,6 +1121,8 @@ model rs_waybills_in_items {
   inventory_match_score    Decimal?         @db.Decimal(5, 4)
   inventory_match_status   String?
   inventory_matched_at     DateTime?        @db.Timestamptz(6)
+  // Set when step 4 (LLM) has looked at the item, so it is sent to the model only once.
+  inventory_llm_checked_at DateTime?        @db.Timestamptz(6)
   dimension             dimensions?         @relation(fields: [dimension_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
   inventory             inventories?        @relation("WaybillItemInventory", fields: [inventory_uuid], references: [uuid])
   suggested_inventory   inventories?        @relation("WaybillItemSuggestedInventory", fields: [suggested_inventory_uuid], references: [uuid], onDelete: SetNull, onUpdate: NoAction)

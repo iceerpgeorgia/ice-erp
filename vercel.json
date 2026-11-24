@@ -37,6 +37,10 @@
     {
       "path": "/api/cron/waybills-quarterly",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/waybill-items-llm-match",
+      "schedule": "30 4-16 * * *"
     }
   ]
 }
