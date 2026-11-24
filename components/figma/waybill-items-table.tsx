@@ -1078,6 +1078,15 @@ export function WaybillItemsTable() {
                 )
               ) : col.key === 'suggested_inventory_name' && row.suggested_inventory_name ? (
                 <div className="flex items-center gap-2">
+                  {row.inventory_match_method === 'expanded' && (
+                    // Step 5: same kind of item in the closest size or variant, not the exact product.
+                    <span
+                      className="shrink-0 rounded border border-amber-300 bg-amber-50 px-1 text-xs text-amber-800"
+                      title="Closest size or variant (step 5), not the exact product. Check before confirming."
+                    >
+                      ≈
+                    </span>
+                  )}
                   <div
                     className="min-w-0 flex-1 truncate"
                     title={`${row.suggested_inventory_name} (${row.inventory_match_method ?? ''}${

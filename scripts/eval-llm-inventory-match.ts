@@ -1,4 +1,5 @@
-// Accuracy test for step 4 (LLM) of waybill item inventory matching. Read-only.
+// Accuracy test for steps 4 (LLM exact) and 5 (LLM expanded: closest size) of waybill item
+// inventory matching. Read-only.
 // Uses items people already bound that steps 1-3 would have missed: no exact inventory name
 // and no other bound line with the same goods name. Each item is left out of its own
 // history candidates, and the model's pick is compared with the person's choice.
@@ -8,6 +9,7 @@ import { prisma } from '@/lib/prisma';
 import {
   LLM_MATCH_MODEL,
   LLM_MIN_CONFIDENCE,
+  EXPANDED_MIN_CONFIDENCE,
   loadLlmCandidates,
   pickInventoryWithLlm,
   type LlmEffort,
@@ -41,12 +43,12 @@ async function main() {
   );
 
   let correctInCandidates = 0;
-  let suggested = 0;
-  let suggestedCorrect = 0;
+  let personChoseOtherSize = 0;
+  const steps = {
+    llm: { suggested: 0, agree: 0, wrong: [] as string[] },
+    expanded: { suggested: 0, agree: 0, wrong: [] as string[] },
+  };
   let declined = 0;
-  const wrong: string[] = [];
-  // Every pick with an inventory, to compare agreement at other confidence thresholds.
-  const picks: Array<{ confidence: number; correct: boolean }> = [];
 
   for (const row of rows) {
     const item: LlmMatchItem = {
@@ -61,40 +63,41 @@ async function main() {
     const candidates = await loadLlmCandidates(item, row.id);
     const correct = candidates.find((candidate) => candidate.inventoryUuid === row.inventory_uuid);
     if (correct) correctInCandidates += 1;
+    if (correct && !correct.sizesMatch) personChoseOtherSize += 1;
 
     const pick = await pickInventoryWithLlm(client, item, candidates, effort);
-    if (pick.inventoryUuid) {
-      picks.push({ confidence: pick.confidence, correct: pick.inventoryUuid === row.inventory_uuid });
-    }
-    if (pick.inventoryUuid && pick.confidence >= LLM_MIN_CONFIDENCE) {
-      suggested += 1;
-      if (pick.inventoryUuid === row.inventory_uuid) {
-        suggestedCorrect += 1;
-      } else if (wrong.length < 8) {
-        const chosen = candidates.find((candidate) => candidate.inventoryUuid === pick.inventoryUuid);
-        wrong.push(`"${row.goods_name.slice(0, 60)}" -> "${chosen?.label.slice(0, 60)}" (expected ${correct ? `"${correct.label.slice(0, 60)}"` : 'not among candidates'})`);
-      }
-    } else {
+    if (!pick.step || !pick.inventoryUuid) {
       declined += 1;
+      continue;
+    }
+    const bucket = steps[pick.step];
+    bucket.suggested += 1;
+    if (pick.inventoryUuid === row.inventory_uuid) {
+      bucket.agree += 1;
+    } else if (bucket.wrong.length < 10) {
+      const chosen = candidates.find((candidate) => candidate.inventoryUuid === pick.inventoryUuid);
+      bucket.wrong.push(`"${row.goods_name.slice(0, 60)}" -> "${chosen?.name.slice(0, 60)}" (person chose ${correct ? `"${correct.name.slice(0, 60)}"` : 'one not among candidates'})`);
     }
   }
 
+  const pct = (part: number, whole: number) => (whole ? Math.round((part / whole) * 1000) / 10 : null);
   console.log(JSON.stringify({
     model: LLM_MATCH_MODEL,
     effort,
-    minConfidence: LLM_MIN_CONFIDENCE,
+    thresholds: { step4: LLM_MIN_CONFIDENCE, step5: EXPANDED_MIN_CONFIDENCE },
     sample: rows.length,
-    correctInventoryAmongCandidates: correctInCandidates,
-    suggested,
-    suggestedCorrect,
-    precision: suggested ? Math.round((suggestedCorrect / suggested) * 1000) / 10 : null,
-    declinedOrLowConfidence: declined,
-    byThreshold: [0.6, 0.7, 0.8, 0.9].map((threshold) => {
-      const kept = picks.filter((pick) => pick.confidence >= threshold);
-      const agree = kept.filter((pick) => pick.correct).length;
-      return { threshold, suggested: kept.length, agree, agreementPct: kept.length ? Math.round((agree / kept.length) * 1000) / 10 : null };
-    }),
-    wrongExamples: wrong,
+    personsChoiceAmongCandidates: correctInCandidates,
+    ofWhichOtherSize: personChoseOtherSize,
+    step4: { suggested: steps.llm.suggested, agree: steps.llm.agree, agreementPct: pct(steps.llm.agree, steps.llm.suggested) },
+    step5: { suggested: steps.expanded.suggested, agree: steps.expanded.agree, agreementPct: pct(steps.expanded.agree, steps.expanded.suggested) },
+    total: {
+      suggested: steps.llm.suggested + steps.expanded.suggested,
+      agree: steps.llm.agree + steps.expanded.agree,
+      yieldPct: pct(steps.llm.suggested + steps.expanded.suggested, rows.length),
+    },
+    noSuggestion: declined,
+    step4Disagreements: steps.llm.wrong,
+    step5Disagreements: steps.expanded.wrong,
   }, null, 1));
 }
 

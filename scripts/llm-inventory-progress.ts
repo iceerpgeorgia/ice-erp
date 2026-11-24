@@ -4,10 +4,11 @@ import { prisma } from '@/lib/prisma';
 
 async function main() {
   const [row] = await prisma.$queryRawUnsafe<
-    Array<{ checked: number; suggested: number; left: number; last_at: Date | null }>
+    Array<{ checked: number; suggested: number; expanded: number; left: number; last_at: Date | null }>
   >(
     `SELECT count(*) FILTER (WHERE inventory_llm_checked_at IS NOT NULL)::int AS checked,
-            count(*) FILTER (WHERE inventory_match_method = 'llm')::int AS suggested,
+            count(*) FILTER (WHERE inventory_match_method IN ('llm', 'expanded'))::int AS suggested,
+            count(*) FILTER (WHERE inventory_match_method = 'expanded')::int AS expanded,
             count(*) FILTER (WHERE inventory_match_status = 'none' AND inventory_uuid IS NULL
                                AND inventory_llm_checked_at IS NULL)::int AS left,
             max(inventory_llm_checked_at) AS last_at
@@ -15,7 +16,7 @@ async function main() {
   );
   const total = row.checked + row.left;
   const percent = total ? Math.round((row.checked / total) * 1000) / 10 : 100;
-  console.log(`Checked ${row.checked} of ${total} (${percent}%), suggested ${row.suggested}, left ${row.left}`);
+  console.log(`Checked ${row.checked} of ${total} (${percent}%), suggested ${row.suggested} (step 5: ${row.expanded}), left ${row.left}`);
   console.log(`Last item checked: ${row.last_at ? row.last_at.toISOString() : 'never'}`);
 }
 
