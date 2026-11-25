@@ -5482,3 +5482,13 @@
 - Commit: 642b876
 - Production: https://ice-bcpzsge6m-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; trigger checked with a rolled-back test insert.
+
+## 2026-11-25 (9)
+- Summary: Waybill Items can never be bound to an inventory with another unit; old mismatches rematched; Unit Check column removed.
+- Changes:
+  - Items whose inventory dimension stops matching (unit remapped, inventory dimension changed) are matched again: exact/history bound ('auto'), otherwise cleared with a fuzzy suggestion or queued for the AI steps (migration 20261125250000_waybill_items_no_unit_mismatch, applied before deploy).
+  - 979 old mismatched bindings rematched: 189 auto, 10 fuzzy suggestions, 780 cleared and queued for the AI steps.
+  - Unit Check column and filter removed from Waybill Items; Dimensions page warning updated.
+- Commit: 2f4be75
+- Production: https://ice-il8gz4sm2-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; recheck trigger tested in a rolled-back transaction.
