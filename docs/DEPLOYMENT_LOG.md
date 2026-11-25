@@ -5461,3 +5461,15 @@
 - Commit: 6957e01
 - Production: https://ice-28hfw8j6x-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; chat checked locally in Georgian and English (HTTP 200).
+
+## 2026-11-25 (7)
+- Summary: AI chat writes clear requests, learns the app from AGENTS.md, and saves requests for admins.
+- Changes:
+  - AI chat asks plain clarifying questions until a bug report or idea is clear, writes it in the user's language (Georgian/English), and asks whether the wording is ready before saving; Copy/Download kept. Chat lazy-loaded (ssr:false) in AppShell inside its error boundary.
+  - Chat textbook generated from AGENTS.md on every build (scripts/build-chat-textbook.mjs; 15 sections, 47 page lines).
+  - Saved requests: ai_change_requests table (migrations 20261125220000_ai_change_requests, 20261125230000_ai_change_requests_rls, applied before deploy), /api/ai-chat/requests, /admin/ai-requests, email to admins.
+  - NBG rate crons store rates under NBG's effective date (Tbilisi calendar).
+  - Sidebar duplicate group key fixed.
+- Commit: 425d785
+- Production: https://ice-e1nc9a5pc-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; chat questions and the ready-to-save step checked locally; saving a request not yet exercised in the browser.
