@@ -78,4 +78,5 @@ export const DEFAULT_ITEMS: DefaultItem[] = [
   // Admin (7)
   { routeKey: '/admin/users',       folderIndex: 7, sortOrder: 0, icon: null },
   { routeKey: '/admin/permissions', folderIndex: 7, sortOrder: 1, icon: null },
+  { routeKey: '/admin/ai-requests', folderIndex: 7, sortOrder: 2, icon: null },
 ];

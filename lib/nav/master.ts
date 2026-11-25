@@ -41,6 +41,7 @@ export const MASTER_NAV: MasterNavItem[] = [
   { routeKey: '/dictionaries/dimensions', label: 'Dimensions', defaultIcon: 'Scale', defaultGroup: 'Dictionaries', desc: 'Units of measure' },
 
   // Admin
+  { routeKey: '/admin/ai-requests', label: 'Requests', defaultIcon: 'Inbox', defaultGroup: 'Admin', desc: 'Bug reports and ideas from the chat' },
   { routeKey: '/admin/users', label: 'Users', defaultIcon: 'Users', defaultGroup: 'Admin', desc: 'User management' },
   { routeKey: '/admin/financial-codes', label: 'Financial Codes', defaultIcon: 'BookOpen', defaultGroup: 'Admin', desc: 'Chart of accounts' },
   { routeKey: '/admin/templates', label: 'Templates', defaultIcon: 'Layout', defaultGroup: 'Admin', desc: 'XLSX templates' },

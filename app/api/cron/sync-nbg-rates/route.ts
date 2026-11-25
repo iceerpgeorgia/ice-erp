@@ -8,229 +8,82 @@ const NBG_API_URL = 'https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/j
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-function isWeekend(date: Date): boolean {
-  const day = date.getDay();
-  return day === 0 || day === 6; // Sunday = 0, Saturday = 6
+// Calendar date (YYYY-MM-DD) in Tbilisi, independent of the server's timezone.
+function tbilisiDate(d: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tbilisi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
 }
 
-function getLastBusinessDay(date: Date): Date {
-  const result = new Date(date);
-  const day = result.getDay();
-  
-  if (day === 0) { // Sunday
-    result.setDate(result.getDate() - 2); // Go back to Friday
-  } else if (day === 6) { // Saturday
-    result.setDate(result.getDate() - 1); // Go back to Friday
+// Rates are stored under the effective date NBG returns, never under the run date.
+function parseRates(currencies: any[]): Record<string, Prisma.Decimal> {
+  const rates: Record<string, Prisma.Decimal> = {};
+  for (const currency of currencies) {
+    const code = currency.code?.toUpperCase();
+    const quantity = parseFloat(currency.quantity || 1);
+    const rate = parseFloat(currency.rate || 0);
+    if (!code || !(rate > 0)) continue;
+    const ratePerUnit = new Prisma.Decimal(rate / quantity);
+    if (code === 'USD') rates.usd_rate = ratePerUnit;
+    if (code === 'EUR') rates.eur_rate = ratePerUnit;
+    if (code === 'CNY') rates.cny_rate = ratePerUnit;
+    if (code === 'GBP') rates.gbp_rate = ratePerUnit;
+    if (code === 'RUB') rates.rub_rate = ratePerUnit;
+    if (code === 'TRY') rates.try_rate = ratePerUnit;
+    if (code === 'AED') rates.aed_rate = ratePerUnit;
+    if (code === 'KZT') rates.kzt_rate = ratePerUnit;
   }
-  
-  return result;
+  return rates;
+}
+
+async function fetchNbg(requestedDate?: string) {
+  const url = requestedDate ? `${NBG_API_URL}?date=${requestedDate}` : NBG_API_URL;
+  const response = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error(`Failed to fetch from NBG API: HTTP ${response.status}`);
+  const data = await response.json();
+  if (!data || data.length === 0) throw new Error('No data received from NBG API');
+  const ratesData = data[0];
+  const effectiveDate = String(ratesData.date || '').split('T')[0];
+  if (!effectiveDate) throw new Error('No effective date in NBG API response');
+  return { effectiveDate, rates: parseRates(ratesData.currencies || []) };
 }
 
 export async function GET(req: NextRequest) {
   try {
-    // Verify cron secret for security
     const authHeader = req.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
-    
+
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     console.log('[NBG Sync] Starting NBG exchange rates sync...');
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let targetDate = today;
 
-    // Weekend handling: fetch Friday's rates from NBG API
-    if (isWeekend(today)) {
-      targetDate = getLastBusinessDay(today);
-      targetDate.setHours(0, 0, 0, 0);
-      
-      console.log(`[NBG Sync] Today is ${today.getDay() === 6 ? 'Saturday' : 'Sunday'}, fetching Friday's rates (${targetDate.toISOString().split('T')[0]}) from NBG API`);
-    }
+    // NBG returns the latest published rates; the date it returns is the effective date.
+    const { effectiveDate, rates } = await fetchNbg(tbilisiDate());
+    const saveDate = new Date(effectiveDate);
 
-    // Fetch from NBG API (either today for weekdays, or Friday for weekends)
-    console.log(`[NBG Sync] Fetching rates for ${targetDate.toISOString().split('T')[0]} from NBG API`);
-    
-    const response = await fetch(`${NBG_API_URL}?date=${targetDate.toISOString().split('T')[0]}`, { 
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch from NBG API');
-    }
-
-    const data = await response.json();
-    
-    if (!data || data.length === 0) {
-      throw new Error('No data received from NBG API');
-    }
-
-    const ratesData = data[0];
-    const currencies = ratesData.currencies || [];
-
-    // Build rates object
-    const rates: any = {};
-    
-    for (const currency of currencies) {
-      const code = currency.code?.toUpperCase();
-      const quantity = parseFloat(currency.quantity || 1);
-      const rate = parseFloat(currency.rate || 0);
-
-      if (code && rate > 0) {
-        const ratePerUnit = rate / quantity;
-        
-        // Map to our database columns
-        if (code === 'USD') rates.usd_rate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'EUR') rates.eur_rate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'CNY') rates.cny_rate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'GBP') rates.gbp_rate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'RUB') rates.rub_rate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'TRY') rates.try_rate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'AED') rates.aed_rate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'KZT') rates.kzt_rate = new Prisma.Decimal(ratePerUnit);
-      }
-    }
-
-    // If it's a weekend, save rates for TODAY (not Friday)
-    const saveDate = today;
-
-    // Check if today's date exists
-    const existing = await prisma.nbg_exchange_rates.findUnique({
-      where: { date: saveDate },
-    });
+    const existing = await prisma.nbg_exchange_rates.findUnique({ where: { date: saveDate } });
 
     let result;
-
     if (existing) {
-      // Update existing
-      result = await prisma.nbg_exchange_rates.update({
-        where: { date: saveDate },
-        data: rates,
-      });
-
-      await logAudit({
-        table: 'nbg_exchange_rates',
-        recordId: result.id,
-        action: 'update',
-      });
+      result = await prisma.nbg_exchange_rates.update({ where: { date: saveDate }, data: rates });
+      await logAudit({ table: 'nbg_exchange_rates', recordId: result.id, action: 'update' });
     } else {
-      // Create new
-      result = await prisma.nbg_exchange_rates.create({
-        data: {
-          date: saveDate,
-          ...rates,
-        },
-      });
-
-      await logAudit({
-        table: 'nbg_exchange_rates',
-        recordId: result.id,
-        action: 'create',
-      });
+      result = await prisma.nbg_exchange_rates.create({ data: { date: saveDate, ...rates } });
+      await logAudit({ table: 'nbg_exchange_rates', recordId: result.id, action: 'create' });
     }
-
-    // Backfill missing dates (copy from exchange-rates/update)
-    await backfillMissingDates(saveDate, rates);
-
-    const message = isWeekend(today)
-      ? `Weekend rates (from Friday ${targetDate.toISOString().split('T')[0]}) synced successfully`
-      : 'NBG rates synced successfully';
 
     return NextResponse.json({
       success: true,
-      date: result.date.toISOString().split('T')[0],
-      message,
+      date: effectiveDate,
+      message: 'NBG rates synced successfully',
     });
   } catch (error: any) {
     console.error('[NBG Sync] Error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-      },
-      { status: 500 }
-    );
-  }
-}
-
-async function backfillMissingDates(currentDate: Date, currentRates: any) {
-  try {
-    const lastRecord = await prisma.nbg_exchange_rates.findFirst({
-      where: { date: { lt: currentDate } },
-      orderBy: { date: 'desc' },
-    });
-
-    if (!lastRecord) return;
-
-    const lastDate = new Date(lastRecord.date);
-    lastDate.setHours(0, 0, 0, 0);
-    
-    const today = new Date(currentDate);
-    today.setHours(0, 0, 0, 0);
-
-    const daysToBackfill = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysToBackfill <= 1) return;
-
-    console.log(`[NBG Sync] Backfilling ${daysToBackfill - 1} missing dates`);
-
-    for (let i = 1; i < daysToBackfill; i++) {
-      const missingDate = new Date(lastDate);
-      missingDate.setDate(missingDate.getDate() + i);
-      missingDate.setHours(0, 0, 0, 0);
-
-      const exists = await prisma.nbg_exchange_rates.findUnique({ where: { date: missingDate } });
-      if (exists) continue;
-
-      let ratesToUse = currentRates;
-      const fetchDate = isWeekend(missingDate) ? getLastBusinessDay(missingDate) : missingDate;
-      
-      try {
-        const response = await fetch(`${NBG_API_URL}?date=${fetchDate.toISOString().split('T')[0]}`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.length > 0) {
-            const currencies = data[0].currencies || [];
-            ratesToUse = {};
-            
-            for (const currency of currencies) {
-              const code = currency.code?.toUpperCase();
-              const quantity = parseFloat(currency.quantity || 1);
-              const rate = parseFloat(currency.rate || 0);
-
-              if (code && rate > 0) {
-                const ratePerUnit = rate / quantity;
-                if (code === 'USD') ratesToUse.usd_rate = new Prisma.Decimal(ratePerUnit);
-                if (code === 'EUR') ratesToUse.eur_rate = new Prisma.Decimal(ratePerUnit);
-                if (code === 'CNY') ratesToUse.cny_rate = new Prisma.Decimal(ratePerUnit);
-                if (code === 'GBP') ratesToUse.gbp_rate = new Prisma.Decimal(ratePerUnit);
-                if (code === 'RUB') ratesToUse.rub_rate = new Prisma.Decimal(ratePerUnit);
-                if (code === 'TRY') ratesToUse.try_rate = new Prisma.Decimal(ratePerUnit);
-                if (code === 'AED') ratesToUse.aed_rate = new Prisma.Decimal(ratePerUnit);
-                if (code === 'KZT') ratesToUse.kzt_rate = new Prisma.Decimal(ratePerUnit);
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error(`[NBG Sync] Failed to fetch rates for ${missingDate.toISOString().split('T')[0]}`);
-        continue;
-      }
-
-      await prisma.nbg_exchange_rates.create({
-        data: { date: missingDate, ...ratesToUse },
-      });
-
-      console.log(`[NBG Sync] Backfilled ${missingDate.toISOString().split('T')[0]}`);
-    }
-  } catch (error) {
-    console.error('[NBG Sync] Backfill error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

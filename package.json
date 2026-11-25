@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "dev": "node scripts/dev-with-logs.js",
-    "build": "next build",
+    "build": "node scripts/build-chat-textbook.mjs && next build",
+    "textbook": "node scripts/build-chat-textbook.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",

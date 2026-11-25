@@ -1,0 +1,321 @@
+{
+ "source": "AGENTS.md",
+ "sourceSha256": "169320f2f42bbb8ce9a047ed30921dce7a570be0185ea48a86ede442c39e88b5",
+ "sections": [
+  {
+   "title": "Pages",
+   "routes": [
+    "*"
+   ],
+   "content": "What each page of the app is for, in plain words. Every page in `app/` must have a line here (the chat textbook build fails otherwise); when a page changes what it does, update its line in the same change.\n\n**Start and navigation**\n- `/` — Home: the main menu, and the Insider View choice (which companies' data the app shows; none ticked = all).\n- `/dictionaries` — Navigation Organizer: arrange the menu folders, rename items and pick their icons.\n- `/voice` — Voice Commands: give the app a spoken command and see its response.\n\n**Banking**\n- `/dictionaries/bank-transactions` — Bank Transactions: every transaction from all bank accounts (imported bank statements), with counteragent, project, financial code and payment ID; edit a transaction, bind it to a payment, split it into a batch.\n- `/dictionaries/bank-transactions-test` — Bank Transactions (test view): a testing copy of the Bank Transactions table.\n- `/bank-transaction-batches` — Bank Transaction Batches: split one bank transaction into several payments (a batch needs at least 2 parts).\n- `/bank-transactions/missing-counteragents` — Missing Counteragents: tax IDs (INN) found in bank statements that have no counteragent yet; create the counteragent from here.\n- `/dictionaries/bank-accounts` — Bank Accounts: the company's bank accounts.\n- `/dictionaries/banks` — Banks: the list of banks.\n- `/dictionaries/conversions` — Conversions: currency conversions between the company's own bank accounts.\n- `/dictionaries/parsing-scheme-rules` — Parsing Rules: rules that fill counteragent, project and financial code on bank transactions automatically; run a rule over existing transactions.\n- `/dictionaries/nbg-rates` — NBG Exchange Rates: official National Bank of Georgia rates by date.\n\n**Payments and reports**\n- `/dictionaries/payments` — Payments: payment records (who, which project, financial code, currency); each payment has a payment ID used to match bank transactions.\n- `/dictionaries/payments-ledger` — Payments Ledger: accruals and orders (what is owed) per payment; confirm entries.\n- `/dictionaries/payments-report` — Payments Report: per payment, what was accrued, ordered and paid, and the balance; attach documents to a payment or project.\n- `/dictionaries/payment-redistribution` — Payment Redistribution: for one counteragent, move paid amounts between accruals.\n- `/payment-statement/[paymentId]` — Payment Statement: every transaction and ledger entry of one payment.\n- `/counteragent-statement/[counteragentUuid]` — Counteragent Statement: all transactions with one counteragent, optionally for one project or job.\n- `/dictionaries/salary-accruals` — Salary Accruals: monthly salary accruals per employee and their payments.\n- `/salary-report/[counteragentUuid]` — Salary Report: one employee's salary accruals and payments; export to Excel or print.\n- `/dictionaries/services-report` — Services Report: service contracts by project and financial code with their state and payments.\n- `/calculations` — Calculation Templates: saved calculation templates per financial code.\n\n**Projects and jobs**\n- `/dictionaries/projects` — Projects: projects with value, currency, counteragent and insider; changing a value rescales the project's automatic ledger entries.\n- `/dictionaries/projects-report` — Projects Report: each project's value, payments and balance.\n- `/dictionaries/jobs` — Jobs: jobs (for example lifts) bound to projects, with selling price.\n- `/handovers` — Handovers: for one project, its jobs, the income payments and how they are distributed across the jobs; emit (lock) a handover; export to Excel.\n- `/handovers/print` — Handover Print Form: the printable handover document.\n\n**Waybills and inventory**\n- `/dictionaries/waybills` — Waybills: incoming waybills synced from RS.ge every hour; bind a waybill to a project, financial code or account.\n- `/dictionaries/waybill-items` — Waybill Items: the goods lines of the waybills; pick the inventory for a line in the Inventory column (it offers only inventories with the line's unit, and fills the same goods name + unit on unbound lines), confirm suggested inventories (≈ marks a closest-size suggestion), check Unit Check for unit mismatches.\n- `/dictionaries/inventories` — Inventories: the company's inventory items (internal number, group, unit, name).\n- `/dictionaries/inventory-groups` — Inventory Groups: groups of inventory items, each with a unit.\n- `/dictionaries/dimensions` — Dimensions: units of measure (ცალი, მეტრი, კგ…); drag RS unit chips onto a dimension to map them; the amber tray shows unit texts not mapped yet.\n- `/dictionaries/rs-unit-dimension-map` — Unit Text → Dimension Mapping: the same RS unit text to dimension mapping as a table.\n\n**Reference lists**\n- `/dictionaries/counteragents` — Counteragents: suppliers, customers and employees, with tax ID (INN); `/dictionaries/counteragents/new` adds one, `/dictionaries/counteragents/[id]` edits one.\n- `/dictionaries/countries` — Countries (`/dictionaries/countries/new` adds, `/dictionaries/countries/[id]/edit` edits).\n- `/dictionaries/currencies` — Currencies.\n- `/dictionaries/entity-types` — Entity Types: legal forms of counteragents (`/dictionaries/entity-types/[id]/edit` edits one).\n\n**Administration** (admins only)\n- `/admin/users` — Users: who can sign in, their role and notification settings.\n- `/admin/permissions` — Permissions: which modules and features each user may use.\n- `/admin/modules` — Module Management: the app's modules and features that permissions refer to.\n- `/admin/analytics` — Permission Analytics: overview of permission usage and recent changes.\n- `/admin/financial-codes` — Financial Codes: the chart of financial codes (income and cost codes).\n- `/admin/projects` — Projects (admin view).\n- `/admin/document-types` — Document Types: kinds of documents that can be attached.\n- `/admin/attachments` — Attachments: all uploaded documents and what they are linked to.\n- `/admin/templates` — Templates: Excel import templates per operation.\n- `/admin/ai-requests` — AI Chat Requests: bug reports and improvement requests users sent from the AI chat; read the request, copy it, set its status (new, in progress, done, rejected) and leave a note. Admins and system admins only."
+  },
+  {
+   "title": "AI Chat Requests",
+   "routes": [
+    "/admin/ai-requests"
+   ],
+   "content": "- The AI chat button turns a user's rough bug report or idea into a clear request, written in plain language and in the language the user writes in (Georgian or English). It asks short clarifying questions until the request is unambiguous.\n- Before anything is saved, the chat shows the final wording and asks the user whether it is ready. Only after the user confirms is it saved; the save API (`POST /api/ai-chat/requests`) refuses requests without `confirmed: true`.\n- Saved requests go to the `ai_change_requests` table (migrations `20261125220000_ai_change_requests`, `20261125230000_ai_change_requests_rls`: row level security on, so the public Supabase API cannot read it): requester, page, type (bug, improvement, upgrade), language, title, the final request, the whole conversation, status and an admin note.\n- Every new request is emailed to authorized users with role admin or system_admin (sender \"ICE ERP Requests\", link to the request). If the email fails, the request is still saved.\n- Admins manage requests on `/admin/ai-requests`: filter by status, read the request and the conversation, copy the request, move it through new → in progress → done or rejected, and leave a note. List and status changes (`GET /api/ai-chat/requests`, `PATCH /api/ai-chat/requests/[id]`) are allowed for admin and system_admin only. Logic: `lib/ai-chat/requests.ts`."
+  },
+  {
+   "title": "Project Balance Calculation",
+   "routes": [
+    "/dictionaries/projects",
+    "/dictionaries/projects-report"
+   ],
+   "content": "### Overview\nProject balance is calculated as: `balance = project.value - total_payments`\n\nWhere `total_payments` aggregates all financial activity:\n1. **Bank Transactions**: Amounts from raw bank account tables (GE65TB..., GE78BG...)\n2. **Batch Partitions**: Partitioned amounts from bank_transaction_batches when applicable\n3. **Payment Adjustments**: Manual adjustments from payment_adjustments table (NEW: Deployment #351)\n\n### Implementation\nCalculated in two API routes using identical UNION ALL patterns:\n- **GET /api/projects-v2**: Main endpoint for projects list (preferred)\n- **GET /api/projects**: Legacy endpoint, supports single project by uuid param and main list\n\n### Payment Adjustments Integration\n- **nominal_amount**: Used for face currency conversions (primary amount in payment currency)\n- **amount**: Fallback for legacy direct-mode adjustments\n- **is_deleted filter**: Non-deleted adjustments only (consistent with payment statements)\n- **Deployment #351**: Added UNION ALL clause to include payment_adjustments table\n\n### Design Decisions\n- Adjustments use `nominal_amount` column which is always in payment's currency (already converted)\n- Falls back to `amount` field for legacy adjustments created before currency conversion mode\n- Filter ensures deleted adjustments don't artificially inflate project balances\n- Uses ABS() wrapper to normalize sign (both negative and positive flows supported)"
+  },
+  {
+   "title": "BOG GEL Bank Statement Processing - Three-Stage Approach",
+   "routes": [
+    "/dictionaries/bank-transactions",
+    "/bank-transactions/missing-counteragents",
+    "/dictionaries/parsing-scheme-rules",
+    "/bank-transaction-batches"
+   ],
+   "content": "### Consolidated Processing Architecture\nAll BOG GEL XML import and processing logic is consolidated into `import_bank_xml_data.py`, which implements a three-phase hierarchy:\n\n**Phase 1: Counteragent Identification** (HIGHEST PRIORITY - Cannot be overridden)\n- Extract INN from raw data fields based on transaction direction\n  - Incoming payment (debit=NULL): Use DocSenderInn\n  - Outgoing payment (debit>0): Use DocBenefInn\n- Normalize INN (prepend '0' if 10 digits)\n- Query counteragents table by INN\n- Extract counteragent account from DocCorAcct (primary) or DocSenderAcctNo/DocBenefAcctNo (fallback)\n\n**Phase 2: Parsing Rules Application** (SECOND PRIORITY)\n- Query parsing_scheme_rules table for active rules\n- Match rules based on parameters (e.g., DocProdGroup='COM')\n- If rule counteragent conflicts with Phase 1 counteragent → KEEP Phase 1, flag conflict\n- Apply rule parameters: project_uuid, financial_code_uuid, nominal_currency_uuid\n\n**Phase 3: Payment ID Matching** (LOWEST PRIORITY)\n- Extract payment_id from DocInformation field (regex patterns)\n- Query payments table by payment_id\n- If payment counteragent conflicts with Phase 1 counteragent → KEEP Phase 1, flag conflict\n- Apply payment parameters only if not already set by Phase 2\n\n### Case Definitions\n\n### Case Definitions\n\n**CASE 1: INN Found + Counteragent Exists**\n- INN extracted from DocSenderInn/DocBenefInn based on transaction direction\n- Counteragent found in database by normalized INN\n- Status: `counteragent_processed=TRUE`, `counteragent_inn` stored\n- Action: Ready for Phase 2 (rules) and Phase 3 (payment) processing\n\n**CASE 2: INN Found + Counteragent Missing**\n- INN found in raw data but no matching counteragent in database\n- Status: `counteragent_processed=FALSE`, `counteragent_inn` stored\n- Action: Requires manual counteragent creation before full processing\n- Rationale: We have the INN but need to add the counteragent entity to the system\n\n**CASE 3: No INN in Raw Data**\n- No INN data available in DocSenderInn or DocBenefInn fields\n- Status: `counteragent_processed=FALSE`, `counteragent_inn=NULL`\n- Action: Proceed directly to Phase 2 (parsing rules) and Phase 3 (payment_id matching)\n- Rationale: Counteragent must be identified through business rules or payment associations\n\n### Hierarchy and Conflict Resolution\n\nThe three-phase hierarchy ensures data integrity:\n\n1. **Counteragent is KING**: Once identified in Phase 1, it CANNOT be overridden by Phase 2 (rules) or Phase 3 (payment)\n2. **Conflict Detection**: If rule or payment suggests different counteragent → flag conflict, keep Phase 1 counteragent\n3. **Complementary Data**: Rules and payments can ADD project_uuid, financial_code_uuid if not conflicting\n4. **Fully Processed**: Record is fully processed when all three flags are TRUE: `counteragent_processed`, `parsing_rule_processed`, `payment_id_processed`\n\n### Processing Stages\n\n**Stage 1: XML Parsing and Raw Data Insertion**\n- Parse BOG XML bank statements\n- Extract all fields from <DETAIL> elements\n- Generate UUID from DocKey + EntriesId\n- Check for duplicates (DocKey + EntriesId combination)\n- Insert into `bog_gel_raw_*` table (Supabase)\n- Initialize all processing flags to FALSE\n\n**Stage 2: Dictionary Loading**\n- Load counteragents map (INN → counteragent_uuid, name)\n- Load parsing_scheme_rules (active rules with parameters)\n- Load payments map (payment_id → counteragent, project, financial_code, currency)\n\n**Stage 3: Three-Phase Processing Loop**\n- For each raw record:\n  * Phase 1: Identify counteragent by INN\n  * Phase 2: Match parsing rules (check conflicts)\n  * Phase 3: Match payment_id (check conflicts)\n  * Generate consolidated record with all gathered data\n  * Update raw table processing flags\n\n**Stage 4: Raw Table Flag Updates** (formerly: Consolidated Table Insertion - removed)\n- Update `bog_gel_raw_*` table (Supabase) with processing flags\n- Mark counteragent_processed, parsing_rule_processed, payment_id_processed\n- Set is_processed=TRUE when all three phases complete\n- **Note**: consolidated_bank_accounts table has been **removed** (2026-06-06)\n  - Raw bank account tables are now the **only** data source\n  - No consolidation step needed - raw tables are queried directly\n\n**Stage 5: (Deprecated)** - No longer applicable\n\n### Priority Hierarchy\n1. **Counteragent** (FIRST): Identified from INN in raw data - cannot be overridden by rules or payments\n2. **Parsing Rules** (SECOND): Must not conflict with counteragent, then apply other parameters\n3. **Payment ID** (THIRD): Must not conflict with counteragent, then apply payment parameters\n\n### Statement & Payment ID Constraints\n- **Never surface BTC_ batch IDs as `payment_id`** in any statement view (counteragent, payment ID, salary payment ID).\n- When a transaction has a BTC_ batch ID, resolve and display the **partition payment IDs** instead, and propagate those IDs into all payment-id-related fields.\n- All statement rendering, filtering, and aggregate calculations (including payments report paid sums) must **exclude BTC_ batch IDs** and operate on resolved partition payment IDs.\n\n### Batch Payment ID Resolution (BTC_)\nIf a deconsolidated row has `payment_id` starting with `BTC_`, it represents a batch and **must be expanded** using `bank_transaction_batches`:\n1. Lookup partitions by `raw_record_uuid` (or `raw_record_id_1`/`raw_record_id_2`).\n2. Replace the single BTC_ row with **one row per partition** using the partition `payment_id` (or the payment linked by `payment_uuid`).\n3. Any UI column or calculation that uses payment IDs must use these resolved partition payment IDs and **never** the BTC_ value.\n4. **Single-batch rule:** one raw transaction (`raw_record_uuid`) can belong to **only one** batch ID. Creating a second batch for the same raw transaction is invalid and must be blocked in UI and at the database level.\n5. **Minimum partitions rule:** a batch must contain **at least 2 partitions**. Single-partition batches are invalid and must be blocked in UI and at the database level.\n6. **Raw BTC guard (DB trigger):** raw tables cannot set `payment_id` to `BTC_%` unless the batch has **≥2 partitions** for the same `raw_record_uuid` (deferrable constraint trigger).\n7. **Batch delete cleanup (DB trigger):** when the last partition for a `batch_id` is deleted, the raw tables clear `payment_id` and `parsing_lock` for the linked `raw_record_uuid`.\n8. **API/UI validation:** batch creation requires at least 2 partitions; UI blocks save and API returns 400 when `partitions.length < 2`.\n\n### Fully Processed Definition\nA record is considered fully processed when ALL three flags are TRUE:\n- `counteragent_processed=TRUE`\n- `parsing_rule_processed=TRUE`\n- `payment_id_processed=TRUE`\n\nOr equivalently: `is_processed=TRUE` (derived from all three flags)\n\n### Correction Date Rules\n- `correction_date` must never equal `transaction_date`. UI clears same-day values and the database enforces this via triggers.\n\n### Raw Table Columns\n- `counteragent_processed`: Counteragent identified from INN\n- `counteragent_inn`: INN value found in raw data (may not exist in counteragents table)\n- `parsing_rule_processed`: Matched against parsing scheme rules\n- `payment_id_processed`: Matched against payment_id\n- `is_processed`: TRUE when all three stages complete"
+  },
+  {
+   "title": "Bank Transactions API Filters",
+   "routes": [
+    "/dictionaries/bank-transactions"
+   ],
+   "content": "- `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.\n- Bank transaction edit dialogs request real salary accrual payment IDs with `includeSalary=true&projectionMonths=0`; generated future salary projections remain non-bindable."
+  },
+  {
+   "title": "Payments Report Attachment Targeting",
+   "routes": [
+    "/dictionaries/payments-report"
+   ],
+   "content": "- In the payments report attachment dialog (`PaymentAttachments`), **Attach to Project** must call project attachment APIs (`/api/projects/attachments/upload` + `/api/projects/attachments/confirm`) so links are created under `owner_table='projects'` only.\n- **Attach to Payment** must keep using payment attachment APIs and may add an optional secondary project link via `linkedProjectUuid`.\n- Ledger auto-create prompt applies to payment-target uploads only; project-target uploads must not create ledger entries automatically.\n- Payment options are scoped to the transaction counteragent and bank-account insider. Project insider is authoritative for normal payments (`projects.insider_uuid`, falling back to `payments.insider_uuid`); inactive payments are included only when they are the transaction's currently bound payment ID.\n- `/api/bank-transactions/[id]` resolves normal `payments` IDs first, then existing `salary_accruals.payment_id` IDs with salary counteragent/financial-code/currency metadata."
+  },
+  {
+   "title": "Bank Transactions Data Architecture",
+   "routes": [
+    "/dictionaries/bank-transactions",
+    "/bank-transaction-batches",
+    "/dictionaries/salary-accruals",
+    "/handovers"
+   ],
+   "content": "**PRIMARY DATA SOURCE**: Raw bank account tables (e.g., `GE65TB7856036050100002_TBC_GEL`, `GE78BG0000000893486000_BOG_GEL`, etc.) are the **active** source of truth for all bank transactions.\n\n**REMOVED TABLE**: `consolidated_bank_accounts` was **permanently removed** from Supabase on 2026-06-06. This table is obsolete and no longer exists in the database schema or codebase.\n\n### API Data Flow\n- `/api/bank-transactions` queries raw tables via UNION across all bank accounts (see `SOURCE_TABLES` in route.ts)\n- Each raw table has a unique offset to generate synthetic IDs\n- Returns `raw_record_uuid` from the source raw table\n- Batch transactions are resolved from `bank_transaction_batches` table\n- Keep `SOURCE_TABLES` in sync with `app/api/bank-transactions/[id]/route.ts` (allowed tables + synthetic offsets) and mirror new tables in `app/api/bank-transactions/raw-record/[uuid]/route.ts` and `app/api/bank-transactions/parsing-lock/{route.ts,[id]/route.ts}`; mismatches break edit/payment binding for newly added accounts.\n- Some newly created BOG raw tables may not have a physical `bank_account_uuid` column; statement/bank-transaction unions must derive it from `bank_accounts.raw_table_name` instead of selecting `table.bank_account_uuid` directly.\n- Do not run per-bank-account Prisma/DB queries in `Promise.all`; local PgBouncer-compatible pools may provide only one connection. Process account metadata/balance checks sequentially and load base account rows before optional balance enrichment.\n\n### Salary Accrual Month Filtering\n- Normalize every loaded salary accrual `salary_month` to `YYYY-MM-01` before table filtering.\n- Rationale: API/projected rows can mix date-only and ISO timestamp formats, which otherwise makes facet equality drop valid records for the selected month.\n\n### Job Distribution Linkage\n- `payments_jobs` table links distributions to bank transactions via `raw_record_uuid` or `batch_partition_uuid`\n- `raw_record_uuid` references the UUID from raw bank account tables (NOT consolidated_bank_accounts)\n- When verifying distribution integrity, always check raw tables (e.g., `GE65TB7856036050100002_TBC_GEL`) not consolidated table\n- The `/api/payments-jobs/auto-distribute` endpoint receives `raw_record_uuid` from bank transaction UI and stores it in `payments_jobs` records\n\n### Transaction-Payment Sync (PATCH and Bulk-Bind)\nWhen a payment is assigned to a bank transaction via `PATCH /api/bank-transactions/[id]` or `PATCH /api/bank-transactions/bulk-bind`:\n- **Automatic sync from payment:**\n  - `nominal_currency_uuid` is set to the payment's `currency_uuid`\n  - `exchange_rate` and `nominal_amount` are recalculated based on the new currency\n  - **NEW (2026-06-10)**: `project_uuid` is synced from the payment's `project_uuid` (unless explicitly overridden in request)\n  - **NEW (2026-06-10)**: `financial_code_uuid` is synced from the payment's `financial_code_uuid` (unless explicitly overridden in request)\n  - `counteragent_uuid` is auto-assigned from payment if transaction has no counteragent yet\n  - `parsing_lock` is set to `true` to prevent re-processing\n- **When payment is cleared:**\n  - All above fields are reset: `project_uuid`, `financial_code_uuid`, `nominal_currency_uuid` revert to defaults\n  - `parsing_lock` is set to `false`\n- **Rationale**: Handovers job distribution grid filters by `project_uuid` and income `financial_code_uuid`. Without this sync, manually editing a transaction with an existing payment would orphan it from the handovers view."
+  },
+  {
+   "title": "Project Value Scaling",
+   "routes": [
+    "/dictionaries/projects",
+    "/dictionaries/payments-ledger"
+   ],
+   "content": "- When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.\n- Selection rules for payments to scale:\n  - Always include `payments.is_project_derived = true` (main project payment) and `payments.is_bundle_payment = true` (bundle child payments).\n  - Legacy fallback: also include payments for the project's financial code and its active bundle-child financial codes when they look auto-managed (`job_uuid IS NULL`, `income_tax = false`, `waybill_derived = false`).\n- Only non-deleted, unconfirmed ledger rows are scaled by default; UI/API can optionally deconfirm first when explicitly requested."
+  },
+  {
+   "title": "RS.ge Waybill Sync",
+   "routes": [
+    "/dictionaries/waybills",
+    "/dictionaries/waybill-items",
+    "/dictionaries/inventories",
+    "/dictionaries/dimensions",
+    "/dictionaries/rs-unit-dimension-map"
+   ],
+   "content": "### Architecture Overview\nBuyer waybills are fetched from the RS.ge SOAP API (`WaybillService.asmx`) and written to a single table:\n- **`rs_waybills_in_api`** — single source of truth; user-editable fields (project, financial code, corresponding account) start NULL and are set exclusively via UI, never overwritten by sync.\n\nThe legacy `rs_waybills_in` table is no longer written to by any code path.\n\n### VAT Lock Rule\n`vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:\n- **CREATE**: `vat` is stored from the live API response.\n- **UPDATE**: `vat` is explicitly excluded from all update payloads — the original value is preserved forever.\n- This applies to `rs_waybills_in_api`.\n\n### Date Filter\nThe API filter used is `create_date_s / create_date_e` (matches the portal's **Activation Period** filter). `begin_date_s/e` (transport start date) is NOT used — it returns `-1064` when no waybills have a BEGIN_DATE in range.\n\n### Scheduled Cron Jobs (vercel.json)\n| Route | Schedule (UTC) | Tbilisi equivalent | Purpose |\n|---|---|---|---|\n| `/api/cron/waybills-today` | `0 4-16 * * *` | Hourly 08:00–20:00 | Sync today's waybills + items for all insiders (maxDuration 120 s) |\n| `/api/cron/waybills-quarterly` | `0 0 * * *` | 04:00 daily | Re-sync last 3 months waybills + items, catch corrections (maxDuration 600 s) |\n\nBoth routes loop over every entry in `[configuration setting]`, call `runWaybillSync` then `runWaybillItemsSync` per insider, and return aggregated totals + per-insider breakdown. Individual insider errors are caught and surfaced without aborting the loop.\n\n### Data Gaps & Known Constraints\n- Waybills with `create_date = null` in RS.ge are **invisible** to the `create_date_s/e` filter. Such records must be inserted manually via the CSV import route (`/api/waybills/import`), which only accepts records with a non-null `rs_id`.\n- `rs_waybills_in_api` is unique on `rs_id` (non-nullable). The legacy `rs_waybills_in` table still exists in the DB but is no longer used.\n\n### Unit Handling (Official RS.ge unit IDs)\nThe official unit list is fetched via `get_waybill_units` SOAP method. Verified IDs (only 14 exist):\n```\n1=ც(ცალი)  2=კგ  3=გ(გრამი)  4=ლ(ლიტრი)  5=ტ(ტონა)\n7=სმ(სანტიმეტრი)  8=მ(მეტრი)  9=კმ(კილომეტრი)\n10=კვ.სმ  11=კვ.მ  12=მ³  13=მლ(მილილიტრი)  14=შეკვ(შეკვრა)  99=სხვ(custom)\n```\n- **ID=99 = სხვა (custom)**: `UNIT_TXT` in `get_waybill` response is the actual unit name. The bulk method `get_buyer_waybilll_goods_list` does **NOT** return `UNIT_TXT` — only `UNIT_ID`.\n- **Backfill endpoint**: `POST /api/waybills/backfill-unit-txt` calls `get_waybill(rs_id)` for waybills with unit_id=99 items and updates the `unit` column with the real UNIT_TXT. Supports `?limit=N&offset=N&dry_run=true`.\n- **SOAP functions in `lib/integrations/rsge/client.ts`**:\n  - `getBuyerWaybillsXml` → `get_buyer_waybills` (documented, returns waybill list incl. IS_CONFIRMED)\n  - `getBuyerWaybillGoodsList` → `get_buyer_waybilll_goods_list` (undocumented bulk, no UNIT_TXT)\n  - `getWaybill(su, sp, waybillId)` → `get_waybill` (per-waybill with full goods + UNIT_TXT)\n  - `batchIsVatPayerTin` → `is_vat_payer_tin`\n- **IDs that do NOT exist** in the official list: 6, 15, 16, 17, 18, 19. Any items or dimension-map entries with these phantom IDs are data errors from a previously incorrect hardcoded map."
+  },
+  {
+   "title": "Waybill-Derived Payments",
+   "routes": [
+    "/dictionaries/waybills",
+    "/dictionaries/waybill-items",
+    "/dictionaries/payments",
+    "/dictionaries/payments-ledger"
+   ],
+   "content": "### Waybill Check Column\n- `rs_waybills_in_api` check state is computed as `project_uuid OR financial_code_uuid OR corresponding_account`; expose it as boolean `check` from `/api/waybills` for correct Yes/No facet values and filtering.\n- In `/api/waybill-items`, `waybill_no` is an item-level column; only `waybill_*` header columns such as `waybill_activation_time` sort through the `waybill` relation. Rewriting `waybill_no` as `waybill.no` causes Prisma validation failure and HTTP 500.\n- Waybill Items renders `inventory_name` as `Internal # | Group | Dimension | Name`; facet and advanced filters must resolve this composite label back to inventory UUIDs.\n- `suggested_inventory_name` uses the same label and is filterable too: `INVENTORY_LABEL_COLUMNS` in `/api/waybill-items` maps each label column to its UUID column (`inventory_uuid`, `suggested_inventory_uuid`) for facet values, facet filters (including blank / non-blank) and advanced text filters.\n- Waybill Items inventory suggestions (migration `20261124120000_waybill_items_inventory_suggestions`): the `trg_waybill_items_inventory_match` BEFORE INSERT trigger fills `suggested_inventory_uuid`, `inventory_match_method`, `inventory_match_score` and `inventory_match_status` for every new item from any insert path (RS.ge sync, backfills, manual POST). It never sets `inventory_uuid` (suggest only); a person confirms via the Suggested Inventory column or `POST /api/waybill-items/confirm-suggestion` (`{ ids }`, only rows still `suggested`).\n  - Matching order per insider, on names normalised by `waybill_norm_name()` (trim, collapse spaces, lowercase): 1) exact inventory name, preferring the single active match (duplicates fall through); 2) the same goods name bound before, taking the most recent binding by `inventory_matched_at`; 3) trigram similarity on active inventories with the same numeric tokens (`waybill_name_numbers()`, so \"1/2\" never matches \"1 1/2\"), at least 0.6 and 0.1 ahead of the runner-up. Every step (and the LLM step) only considers inventories whose dimension equals the item's; an item without a dimension gets no suggestion.\n  - Measured before rollout on recent data: exact agreed with people's bindings 91% of the time, fuzzy 81% with the numeric guard (62% without it).\n  - Statuses: `suggested`, `confirmed` (bound to the suggestion), `manual` (bound to anything else), `none`, `legacy` (rows that existed before the migration; they get no suggestion until a backfill is explicitly requested).\n  - Identical suggestions: pending rows with the same insider, `waybill_norm_name(goods_name)` and `suggested_inventory_uuid` form a group. `/api/waybill-items` returns `suggestion_group_count` for suggested rows (shown as ×N), and confirming any row of a group confirms the whole group in one statement; the UI asks first when more items than selected will be confirmed. Index: `idx_waybill_items_suggestion_groups` (migration `20261124200000_waybill_items_suggestion_groups_index`).\n  - Step 4 (LLM, `lib/waybills/llm-inventory-match.ts`, migration `20261124180000_waybill_items_llm_suggestions`): the `/api/cron/waybill-items-llm-match` cron (`30 4-16 * * *`, after the waybill sync) takes items still at `none`, unbound and with `inventory_llm_checked_at IS NULL`, offers Claude Haiku 5.5 up to 15 candidates (top trigram inventory names plus earlier bound goods lines as evidence), and stores the pick as a `suggested` row with method `llm` and the model's confidence as score when confidence >= 0.7. The model returns a candidate number, never a UUID. Policy (decided 2026-11-24): exact product only. Candidates come from three sources: the top trigram inventory names, earlier bound goods lines, and (since 2026-11-25) the most similar inventories carrying every size number of the goods line, so a differently worded inventory with the right size is not crowded out by other sizes of a similar name. Size numbers (`sizeNumbers`) leave out article codes (tokens starting with 2+ Latin letters and a digit, or holding a 5+ digit number) and percentages. A candidate is dropped before the model sees it (`numbersConflict`) when it has numbers but lacks a size the goods line states; it may add numbers the goods line omits (\"16MM\" fits \"16*150მმ\"), and a candidate without numbers is left to the model. The prompt rejects other sizes, types and materials. People often bind hard lines to the same kind of item in another size; step 4 deliberately does not copy that. Measured on a fixed 120-item sample at effort `low`: 29 suggestions at confidence >= 0.7, 62% agreeing with people's bindings (most disagreements are those other-size bindings); `medium` effort gave no gain. Every item is sent once (`inventory_llm_checked_at`); auth failures stop the run, rate limits and server errors leave the item queued. Needs `[configuration setting]`. Accuracy test: `scripts/eval-llm-inventory-match.ts`.\n  - Step 5 (expanded, added 2026-11-25; migration `20261125180000_waybill_items_expanded_suggestions`): the same model call also answers a closest pick, used only when there is no exact pick: the same kind of item (type and material) in the nearest size or variant, stored as `suggested` with method `expanded` and shown with a ≈ marker in Suggested Inventory. Candidates lacking a size of the goods line are kept for step 5 but labelled \"other size\" to the model; the code downgrades an \"exact\" pick that lacks a size to step 5, so step 4 stays exact. Both steps need confidence >= 0.7 (`LLM_MIN_CONFIDENCE`, `EXPANDED_MIN_CONFIDENCE`). Measured on the fixed 120-item sample at effort `low`: step 4 29 suggestions (69% agree with people's bindings), step 5 15 (47%), 44 in total (was 29). Step 5 exists because about 58% of people's bindings that steps 1-3 miss go to another size of the same item.\n  - Backfill run 2026-11-24 on request: unbound `legacy` items whose waybill `activation_time` is on or after 2025-05-30 00:00 (Tbilisi) received suggestions via `waybill_item_suggest_inventory()` (13,554 items: 3,795 history, 793 exact, 602 fuzzy, 8,364 none). Older items remain `legacy`.\n  - The same trigger records `inventory_matched_at` whenever `inventory_uuid` changes on UPDATE, so step 2's \"latest binding\" holds for every code path. Do not bypass it with raw writes that disable triggers.\n- Unit ↔ dimension rule (strict, decided 2026-11-25; migration `20261125120000_waybill_items_unit_dimension_rules`): a waybill item's inventory must have the item's dimension.\n  - The item's `dimension_uuid` comes from `rs_unit_dimension_map` (RS unit text → our dimension, page \"Unit Text → Dimension Mapping\"). The items trigger sets it on insert and whenever `unit` changes; an unmapped unit leaves it NULL, and a unit text the map has never seen is inserted into the map unmapped. Mapping or remapping a unit (`trg_rs_unit_dimension_map_sync_items`) moves every item with that text to the new dimension, and unbound `suggested`/`none` items get their suggestion redone within it (items left without one are re-queued for the LLM step).\n  - Binding an inventory with another dimension, or binding an item without a dimension, raises SQLSTATE 23514 (`waybill_item_unit_mismatch`) from `trg_waybill_items_inventory_match`; APIs return HTTP 409 with `UNIT_MISMATCH_MESSAGE` (`lib/waybills/unit-mismatch.ts`). Bindings made before the rule are kept; `/api/waybill-items` exposes them as `inventory_unit_check` = `Mismatch` (`OK` when the dimensions agree, blank when unbound), filterable as the Unit Check column.\n  - New unit texts are classified by Claude (`lib/waybills/llm-unit-mapping.ts`, migration `20261125200000_rs_unit_map_ai_check`, decided 2026-11-25): at the start of the :30 `/api/cron/waybill-items-llm-match` run, active map rows with items but no dimension and `ai_checked_at IS NULL` get one model call (unit text, up to 8 goods names, each dimension with its mapped unit texts). Confidence >= 0.85 (`UNIT_MAP_MIN_CONFIDENCE`) sets `dimension_uuid` and `ai_mapped = true` (the map trigger moves the items, so they reach steps 4-5 in the same run); anything else stays unmapped with Claude's guess in `ai_dimension_uuid`/`ai_confidence`/`ai_reason`. One email per run (sender name \"ICE ERP Waybills\", `sendEmail` from `lib/payment-notifications.ts`) goes to authorized users with role `admin` or `system_admin`, listing units that need a dimension and units Claude mapped; `admin_notified_at` keeps each unit to one report, and unreported units are retried when an email fails. A person's mapping via the Dimensions page or `PATCH /api/rs-unit-dimension-map` resets `ai_mapped`. Measured by hiding each of the 38 mapped unit texts: 30 mapped automatically, all correct; 8 left for admins.\n  - Dimensions page (`/dictionaries/dimensions`): a Matched RS Units column shows each dimension's unit texts as draggable chips (with item counts), and an Unmapped RS units tray lists active unit texts without a dimension. Dropping a chip on a dimension row calls `PATCH /api/rs-unit-dimension-map?id=` (asks first when moving an already mapped unit); the map trigger then moves the items. Unmapping is not offered (the trigger only applies non-NULL dimensions).\n  - RS custom unit \"სხვ\" (`unit_id` 99): the bulk goods sync has no `UNIT_TXT`, so `resolveCustomUnits` (`lib/waybills/resolve-custom-units.ts`) asks RS per waybill and writes the real text into `unit`. The hourly `/api/cron/waybills-today` does this for items created in the last 2 days; `POST /api/waybills/backfill-unit-txt` (auth or cron secret, paginated) covers older ones. RS credentials are only on Vercel, so run it against production.\n- Inline Inventory picker on Waybill Items: the page loads `GET /api/waybill-items/inventory-options` (all active inventories of the insider as `[uuid, label, dimension_uuid]`) once in the background; each row's picker offers only inventories with that row's dimension, searched by words in the browser. Picking calls `POST /api/waybill-items/bind-inventory` (`{ id, inventory_uuid, dryRun }`): it binds the row and every **unbound** item with the same insider, `waybill_norm_name(goods_name)` and exact `unit`; already bound items are never changed. The UI asks first (dryRun count) when other items will change. Clearing (`inventory_uuid: null`) affects only that row. Index: `idx_waybill_items_unbound_name_unit`.\n- The Prisma CLI reads [configuration], not [configuration]; with env consolidated into [configuration], run Prisma as `node --env-file=[configuration] node_modules/prisma/build/index.js <command>`.\n- Waybill Items `dimension_name` is not a column on `rs_waybills_in_items`; filters, advanced filters and facets must map it to the `dimension` relation (`dimension: { dimension: ... }`, blank = `dimension_uuid IS NULL`). Passing it as a plain column makes Prisma throw and the route return HTTP 500.\n- Activation columns: **Activation Time** is the full `activation_time` timestamp; **Activation Date** (`date` on `/api/waybills`, `waybill_activation_date` on `/api/waybill-items`) is derived, not stored: the Asia/Tbilisi calendar day of `activation_time` as `dd.mm.yyyy` (`lib/waybills/activation-date.ts`). Its filter values become Tbilisi day ranges on `activation_time`, it sorts by `activation_time`, and advanced text filters ignore it. Never take the day in UTC: activations after midnight Tbilisi time fall on the previous UTC day.\n- Waybill and Waybill Items use server-side pagination for row data and on-demand one-field facet endpoints; never preload the full 14k/40k datasets just to populate filter menus.\n- When opened, facet popups fetch the complete distinct option set, show loading state, and use row virtualization; server-side search avoids client-side DOM work for targeted matches.\n- Page rows load first with `skipCount=true`; exact global totals load separately with `countOnly=true` so the table becomes interactive before expensive counts finish.\n- Retry long list/count queries when Prisma reports pool acquisition timeout or PgBouncer/driver \"Server has closed the connection\".\n\nWhen a waybill is bound (or re-bound) to a project, the system automatically creates and maintains a corresponding `payments` record and a `payments_ledger` entry.\n\n### Key Rules\n- **Trigger**: Any `PATCH /api/waybills?id=...` or `PATCH /api/waybills/bulk` that changes `project_uuid` or `counteragent_uuid` calls `syncWaybillPayment` in `lib/waybills/sync-waybill-payment.ts`.\n- **Payment grouping**: One `payments` record per unique `(counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid)` combination. The first waybill in a group creates a payment with ID `WB-{rs_id}`; subsequent waybills reuse the existing group payment. This avoids N duplicate payments for the same supplier/project.\n- **Ledger entries**: One `payments_ledger` entry per waybill (matched by `comment = 'Waybill: {waybill_no}'`). When a waybill's project changes, the old ledger entry is deleted and a fresh one is inserted under the new group payment.\n- **Currency**: always GEL (looked up by `code = 'GEL'`).\n- **Financial code**: cost FC derived via `project.financial_code_uuid → financial_codes.default_code_fc`; falls back to FC `3.9.4` when project is unset or the FC has no `default_code_fc`.\n- **Return waybills**: when `type = 'უკან დაბრუნება'`, the amount is negated.\n- **`waybill_derived = true`** on the `payments` row marks it as auto-managed.\n- **Read-only guard**: `POST` and `DELETE` on `/api/payments-ledger` return HTTP 403 for `waybill_derived` payments. The UI replaces the delete button with a \"WB\" badge for these entries.\n\n### Open Issue — Item-Level Priority\nWhen waybill items are bound to different projects, item-level binding should take priority over waybill-level payment derivation. This is not yet implemented; the current implementation operates at the waybill level only."
+  },
+  {
+   "title": "Handovers Job Distribution UI & Emission",
+   "routes": [
+    "/handovers",
+    "/handovers/print",
+    "/dictionaries/inventories"
+   ],
+   "content": "- Inventories follows the Waybill Items table pattern: full-width shell, global search, per-column facets, sorting, column visibility, export, and pagination; CRUD behavior remains on `/api/inventories`.\n- The Job Distributions grid on Handovers renders bank-transaction-style rows (date, account, CA account, amount, nominal amount, financial code, nom ISO, payment ID, batch ID, description, ID1, ID2) from `/api/bank-transactions`, filtered by `project_uuid` and limited to payment IDs from income payments (`financialCodeIsIncome`).\n- The Handovers jobs table shows calculated columns for Paid Nominal, Paid GEL, Debit Nominal, Debit GEL, and Total GEL, and its footer totals the numeric business columns that are actually displayed as totals (for example Floors and the money columns, but not Weight). Paid GEL is summed from `payments_jobs.amount_account_curr`, while Debit GEL/Total GEL are computed from nominal amounts using the job's `liftCertDate` and the project currency's NBG rate lookup by date.\n- The grid supports advanced table features: column resizing (drag resize handle), column reordering (drag column headers), column visibility toggle (Columns dropdown), filtering (filterable columns have filter icon), sorting (sortable columns have sort icon), and global search (search bar filters all visible columns).\n- Column configuration is persisted to localStorage (`handovers-job-distributions-columns`) including width, visibility, and user-dragged order; the restore path normalizes saved layouts without resetting the order on reload.\n- The Job Distribution action appears only in the bank-transactions-style grid as a briefcase icon; the income payments grid does not show a distribution action.\n- The distribution dialog supports only two modes: All (default) and Manual. All uses weighted distribution by job selling price and applies both nominal and account-currency amounts; Manual allows user edits.\n- Manual mode includes a per-row Fill button that applies the bundle distribution percent for the payment's financial code to the job selling price, subtracts allocations already saved for the same `payment_uuid` (excluding the current raw/batch), and clamps to the remaining payment amount.\n- Server-side distribution saves and auto-distribute/recalculate paths recompute account-currency amounts using bank transaction rates when stored values are missing or equal to nominal despite a non-1 rate.\n- **Uniqueness**: `payments_jobs` uses partial unique indexes so distributions are unique per `batch_partition_uuid` (or `raw_record_uuid` when no batch); legacy rows with both NULL are limited to one per payment/job/project.\n- Backfill script `scripts/backfill-payments-jobs-account-curr.js` recalculates historical `payments_jobs.amount_account_curr` using consolidated/raw bank amounts (prefers consolidated when present).\n- The grid now provides an XLSX export action that flattens each payment into one row per job allocation so the exported amount and nominal amount reflect the distribution split.\n- Export rows resolve distributions using the same composite key logic as the grid (batch partition or raw record UUID) so per-transaction allocations populate in Excel.\n- The dialog resolves `payment_uuid` via `/api/payments-report` and preloads existing allocations from `/api/payments-jobs`.\n- **Debugging**: Console logs track payment_uuid resolution (`[Job Dist]` prefix) including payment mapping, distribution loading, row payment lookup, and save operations. This helps diagnose cases where distributions might incorrectly appear across multiple payments.\n\n### Handover Emission Feature\nWhen a user emits a handover, all current (non-emitted) job distributions are locked and marked with an `emission_uuid`, creating an immutable audit trail. Multiple emissions are supported, with the latest emission taking priority for display:\n- **Emission Process**: User clicks \"Emit Handover\" button → API creates `handover_emissions` record → Updates all non-emitted `payments_jobs` with `emission_uuid` and `emission_date` → Returns emission details.\n- **Multiple Emissions**: Same project can emit multiple times; each emission gets a unique UUID. After an emission, new distributions can be added and emitted again. All emissions are permanently recorded.\n- **Display Priority**: UI shows emission status based on the most recent `emission_date` for the project. Historical emissions remain in the audit trail for reference.\n- **Immutability**: Database triggers prevent UPDATE and DELETE on records with `emission_uuid IS NOT NULL`. Projects and jobs with emitted distributions cannot be deleted.\n- **Schema**: New table `handover_emissions` (uuid, created_at, created_by, description). New columns on `payments_jobs`: `emission_uuid` (FK), `emission_date`.\n- **API**: `POST /api/handovers/emit` accepts `{ projectUuid }`, returns emission UUID, timestamp, count, and list of emitted records. Only targets non-emitted distributions.\n- **Audit Trail**: `emission_uuid` groups all records in a single emission; `created_by` records user email; `handover_emissions.created_at` records timestamp.\n- **Future**: Emission history view, reversal capability (superuser only), bulk emission, notifications."
+  },
+  {
+   "title": "Payments API - job_projects Auto-Binding",
+   "routes": [
+    "/dictionaries/payments",
+    "/dictionaries/jobs",
+    "/handovers"
+   ],
+   "content": "When a payment is created or updated with both `jobUuid` and `projectUuid`, the system automatically creates the corresponding `job_projects` binding if it doesn't already exist. This ensures jobs are properly associated with projects in the Handovers table without requiring separate API calls.\n\n### Implementation\n- **POST `/api/payments`**: After payment insertion, if both `jobUuid` and `projectUuid` are provided, automatically inserts `job_projects` binding with `ON CONFLICT DO NOTHING` (idempotent).\n- **PATCH `/api/payments`**: After payment update, if both `nextJobUuid` and `nextProjectUuid` are set, automatically inserts `job_projects` binding with `ON CONFLICT DO NOTHING` (idempotent).\n- **Failure Handling**: Binding errors are logged as warnings but do not block payment creation/update (binding is secondary to payment operation).\n- **Side Effect**: Once created, jobs immediately appear in Handovers jobs table for that project (via `GET /api/jobs?projectUuid=X` which uses `INNER JOIN job_projects`).\n\n### Rationale\nPreviously, payments could reference a `jobUuid` and `projectUuid` combination without the job being bound to that project in `job_projects`. This caused jobs to not render in Handovers even though they were allocated there. Now, the binding is automatically maintained whenever a payment references both."
+  },
+  {
+   "title": "Jobs Insider Derivation Rule",
+   "routes": [
+    "/dictionaries/jobs",
+    "/dictionaries/projects"
+   ],
+   "content": "- `jobs.insider_uuid` is strictly derived from bound project insider(s) (`projects.insider_uuid` via `job_projects`). Direct caller-provided insider values must not control job insider.\n- Jobs can only be bound to projects that resolve to a single insider. Binding/update flows must reject mixed-insider project sets with HTTP 409.\n- When a project's insider changes, bound jobs inherit the new insider only if the job is not simultaneously bound to projects of a different insider; otherwise the project update is rejected with conflict details.\n- This rule is enforced in both project update endpoints (`/api/projects` and `/api/projects/[id]`) and in payment auto-bind flows (`POST/PATCH /api/payments`) so job-project linkage cannot bypass insider consistency.\n- Jobs listing responses expose insider from the bound project context (not caller-selected insider), and `/api/jobs` runs a safe self-heal update to align `jobs.insider_uuid` when all bound projects for a job share one insider.\n- Jobs table normalization and rendering must preserve each row's `insiderUuid`/`insiderName` from `/api/jobs`; never replace the column with the global primary insider label."
+  },
+  {
+   "title": "NBG Exchange Rates (`nbg_exchange_rates`)",
+   "routes": [
+    "/dictionaries/nbg-rates"
+   ],
+   "content": "- `date` is a `DATE` column (no time zone). Calendar dates are Tbilisi dates (`Asia/Tbilisi`); never derive a date from `new Date()` + `toISOString()` or server-local `getDay()`, because Vercel runs in UTC.\n- A rate row is stored under the **effective date returned by NBG** (`ratesData.date`), never under the run date. NBG returns the last published rates for weekends and holidays, so those rates belong to the previous business day.\n- Crons: `/api/cron/update-nbg-rates` (`0 16 * * *`) and `/api/cron/sync-nbg-rates` both store under NBG's effective date. Gap backfill fetches each missing date from NBG and stores it only when NBG's effective date equals the requested date.\n- Rates are never copied forward from another date. A missing date stays absent rather than being filled with another day's rates.\n- Lookups by bank transaction date need an exact `date` match in this table."
+  },
+  {
+   "title": "Handovers Export & Loading Optimization (2026-06-11)",
+   "routes": [
+    "/handovers"
+   ],
+   "content": "The Handovers page implements a multi-stage loading pipeline with export caching to optimize performance and prevent premature export attempts.\n\n### Loading States & Coordination\nThree independent loading flags coordinate when export is ready:\n- **`loadingProjects`**: Initial fetch of projects, brands, insiders (runs once on mount)\n- **`loadingJobs`**: Per-project fetch of jobs, lift cert dates, bank transactions, income payments, distributions\n- **`ratesLoading`**: NBG rate lookups for each unique lift cert date (runs after jobs load)\n\n**Computed Flag**: `isTableFullyLoaded = !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== ''`\n\n**Export Button Disabled When**: `!isTableFullyLoaded || sortedJobs.length === 0`\n- Prevents export before Debit GEL and Total GEL columns are populated (which require NBG rates)\n- Dynamic tooltip shows \"Loading all tables including rates...\" when disabled\n- Button enables only after all async operations complete\n\n### Export Data Cache Structure\nWhen jobs fully load and rates are fetched, `exportCache` state is populated:\n```typescript\n{\n  projectUuid: string | null,           // Selected project UUID\n  projectData: {                         // Project metadata\n    projectName: string,\n    currencyCode: string,\n    liftCertMap: Record<string, { date, docNo }>\n  },\n  jobsData: any[],                      // Raw job records from /api/jobs\n  paymentsData: any[],                  // Income payments from /api/payments-report\n  distributionsData: any[],             // Job distributions from /api/payments-jobs\n  rateCache: Map<string, number | null>, // NBG rates keyed by date|currency\n  timestamp: number                      // Cache creation timestamp\n}\n```\n\n**Cache Population**: Occurs in `fetchJobs` after:\n1. Lift cert info fetched and mapped\n2. Payments and distributions processed\n3. NBG rates batch-fetched and stored in `rateByDate`\n4. Before `setJobs()` updates jobs state with calculated Debit GEL/Total GEL\n\n**Cache Usage**: Prepared for export API to use cached data instead of re-querying database when `useCache=true` flag passed (future optimization).\n\n### Rate Fetching Sequence\n1. Extract unique cert dates from jobs: `Set<string>`\n2. Call `Promise.all()` on `uniqueCertDates.map(date => lookupNbgRate(date, projectCurrencyCode))`\n3. `lookupNbgRate` caches per `date|currency` key in `rateCacheRef`\n4. Return rates in `rateByDate` Map\n5. Used in job rendering: `debitGel = (sellingPrice - paidNominal) * rate`, `totalGel = paidGel + debitGel`\n\n**Caching Strategy**:\n- `rateCacheRef` persists across renders (useRef)\n- Failed rate lookups cached as `null` to prevent retries\n- GEL→GEL conversions return `1` immediately\n- Deduplicates identical date+currency requests within same fetch cycle\n\n### Debit GEL and Total GEL Column Dependency\nThese computed columns **depend on NBG rates** and return `null` until rates are available:\n- **Debit GEL**: `(sellingPrice - paidNominal) * rate`\n- **Total GEL**: `paidGel + debitGel`\n\nIf `rate` is `undefined` (still loading) or `null` (fetch failed), columns show `—` placeholder. Export button stays disabled until all rows have valid calculations."
+  }
+ ],
+ "pages": [
+  {
+   "route": "/",
+   "description": "Home: the main menu, and the Insider View choice (which companies' data the app shows; none ticked = all)."
+  },
+  {
+   "route": "/dictionaries",
+   "description": "Navigation Organizer: arrange the menu folders, rename items and pick their icons."
+  },
+  {
+   "route": "/voice",
+   "description": "Voice Commands: give the app a spoken command and see its response."
+  },
+  {
+   "route": "/dictionaries/bank-transactions",
+   "description": "Bank Transactions: every transaction from all bank accounts (imported bank statements), with counteragent, project, financial code and payment ID; edit a transaction, bind it to a payment, split it into a batch."
+  },
+  {
+   "route": "/dictionaries/bank-transactions-test",
+   "description": "Bank Transactions (test view): a testing copy of the Bank Transactions table."
+  },
+  {
+   "route": "/bank-transaction-batches",
+   "description": "Bank Transaction Batches: split one bank transaction into several payments (a batch needs at least 2 parts)."
+  },
+  {
+   "route": "/bank-transactions/missing-counteragents",
+   "description": "Missing Counteragents: tax IDs (INN) found in bank statements that have no counteragent yet; create the counteragent from here."
+  },
+  {
+   "route": "/dictionaries/bank-accounts",
+   "description": "Bank Accounts: the company's bank accounts."
+  },
+  {
+   "route": "/dictionaries/banks",
+   "description": "Banks: the list of banks."
+  },
+  {
+   "route": "/dictionaries/conversions",
+   "description": "Conversions: currency conversions between the company's own bank accounts."
+  },
+  {
+   "route": "/dictionaries/parsing-scheme-rules",
+   "description": "Parsing Rules: rules that fill counteragent, project and financial code on bank transactions automatically; run a rule over existing transactions."
+  },
+  {
+   "route": "/dictionaries/nbg-rates",
+   "description": "NBG Exchange Rates: official National Bank of Georgia rates by date."
+  },
+  {
+   "route": "/dictionaries/payments",
+   "description": "Payments: payment records (who, which project, financial code, currency); each payment has a payment ID used to match bank transactions."
+  },
+  {
+   "route": "/dictionaries/payments-ledger",
+   "description": "Payments Ledger: accruals and orders (what is owed) per payment; confirm entries."
+  },
+  {
+   "route": "/dictionaries/payments-report",
+   "description": "Payments Report: per payment, what was accrued, ordered and paid, and the balance; attach documents to a payment or project."
+  },
+  {
+   "route": "/dictionaries/payment-redistribution",
+   "description": "Payment Redistribution: for one counteragent, move paid amounts between accruals."
+  },
+  {
+   "route": "/payment-statement/[paymentId]",
+   "description": "Payment Statement: every transaction and ledger entry of one payment."
+  },
+  {
+   "route": "/counteragent-statement/[counteragentUuid]",
+   "description": "Counteragent Statement: all transactions with one counteragent, optionally for one project or job."
+  },
+  {
+   "route": "/dictionaries/salary-accruals",
+   "description": "Salary Accruals: monthly salary accruals per employee and their payments."
+  },
+  {
+   "route": "/salary-report/[counteragentUuid]",
+   "description": "Salary Report: one employee's salary accruals and payments; export to Excel or print."
+  },
+  {
+   "route": "/dictionaries/services-report",
+   "description": "Services Report: service contracts by project and financial code with their state and payments."
+  },
+  {
+   "route": "/calculations",
+   "description": "Calculation Templates: saved calculation templates per financial code."
+  },
+  {
+   "route": "/dictionaries/projects",
+   "description": "Projects: projects with value, currency, counteragent and insider; changing a value rescales the project's automatic ledger entries."
+  },
+  {
+   "route": "/dictionaries/projects-report",
+   "description": "Projects Report: each project's value, payments and balance."
+  },
+  {
+   "route": "/dictionaries/jobs",
+   "description": "Jobs: jobs (for example lifts) bound to projects, with selling price."
+  },
+  {
+   "route": "/handovers",
+   "description": "Handovers: for one project, its jobs, the income payments and how they are distributed across the jobs; emit (lock) a handover; export to Excel."
+  },
+  {
+   "route": "/handovers/print",
+   "description": "Handover Print Form: the printable handover document."
+  },
+  {
+   "route": "/dictionaries/waybills",
+   "description": "Waybills: incoming waybills synced from RS.ge every hour; bind a waybill to a project, financial code or account."
+  },
+  {
+   "route": "/dictionaries/waybill-items",
+   "description": "Waybill Items: the goods lines of the waybills; pick the inventory for a line in the Inventory column (it offers only inventories with the line's unit, and fills the same goods name + unit on unbound lines), confirm suggested inventories (≈ marks a closest-size suggestion), check Unit Check for unit mismatches."
+  },
+  {
+   "route": "/dictionaries/inventories",
+   "description": "Inventories: the company's inventory items (internal number, group, unit, name)."
+  },
+  {
+   "route": "/dictionaries/inventory-groups",
+   "description": "Inventory Groups: groups of inventory items, each with a unit."
+  },
+  {
+   "route": "/dictionaries/dimensions",
+   "description": "Dimensions: units of measure (ცალი, მეტრი, კგ…); drag RS unit chips onto a dimension to map them; the amber tray shows unit texts not mapped yet."
+  },
+  {
+   "route": "/dictionaries/rs-unit-dimension-map",
+   "description": "Unit Text → Dimension Mapping: the same RS unit text to dimension mapping as a table."
+  },
+  {
+   "route": "/dictionaries/counteragents",
+   "description": "Counteragents: suppliers, customers and employees, with tax ID (INN); `/dictionaries/counteragents/new` adds one, `/dictionaries/counteragents/[id]` edits one."
+  },
+  {
+   "route": "/dictionaries/countries",
+   "description": "Countries (`/dictionaries/countries/new` adds, `/dictionaries/countries/[id]/edit` edits)."
+  },
+  {
+   "route": "/dictionaries/currencies",
+   "description": "Currencies."
+  },
+  {
+   "route": "/dictionaries/entity-types",
+   "description": "Entity Types: legal forms of counteragents (`/dictionaries/entity-types/[id]/edit` edits one)."
+  },
+  {
+   "route": "/admin/users",
+   "description": "Users: who can sign in, their role and notification settings."
+  },
+  {
+   "route": "/admin/permissions",
+   "description": "Permissions: which modules and features each user may use."
+  },
+  {
+   "route": "/admin/modules",
+   "description": "Module Management: the app's modules and features that permissions refer to."
+  },
+  {
+   "route": "/admin/analytics",
+   "description": "Permission Analytics: overview of permission usage and recent changes."
+  },
+  {
+   "route": "/admin/financial-codes",
+   "description": "Financial Codes: the chart of financial codes (income and cost codes)."
+  },
+  {
+   "route": "/admin/projects",
+   "description": "Projects (admin view)."
+  },
+  {
+   "route": "/admin/document-types",
+   "description": "Document Types: kinds of documents that can be attached."
+  },
+  {
+   "route": "/admin/attachments",
+   "description": "Attachments: all uploaded documents and what they are linked to."
+  },
+  {
+   "route": "/admin/templates",
+   "description": "Templates: Excel import templates per operation."
+  },
+  {
+   "route": "/admin/ai-requests",
+   "description": "AI Chat Requests: bug reports and improvement requests users sent from the AI chat; read the request, copy it, set its status (new, in progress, done, rejected) and leave a note. Admins and system admins only."
+  }
+ ]
+}

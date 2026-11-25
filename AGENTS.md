@@ -1,9 +1,16 @@
 # Repository Guidelines
 
 ## Documentation Policy
+<!-- chat: exclude -->
 **Always update `AGENTS.md` when logic changes.** Any time domain logic, integration rules, architectural decisions, or key constraints are added or modified, the relevant section in this file must be updated in the same session. This file is the single source of truth for how the system works. New sections should follow the style of existing ones.
 
+**AGENTS.md is also the AI chat's textbook.** `scripts/build-chat-textbook.mjs` turns it into `lib/ai-chat/textbook.generated.json` on every build (`pnpm build` runs it first; `pnpm textbook` runs it alone), and the in-app AI chat answers from that. So every change to what the app does must be described here, in the same change, in words a user would understand:
+- Every `##` section starts with a marker line: `<!-- chat: include; routes: /page, /other-page -->` (the chat may use it, and it belongs to those pages; `routes: *` = every page) or `<!-- chat: exclude -->` (internal engineering, never shown to users). A `###` subsection inside an included section can carry `<!-- chat: exclude -->` to hide just that part. The build fails on a section without a marker.
+- Every page in `app/` (except sign-in and error pages) must have a line in **Pages** describing what it is for. The build fails on a page that is not listed.
+- Never put secrets, environment variable values, credentials or deploy procedures in included sections; the generator also masks anything that looks like an environment variable name.
+
 ## AppShell Global Component Safety Rules
+<!-- chat: exclude -->
 **CRITICAL**: AppShell (`app/app-shell.tsx`) is the parent wrapper for ALL pages. Any error in a component rendered here breaks the entire application silently on all pages.
 
 ### Prevention Rules
@@ -30,14 +37,90 @@ If a component needs to appear on all pages:
 6. Only then add to AppShell
 
 ### Reference
+<!-- chat: exclude -->
 See `/memories/repo/ui-breaking-pattern.md` for detailed debugging process.
 
 ## Project Structure & Module Organization
+<!-- chat: exclude -->
 The workspace is a single Next.js 14 application (App Router) with co-located API routes. Pages and components live in `app/` with co-located hooks and styles. API routes are in `app/api/` (50+ route files). Shared Prisma schema and migrations sit in `prisma/`, reusable types in `types/`, shared utilities in `lib/` (auth, Prisma client, audit logging, Zod schemas). Python scripts for bank XML processing live at the project root. Vercel cron jobs handle scheduled tasks (BOG import, NBG rates, cash accruals) via `vercel.json`.
 
 - Jobs CRUD now includes `selling_price` support in the Prisma schema, API handlers, and the Jobs table/form UI.
 
+## Pages
+<!-- chat: include; routes: * -->
+What each page of the app is for, in plain words. Every page in `app/` must have a line here (the chat textbook build fails otherwise); when a page changes what it does, update its line in the same change.
+
+**Start and navigation**
+- `/` — Home: the main menu, and the Insider View choice (which companies' data the app shows; none ticked = all).
+- `/dictionaries` — Navigation Organizer: arrange the menu folders, rename items and pick their icons.
+- `/voice` — Voice Commands: give the app a spoken command and see its response.
+
+**Banking**
+- `/dictionaries/bank-transactions` — Bank Transactions: every transaction from all bank accounts (imported bank statements), with counteragent, project, financial code and payment ID; edit a transaction, bind it to a payment, split it into a batch.
+- `/dictionaries/bank-transactions-test` — Bank Transactions (test view): a testing copy of the Bank Transactions table.
+- `/bank-transaction-batches` — Bank Transaction Batches: split one bank transaction into several payments (a batch needs at least 2 parts).
+- `/bank-transactions/missing-counteragents` — Missing Counteragents: tax IDs (INN) found in bank statements that have no counteragent yet; create the counteragent from here.
+- `/dictionaries/bank-accounts` — Bank Accounts: the company's bank accounts.
+- `/dictionaries/banks` — Banks: the list of banks.
+- `/dictionaries/conversions` — Conversions: currency conversions between the company's own bank accounts.
+- `/dictionaries/parsing-scheme-rules` — Parsing Rules: rules that fill counteragent, project and financial code on bank transactions automatically; run a rule over existing transactions.
+- `/dictionaries/nbg-rates` — NBG Exchange Rates: official National Bank of Georgia rates by date.
+
+**Payments and reports**
+- `/dictionaries/payments` — Payments: payment records (who, which project, financial code, currency); each payment has a payment ID used to match bank transactions.
+- `/dictionaries/payments-ledger` — Payments Ledger: accruals and orders (what is owed) per payment; confirm entries.
+- `/dictionaries/payments-report` — Payments Report: per payment, what was accrued, ordered and paid, and the balance; attach documents to a payment or project.
+- `/dictionaries/payment-redistribution` — Payment Redistribution: for one counteragent, move paid amounts between accruals.
+- `/payment-statement/[paymentId]` — Payment Statement: every transaction and ledger entry of one payment.
+- `/counteragent-statement/[counteragentUuid]` — Counteragent Statement: all transactions with one counteragent, optionally for one project or job.
+- `/dictionaries/salary-accruals` — Salary Accruals: monthly salary accruals per employee and their payments.
+- `/salary-report/[counteragentUuid]` — Salary Report: one employee's salary accruals and payments; export to Excel or print.
+- `/dictionaries/services-report` — Services Report: service contracts by project and financial code with their state and payments.
+- `/calculations` — Calculation Templates: saved calculation templates per financial code.
+
+**Projects and jobs**
+- `/dictionaries/projects` — Projects: projects with value, currency, counteragent and insider; changing a value rescales the project's automatic ledger entries.
+- `/dictionaries/projects-report` — Projects Report: each project's value, payments and balance.
+- `/dictionaries/jobs` — Jobs: jobs (for example lifts) bound to projects, with selling price.
+- `/handovers` — Handovers: for one project, its jobs, the income payments and how they are distributed across the jobs; emit (lock) a handover; export to Excel.
+- `/handovers/print` — Handover Print Form: the printable handover document.
+
+**Waybills and inventory**
+- `/dictionaries/waybills` — Waybills: incoming waybills synced from RS.ge every hour; bind a waybill to a project, financial code or account.
+- `/dictionaries/waybill-items` — Waybill Items: the goods lines of the waybills; pick the inventory for a line in the Inventory column (it offers only inventories with the line's unit, and fills the same goods name + unit on unbound lines), confirm suggested inventories (≈ marks a closest-size suggestion), check Unit Check for unit mismatches.
+- `/dictionaries/inventories` — Inventories: the company's inventory items (internal number, group, unit, name).
+- `/dictionaries/inventory-groups` — Inventory Groups: groups of inventory items, each with a unit.
+- `/dictionaries/dimensions` — Dimensions: units of measure (ცალი, მეტრი, კგ…); drag RS unit chips onto a dimension to map them; the amber tray shows unit texts not mapped yet.
+- `/dictionaries/rs-unit-dimension-map` — Unit Text → Dimension Mapping: the same RS unit text to dimension mapping as a table.
+
+**Reference lists**
+- `/dictionaries/counteragents` — Counteragents: suppliers, customers and employees, with tax ID (INN); `/dictionaries/counteragents/new` adds one, `/dictionaries/counteragents/[id]` edits one.
+- `/dictionaries/countries` — Countries (`/dictionaries/countries/new` adds, `/dictionaries/countries/[id]/edit` edits).
+- `/dictionaries/currencies` — Currencies.
+- `/dictionaries/entity-types` — Entity Types: legal forms of counteragents (`/dictionaries/entity-types/[id]/edit` edits one).
+
+**Administration** (admins only)
+- `/admin/users` — Users: who can sign in, their role and notification settings.
+- `/admin/permissions` — Permissions: which modules and features each user may use.
+- `/admin/modules` — Module Management: the app's modules and features that permissions refer to.
+- `/admin/analytics` — Permission Analytics: overview of permission usage and recent changes.
+- `/admin/financial-codes` — Financial Codes: the chart of financial codes (income and cost codes).
+- `/admin/projects` — Projects (admin view).
+- `/admin/document-types` — Document Types: kinds of documents that can be attached.
+- `/admin/attachments` — Attachments: all uploaded documents and what they are linked to.
+- `/admin/templates` — Templates: Excel import templates per operation.
+- `/admin/ai-requests` — AI Chat Requests: bug reports and improvement requests users sent from the AI chat; read the request, copy it, set its status (new, in progress, done, rejected) and leave a note. Admins and system admins only.
+
+## AI Chat Requests
+<!-- chat: include; routes: /admin/ai-requests -->
+- The AI chat button turns a user's rough bug report or idea into a clear request, written in plain language and in the language the user writes in (Georgian or English). It asks short clarifying questions until the request is unambiguous.
+- Before anything is saved, the chat shows the final wording and asks the user whether it is ready. Only after the user confirms is it saved; the save API (`POST /api/ai-chat/requests`) refuses requests without `confirmed: true`.
+- Saved requests go to the `ai_change_requests` table (migrations `20261125220000_ai_change_requests`, `20261125230000_ai_change_requests_rls`: row level security on, so the public Supabase API cannot read it): requester, page, type (bug, improvement, upgrade), language, title, the final request, the whole conversation, status and an admin note.
+- Every new request is emailed to authorized users with role admin or system_admin (sender "ICE ERP Requests", link to the request). If the email fails, the request is still saved.
+- Admins manage requests on `/admin/ai-requests`: filter by status, read the request and the conversation, copy the request, move it through new → in progress → done or rejected, and leave a note. List and status changes (`GET /api/ai-chat/requests`, `PATCH /api/ai-chat/requests/[id]`) are allowed for admin and system_admin only. Logic: `lib/ai-chat/requests.ts`.
+
 ## Project Balance Calculation
+<!-- chat: include; routes: /dictionaries/projects, /dictionaries/projects-report -->
 
 ### Overview
 Project balance is calculated as: `balance = project.value - total_payments`
@@ -53,6 +136,7 @@ Calculated in two API routes using identical UNION ALL patterns:
 - **GET /api/projects**: Legacy endpoint, supports single project by uuid param and main list
 
 ### Query Structure
+<!-- chat: exclude -->
 Both routes aggregate in a LEFT JOIN with a complex subquery:
 ```sql
 LEFT JOIN (
@@ -86,6 +170,7 @@ LEFT JOIN (
 - Uses ABS() wrapper to normalize sign (both negative and positive flows supported)
 
 ## BOG GEL Bank Statement Processing - Three-Stage Approach
+<!-- chat: include; routes: /dictionaries/bank-transactions, /bank-transactions/missing-counteragents, /dictionaries/parsing-scheme-rules, /bank-transaction-batches -->
 
 ### Consolidated Processing Architecture
 All BOG GEL XML import and processing logic is consolidated into `import_bank_xml_data.py`, which implements a three-phase hierarchy:
@@ -214,6 +299,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - `is_processed`: TRUE when all three stages complete
 
 ### Scripts
+<!-- chat: exclude -->
 - `import_bank_xml_data.py`: ✅ **PRODUCTION READY** - Comprehensive script that consolidates ALL processing logic:
   * Account identification from XML (aligned with working JS implementation)
   * XML parsing and raw data insertion
@@ -235,10 +321,12 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - `scripts/parse-bog-gel-comprehensive.js`: Original comprehensive parser (Python implementation now matches this)
 
 ## Bank Transactions API Filters
+<!-- chat: include; routes: /dictionaries/bank-transactions -->
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
 - Bank transaction edit dialogs request real salary accrual payment IDs with `includeSalary=true&projectionMonths=0`; generated future salary projections remain non-bindable.
 
 ## Payments Report Attachment Targeting
+<!-- chat: include; routes: /dictionaries/payments-report -->
 - In the payments report attachment dialog (`PaymentAttachments`), **Attach to Project** must call project attachment APIs (`/api/projects/attachments/upload` + `/api/projects/attachments/confirm`) so links are created under `owner_table='projects'` only.
 - **Attach to Payment** must keep using payment attachment APIs and may add an optional secondary project link via `linkedProjectUuid`.
 - Ledger auto-create prompt applies to payment-target uploads only; project-target uploads must not create ledger entries automatically.
@@ -246,6 +334,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - `/api/bank-transactions/[id]` resolves normal `payments` IDs first, then existing `salary_accruals.payment_id` IDs with salary counteragent/financial-code/currency metadata.
 
 ## Bank Transactions Data Architecture
+<!-- chat: include; routes: /dictionaries/bank-transactions, /bank-transaction-batches, /dictionaries/salary-accruals, /handovers -->
 
 **PRIMARY DATA SOURCE**: Raw bank account tables (e.g., `GE65TB7856036050100002_TBC_GEL`, `GE78BG0000000893486000_BOG_GEL`, etc.) are the **active** source of truth for all bank transactions.
 
@@ -271,6 +360,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - The `/api/payments-jobs/auto-distribute` endpoint receives `raw_record_uuid` from bank transaction UI and stores it in `payments_jobs` records
 
 ### Investigation Guidelines
+<!-- chat: exclude -->
 - **NEVER** search `consolidated_bank_accounts` to verify `raw_record_uuid` references
 - **ALWAYS** search the specific raw table (e.g., `GE65TB7856036050100002_TBC_GEL`) or use `/api/bank-transactions`
 - Check `app/api/bank-transactions/route.ts` for the list of active source tables
@@ -291,6 +381,7 @@ When a payment is assigned to a bank transaction via `PATCH /api/bank-transactio
 - **Rationale**: Handovers job distribution grid filters by `project_uuid` and income `financial_code_uuid`. Without this sync, manually editing a transaction with an existing payment would orphan it from the handovers view.
 
 ## Project Value Scaling
+<!-- chat: include; routes: /dictionaries/projects, /dictionaries/payments-ledger -->
 - When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.
 - Selection rules for payments to scale:
   - Always include `payments.is_project_derived = true` (main project payment) and `payments.is_bundle_payment = true` (bundle child payments).
@@ -298,6 +389,7 @@ When a payment is assigned to a bank transaction via `PATCH /api/bank-transactio
 - Only non-deleted, unconfirmed ledger rows are scaled by default; UI/API can optionally deconfirm first when explicitly requested.
 
 ## RS.ge Waybill Sync
+<!-- chat: include; routes: /dictionaries/waybills, /dictionaries/waybill-items, /dictionaries/inventories, /dictionaries/dimensions, /dictionaries/rs-unit-dimension-map -->
 
 ### Architecture Overview
 Buyer waybills are fetched from the RS.ge SOAP API (`WaybillService.asmx`) and written to a single table:
@@ -306,6 +398,7 @@ Buyer waybills are fetched from the RS.ge SOAP API (`WaybillService.asmx`) and w
 The legacy `rs_waybills_in` table is no longer written to by any code path.
 
 ### Multi-Insider Credential Map
+<!-- chat: exclude -->
 All RS.ge credentials are stored in `RS_CREDENTIALS_MAP` (JSON array in `.env.local` and Vercel env):
 ```json
 [{"INSIDER_UUID":"...","RS_API_SU":"iceapi:XXXXXXXXX","RS_API_SP":"..."}]
@@ -330,6 +423,7 @@ The API filter used is `create_date_s / create_date_e` (matches the portal's **A
 Both routes loop over every entry in `RS_CREDENTIALS_MAP`, call `runWaybillSync` then `runWaybillItemsSync` per insider, and return aggregated totals + per-insider breakdown. Individual insider errors are caught and surfaced without aborting the loop.
 
 ### Shared Sync Library
+<!-- chat: exclude -->
 `lib/waybills/run-waybill-sync.ts` — exported `runWaybillSync(credentials, dateFrom, dateTo, options?)`:
 - `options.insiderUuid` — if provided, used directly; otherwise falls back to `getRequiredInsider()` (used by the manual sync route for backward compat).
 - `options.statuses`, `options.itypes` — passed through to the SOAP call.
@@ -343,6 +437,7 @@ Both routes loop over every entry in `RS_CREDENTIALS_MAP`, call `runWaybillSync`
 - Returns `{ items_inserted, items_skipped, items_errors }`.
 
 ### Manual Sync Endpoint
+<!-- chat: exclude -->
 `POST /api/waybills/sync` — accepts `{ begin_date?, end_date?, statuses?, itypes?, raw? }`:
 - Uses the **first** entry in `RS_CREDENTIALS_MAP` (no `insiderUuid` passed → falls back to `getRequiredInsider()`).
 - `raw: true` mode fetches and parses XML without writing to DB (field inspection).
@@ -369,6 +464,7 @@ The official unit list is fetched via `get_waybill_units` SOAP method. Verified 
 - **IDs that do NOT exist** in the official list: 6, 15, 16, 17, 18, 19. Any items or dimension-map entries with these phantom IDs are data errors from a previously incorrect hardcoded map.
 
 ## Waybill-Derived Payments
+<!-- chat: include; routes: /dictionaries/waybills, /dictionaries/waybill-items, /dictionaries/payments, /dictionaries/payments-ledger -->
 
 ### Waybill Check Column
 - `rs_waybills_in_api` check state is computed as `project_uuid OR financial_code_uuid OR corresponding_account`; expose it as boolean `check` from `/api/waybills` for correct Yes/No facet values and filtering.
@@ -412,6 +508,7 @@ When a waybill is bound (or re-bound) to a project, the system automatically cre
 - **Read-only guard**: `POST` and `DELETE` on `/api/payments-ledger` return HTTP 403 for `waybill_derived` payments. The UI replaces the delete button with a "WB" badge for these entries.
 
 ### DB Constraint Changes
+<!-- chat: exclude -->
 - **Composite unique → partial index**: The original `@@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid])` constraint on `payments` was replaced with a partial unique index `payments_composite_unique_non_waybill` (`WHERE waybill_derived = FALSE`) via `_apply_waybill_payments_constraint.js`. This allows multiple waybill-derived payments to share the same composite key while still enforcing uniqueness for manual payments.
 - **payment_id format constraint expanded**: `payments_payment_id_format_check` originally only allowed `^[0-9a-f]{6}_[0-9a-f]{2}_[0-9a-f]{6}$` (hex format). Updated via `_fix_payment_id_constraint.js` to also allow `^WB-[0-9]+$` for waybill-derived payments.
 - **Zero-sum waybills**: When a waybill has `sum = NULL` or `sum = 0`, the payment record is still created but no ledger entry is inserted (the `check_accrual_or_order` constraint on `payments_ledger` requires non-null, non-zero accrual/order).
@@ -420,6 +517,7 @@ When a waybill is bound (or re-bound) to a project, the system automatically cre
 When waybill items are bound to different projects, item-level binding should take priority over waybill-level payment derivation. This is not yet implemented; the current implementation operates at the waybill level only.
 
 ## Handovers Job Distribution UI & Emission
+<!-- chat: include; routes: /handovers, /handovers/print, /dictionaries/inventories -->
 - Inventories follows the Waybill Items table pattern: full-width shell, global search, per-column facets, sorting, column visibility, export, and pagination; CRUD behavior remains on `/api/inventories`.
 - The Job Distributions grid on Handovers renders bank-transaction-style rows (date, account, CA account, amount, nominal amount, financial code, nom ISO, payment ID, batch ID, description, ID1, ID2) from `/api/bank-transactions`, filtered by `project_uuid` and limited to payment IDs from income payments (`financialCodeIsIncome`).
 - The Handovers jobs table shows calculated columns for Paid Nominal, Paid GEL, Debit Nominal, Debit GEL, and Total GEL, and its footer totals the numeric business columns that are actually displayed as totals (for example Floors and the money columns, but not Weight). Paid GEL is summed from `payments_jobs.amount_account_curr`, while Debit GEL/Total GEL are computed from nominal amounts using the job's `liftCertDate` and the project currency's NBG rate lookup by date.
@@ -448,6 +546,7 @@ When a user emits a handover, all current (non-emitted) job distributions are lo
 - **Future**: Emission history view, reversal capability (superuser only), bulk emission, notifications.
 
 ## Payments API - job_projects Auto-Binding
+<!-- chat: include; routes: /dictionaries/payments, /dictionaries/jobs, /handovers -->
 
 When a payment is created or updated with both `jobUuid` and `projectUuid`, the system automatically creates the corresponding `job_projects` binding if it doesn't already exist. This ensures jobs are properly associated with projects in the Handovers table without requiring separate API calls.
 
@@ -461,6 +560,7 @@ When a payment is created or updated with both `jobUuid` and `projectUuid`, the 
 Previously, payments could reference a `jobUuid` and `projectUuid` combination without the job being bound to that project in `job_projects`. This caused jobs to not render in Handovers even though they were allocated there. Now, the binding is automatically maintained whenever a payment references both.
 
 ## Jobs Insider Derivation Rule
+<!-- chat: include; routes: /dictionaries/jobs, /dictionaries/projects -->
 - `jobs.insider_uuid` is strictly derived from bound project insider(s) (`projects.insider_uuid` via `job_projects`). Direct caller-provided insider values must not control job insider.
 - Jobs can only be bound to projects that resolve to a single insider. Binding/update flows must reject mixed-insider project sets with HTTP 409.
 - When a project's insider changes, bound jobs inherit the new insider only if the job is not simultaneously bound to projects of a different insider; otherwise the project update is rejected with conflict details.
@@ -468,13 +568,24 @@ Previously, payments could reference a `jobUuid` and `projectUuid` combination w
 - Jobs listing responses expose insider from the bound project context (not caller-selected insider), and `/api/jobs` runs a safe self-heal update to align `jobs.insider_uuid` when all bound projects for a job share one insider.
 - Jobs table normalization and rendering must preserve each row's `insiderUuid`/`insiderName` from `/api/jobs`; never replace the column with the global primary insider label.
 
+## NBG Exchange Rates (`nbg_exchange_rates`)
+<!-- chat: include; routes: /dictionaries/nbg-rates -->
+- `date` is a `DATE` column (no time zone). Calendar dates are Tbilisi dates (`Asia/Tbilisi`); never derive a date from `new Date()` + `toISOString()` or server-local `getDay()`, because Vercel runs in UTC.
+- A rate row is stored under the **effective date returned by NBG** (`ratesData.date`), never under the run date. NBG returns the last published rates for weekends and holidays, so those rates belong to the previous business day.
+- Crons: `/api/cron/update-nbg-rates` (`0 16 * * *`) and `/api/cron/sync-nbg-rates` both store under NBG's effective date. Gap backfill fetches each missing date from NBG and stores it only when NBG's effective date equals the requested date.
+- Rates are never copied forward from another date. A missing date stays absent rather than being filled with another day's rates.
+- Lookups by bank transaction date need an exact `date` match in this table.
+
 ## Build, Test, and Development Commands
+<!-- chat: exclude -->
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.
 
 ## Coding Style & Naming Conventions
+<!-- chat: exclude -->
 All code is TypeScript and must satisfy the shared ESLint + Prettier rules via `pnpm lint` or `pnpm lint --fix`. Name files in kebab-case (`user-profile.ts`), React components in PascalCase (`UserProfile.tsx`), and variables or functions in camelCase. Keep comments purposeful: explain non-obvious invariants, integration quirks, or domain rules.
 
 ## Handovers Export & Loading Optimization (2026-06-11)
+<!-- chat: include; routes: /handovers -->
 The Handovers page implements a multi-stage loading pipeline with export caching to optimize performance and prevent premature export attempts.
 
 ### Loading States & Coordination
@@ -537,12 +648,15 @@ These computed columns **depend on NBG rates** and return `null` until rates are
 If `rate` is `undefined` (still loading) or `null` (fetch failed), columns show `—` placeholder. Export button stays disabled until all rows have valid calculations.
 
 ## Testing Guidelines
+<!-- chat: exclude -->
 Favor tests on public contracts: API handlers, Prisma services, and UI state reducers. Co-locate Jest specs as `*.test.ts(x)` near their source or under `tests/`, and refresh fixtures in `tests/fixtures/` when behavior shifts. Capture cross-surface flows, including auth, with Playwright specs; start `pnpm dev` before launching them to ensure all services are available.
 
 ## Commit & Pull Request Guidelines
+<!-- chat: exclude -->
 Use Conventional Commits (for example `feat(auth): add oauth screen` or `fix(orders): correct pagination`) and mention migration identifiers in commit bodies when schema changes occur. Pull requests need a concise summary, linked Jira issue, updated tests, and UI screenshots whenever the webapp shifts. Call out manual steps (migrations, env vars, or backfills) so reviewers can reproduce outcomes.
 
 ## Deploying Instructions
+<!-- chat: exclude -->
 Only run deployment when explicitly asked with the command `deploy`.
 
 Build locally before any deployment. A successful local production build is mandatory before you push or deploy.
@@ -558,6 +672,7 @@ Use this exact procedure for every production release:
 This keeps production deploys single-shot, traceable, and free of duplicate Vercel builds.
 
 ## Deployment Logging Policy
+<!-- chat: exclude -->
 Only commit, push, and deploy when explicitly instructed with the command "deploy".
 
 For every deployment, use this **single-production-deploy** procedure to avoid extra Vercel builds:
@@ -571,4 +686,5 @@ For every deployment, use this **single-production-deploy** procedure to avoid e
 This guarantees one production deployment per requested release while still preserving deployment history in git.
 
 ## Security & Configuration Tips
+<!-- chat: exclude -->
 Never commit secrets; `.env.local` should hold placeholders only. Regenerate the Prisma client after each migration, and cast BigInt identifiers as `BigInt(Number(id))` in server responses to avoid JSON serialization issues. Surface any new configuration or operational follow-ups in PR descriptions to keep deploys predictable.

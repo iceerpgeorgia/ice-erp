@@ -14,10 +14,16 @@ import {
 import { LogOut, User } from 'lucide-react';
 import PageTitle from './page-title';
 import { NavIconTitleSync } from '@/components/nav-icon-title-sync';
-import { FloatingAIButton } from '@/components/floating-ai-button';
 import { WithErrorBoundary } from '@/components/error-boundary';
 import { useComponentLogger } from '@/lib/logging/component-logger';
 import { useEffect } from 'react';
+import dynamic from 'next/dynamic';
+
+// Client-only: the chat uses useSession, so it must never render on the server (see AGENTS.md AppShell rules).
+const FloatingAIButton = dynamic(
+  () => import('@/components/floating-ai-button').then((m) => m.FloatingAIButton),
+  { ssr: false }
+);
 
 function Topbar() {
   const { data: session } = useSession();

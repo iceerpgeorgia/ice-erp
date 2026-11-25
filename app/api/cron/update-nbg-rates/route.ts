@@ -228,6 +228,13 @@ export async function GET(req: NextRequest) {
                 
                 if (historicalData && historicalData.length > 0) {
                   const historicalRates = historicalData[0];
+                  // Store only when NBG's effective date is the requested date; weekends/holidays
+                  // return the previous business day's rates, which must not be stored as this date.
+                  const effectiveDate = String(historicalRates.date || '').split('T')[0];
+                  if (effectiveDate !== dateStr) {
+                    console.warn(`[CRON] NBG effective date ${effectiveDate || 'none'} != requested ${dateStr}, skipping`);
+                    continue;
+                  }
                   const historicalCurrencies = historicalRates.currencies || [];
                   
                   // Build rates object from API response

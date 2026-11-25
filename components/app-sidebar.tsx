@@ -30,6 +30,7 @@ import {
   ArrowLeftRight,
   ClipboardList,
   Users,
+  Inbox,
   Building2,
   Globe,
   Banknote,
@@ -112,6 +113,7 @@ const NAV: NavGroup[] = [
   {
     title: 'Admin',
     items: [
+      { label: 'Requests', href: '/admin/ai-requests', icon: Inbox },
       { label: 'Users', href: '/admin/users', icon: Users },
       { label: 'Financial Codes', href: '/admin/financial-codes', icon: BookOpen },
       { label: 'Templates', href: '/admin/templates', icon: Layout },
@@ -233,8 +235,9 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <SidebarContent className="py-2">
-        {navGroups.map((group) => (
-          <SidebarGroup key={group.title} className="px-2">
+        {/* A saved folder and a default group can share a title (e.g. "Admin"), so the index keeps keys unique. */}
+        {navGroups.map((group, groupIndex) => (
+          <SidebarGroup key={`${groupIndex}-${group.title}`} className="px-2">
             <SidebarGroupLabel className="px-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">
               {group.title}
             </SidebarGroupLabel>
