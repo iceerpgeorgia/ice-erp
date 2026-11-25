@@ -5473,3 +5473,12 @@
 - Commit: 425d785
 - Production: https://ice-e1nc9a5pc-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; chat questions and the ready-to-save step checked locally; saving a request not yet exercised in the browser.
+
+## 2026-11-25 (8)
+- Summary: Waybill Items exact-name and previously-bound inventory matches are bound automatically.
+- Changes:
+  - Steps 1 (exact) and 2 (history) bind the inventory at once with Match Status "auto"; fuzzy, AI and closest-size suggestions still wait for a person (migration 20261125240000_waybill_items_auto_confirm, applied before deploy; 2,328 pending suggestions bound).
+  - AGENTS.md and the chat textbook describe the new status.
+- Commit: 642b876
+- Production: https://ice-bcpzsge6m-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; trigger checked with a rolled-back test insert.
