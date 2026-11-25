@@ -43,7 +43,6 @@ type WaybillItem = {
   inventory_uuid?: string | null;
   inventory_name?: string | null;
   // 'OK' / 'Mismatch' when bound (inventory dimension vs item unit), '' when unbound.
-  inventory_unit_check?: string | null;
   suggested_inventory_uuid?: string | null;
   suggested_inventory_name?: string | null;
   // Pending items with the same goods name and suggestion (this row included).
@@ -101,7 +100,6 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'unit_price', label: 'Unit Price', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
   { key: 'total_price', label: 'Total Price', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
   { key: 'inventory_name', label: 'Inventory', visible: true, sortable: true, filterable: true, width: 260 },
-  { key: 'inventory_unit_check', label: 'Unit Check', visible: true, sortable: false, filterable: true, width: 110 },
   // Inventory suggestion from the insert trigger; a person confirms it (suggest only).
   { key: 'suggested_inventory_name', label: 'Suggested Inventory', visible: true, sortable: false, filterable: true, width: 260 },
   { key: 'inventory_match_status', label: 'Match Status', visible: true, sortable: false, filterable: true, width: 130 },
@@ -866,7 +864,6 @@ export function WaybillItemsTable() {
               inventory_uuid: row.suggested_inventory_uuid ?? row.inventory_uuid,
               inventory_name: row.suggested_inventory_name || row.inventory_name,
               inventory_match_status: 'confirmed',
-              inventory_unit_check: 'OK',
               suggestion_group_count: 0,
             }
           : row
@@ -980,7 +977,6 @@ export function WaybillItemsTable() {
             ...item,
             inventory_uuid: null,
             inventory_name: '',
-            inventory_unit_check: '',
             inventory_match_status: item.suggested_inventory_uuid ? 'suggested' : 'none',
           };
         }
@@ -988,7 +984,6 @@ export function WaybillItemsTable() {
           ...item,
           inventory_uuid: inventoryUuid,
           inventory_name: label,
-          inventory_unit_check: 'OK',
           inventory_match_status: item.suggested_inventory_uuid === inventoryUuid ? 'confirmed' : 'manual',
           suggestion_group_count: 0,
         };
@@ -1065,17 +1060,6 @@ export function WaybillItemsTable() {
                   busy={bindingIds.has(row.id)}
                   onSelect={(inventoryUuid) => void pickInventory(row, inventoryUuid)}
                 />
-              ) : col.key === 'inventory_unit_check' ? (
-                row.inventory_unit_check === 'Mismatch' ? (
-                  <span
-                    className="rounded border border-red-300 bg-red-50 px-1.5 py-0.5 text-xs text-red-700"
-                    title="The bound inventory's dimension differs from this item's unit"
-                  >
-                    Mismatch
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">{row.inventory_unit_check || ''}</span>
-                )
               ) : col.key === 'suggested_inventory_name' && row.suggested_inventory_name ? (
                 <div className="flex items-center gap-2">
                   {row.inventory_match_method === 'expanded' && (

@@ -112,7 +112,6 @@ export async function GET(req: NextRequest) {
       'waybill_counteragent_name', 'waybill_counteragent_inn', 'waybill_vat', 'waybill_sum',
       'waybill_driver', 'waybill_vehicle', 'waybill_activation_time', 'waybill_activation_date',
       'inventory_match_status', 'inventory_match_method', 'suggested_inventory_name',
-      'inventory_unit_check',
     ]);
 
     const allowedSortColumns = new Set([
@@ -181,21 +180,6 @@ export async function GET(req: NextRequest) {
         }));
         return inventoryLabels;
       };
-      // Bound items whose inventory dimension differs from the item's unit (Unit Check = Mismatch).
-      let unitMismatchIds: bigint[] | null = null;
-      const getUnitMismatchIds = async () => {
-        if (unitMismatchIds) return unitMismatchIds;
-        const rows = await withRetry(() => prisma.$queryRaw<Array<{ id: bigint }>>`
-          SELECT i.id
-            FROM rs_waybills_in_items i
-            JOIN inventories v ON v.uuid = i.inventory_uuid
-           WHERE i.insider_uuid = ${insider.insiderUuid}::uuid
-             AND i.dimension_uuid IS DISTINCT FROM v.dimension_uuid
-        `);
-        unitMismatchIds = rows.map((row) => row.id);
-        return unitMismatchIds;
-      };
-
       const entries = parsedFilterEntries
         .filter(([key]) => allowedFilterFields.has(key) && key !== excludeField)
         .map(([key, values]) => {
@@ -286,19 +270,6 @@ export async function GET(req: NextRequest) {
       // Process item-level filters
       for (const [key, value] of itemFilters) {
         const { nonBlank, includeBlank, requireNonBlank } = value;
-
-        // Unit Check: OK / Mismatch for bound items, blank for unbound ones.
-        if (key === 'inventory_unit_check') {
-          const options: Prisma.rs_waybills_in_itemsWhereInput[] = [];
-          if (nonBlank.includes('Mismatch')) options.push({ id: { in: await getUnitMismatchIds() } });
-          if (nonBlank.includes('OK')) {
-            options.push({ AND: [{ inventory_uuid: { not: null } }, { id: { notIn: await getUnitMismatchIds() } }] });
-          }
-          if (includeBlank) options.push({ inventory_uuid: null });
-          if (requireNonBlank && nonBlank.length === 0 && !includeBlank) options.push({ inventory_uuid: { not: null } });
-          if (options.length > 0) clauses.push({ OR: options });
-          continue;
-        }
 
         // dimension_name lives on the dimensions relation, not on the items table.
         if (key === 'dimension_name') {
@@ -593,8 +564,6 @@ export async function GET(req: NextRequest) {
           .filter((value) => matchesSearch(String(value)))
           .sort((a, b) => String(a).localeCompare(String(b)))
           .slice(0, facetLimit);
-      } else if (facetField === 'inventory_unit_check') {
-        values = ['Mismatch', 'OK', ''];
       } else if (facetField === 'waybill_activation_date') {
         const waybillRows = await withRetry(() => prisma.rs_waybills_in_api.findMany({
           where: { waybill_items: { some: facetWhere } },
@@ -663,9 +632,6 @@ export async function GET(req: NextRequest) {
       taxation: row.taxation,
       inventory_uuid: row.inventory_uuid,
       inventory_name: formatInventoryLabel(row.inventory),
-      inventory_unit_check: row.inventory_uuid
-        ? (row.inventory?.dimension_uuid === row.dimension_uuid ? 'OK' : 'Mismatch')
-        : '',
       suggested_inventory_uuid: row.suggested_inventory_uuid,
       suggestion_group_count: groupCounts.get(String(row.id)) ?? 0,
       suggested_inventory_name: row.suggested_inventory ? formatInventoryLabel(row.suggested_inventory) : '',

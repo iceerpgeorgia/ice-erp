@@ -77,7 +77,7 @@ export default function DimensionsPage() {
       const from = rows.find((r) => r.uuid === unit.dimension_uuid)?.dimension ?? "another dimension";
       const ok = confirm(
         `Move unit "${unit.unit_text}" (${unit.item_count} waybill items) from ${from} to ${dimension.dimension}?\n\n` +
-        "Its items move to the new dimension and their pending inventory suggestions are redone. Items already bound to an inventory of the old dimension will show Unit Check = Mismatch."
+        "Its items move to the new dimension and their pending inventory suggestions are redone. Items bound to an inventory of the old dimension are matched again (or their inventory is cleared)."
       );
       if (!ok) return;
     }
