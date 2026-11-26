@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OrisExportGrid, type GridColumn } from '@/components/oris-export-grid';
@@ -120,6 +120,7 @@ export function OrisExport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'entries' | 'problems'>('entries');
+  const [fixing, setFixing] = useState<string | null>(null);
 
   const query = `from=${from}&to=${to}`;
 
@@ -232,18 +233,245 @@ export function OrisExport() {
           ) : (
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2 text-xs">
-                {Object.entries(preview.totals.problemCounts).map(([problem, n]) => (
-                  <span key={problem} className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-amber-800">
-                    {problem}: <b>{n}</b>
-                  </span>
-                ))}
+                {Object.entries(preview.totals.problemCounts).map(([problem, n]) =>
+                  FIXABLE_PROBLEMS.includes(problem) ? (
+                    <button
+                      key={problem}
+                      type="button"
+                      onClick={() => setFixing(fixing === problem ? null : problem)}
+                      className={`rounded border px-2 py-1 text-amber-900 underline-offset-2 hover:underline ${
+                        fixing === problem ? 'border-amber-500 bg-amber-200' : 'border-amber-400 bg-amber-100'
+                      }`}
+                      title="Fill the missing data from an Excel file"
+                    >
+                      {problem}: <b>{n}</b> · fill from Excel
+                    </button>
+                  ) : (
+                    <span key={problem} className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-amber-800">
+                      {problem}: <b>{n}</b>
+                    </span>
+                  )
+                )}
               </div>
+              {fixing === SUPPLIER_ORIS_PROBLEM && (
+                <SupplierOrisPanel period={preview.period} onDone={() => void load()} />
+              )}
               <OrisExportGrid storageKey="oris-export-problems-grid" columns={PROBLEM_COLUMNS} rows={problemRows} defaultSort="waybillNo" />
             </div>
           )}
         </>
       )}
     </div>
+  );
+}
+
+const SUPPLIER_ORIS_PROBLEM = 'Supplier has no ORIS ID';
+const FIXABLE_PROBLEMS = [SUPPLIER_ORIS_PROBLEM];
+
+type UploadResult = { updated: number; unchanged: number; skipped: Array<{ row: number; supplier: string; reason: string }> };
+
+/** Download the suppliers without an ORIS ID, fill the ORIS ID column, upload it back. */
+function SupplierOrisPanel({ period, onDone }: { period: { from: string; to: string }; onDone: () => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<UploadResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const upload = async (file: File) => {
+    setUploading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/oris-export/supplier-oris', { method: 'POST', body: form });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Upload failed');
+      setResult(body);
+      if (body.updated > 0) onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="rounded border border-amber-300 bg-amber-50/50 p-3 text-sm space-y-2">
+      <div className="text-muted-foreground">
+        1. Download the suppliers of this period that have no ORIS ID. 2. Type each supplier&apos;s ORIS ID in the
+        <b> ORIS ID</b> column (leave it empty to skip). 3. Upload the file: the ORIS IDs are saved on the counteragents.
+        Suppliers that already have an ORIS ID are not changed.
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button asChild variant="outline" size="sm">
+          <a href={`/api/oris-export/supplier-oris?from=${period.from}&to=${period.to}`}>Download suppliers (.xlsx)</a>
+        </Button>
+        <Button size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+          {uploading ? 'Uploading…' : 'Upload filled file'}
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".xlsx,.xls"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void upload(file);
+          }}
+        />
+      </div>
+      {error && <div className="text-red-700">{error}</div>}
+      {result && (
+        <div className="space-y-1">
+          <div>
+            Saved <b>{result.updated}</b> ORIS IDs
+            {result.unchanged > 0 && <>, {result.unchanged} already had the same ID</>}
+            {result.skipped.length > 0 && <>, <b className="text-red-700">{result.skipped.length} not saved</b></>}.
+          </div>
+          {result.skipped.length > 0 && (
+            <ul className="max-h-40 overflow-auto text-xs text-red-700 list-disc pl-5">
+              {result.skipped.map((s) => (
+                <li key={`${s.row}-${s.reason}`}>
+                  Row {s.row}{s.supplier ? ` (${s.supplier})` : ''}: {s.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      <OrganisationsUpload onDone={onDone} />
+    </div>
+  );
+}
+
+type OrganisationsResult = {
+  dryRun: boolean;
+  organisations: number;
+  applied: number;
+  changes: Array<{ counteragent: string; to: string }>;
+  unchanged: number;
+  differs: Array<{ counteragent: string; current: string; codes: string[] }>;
+  ambiguous: Array<{ counteragent: string; codes: string[] }>;
+  conflicts: Array<{ counteragent: string; code: string; owner: string }>;
+  noCounteragent: Array<{ row: number; code: string; taxId: string; name: string }>;
+  noTaxId: Array<{ row: number; code: string; name: string }>;
+};
+
+/** Upload the organisations export of ORIS (ORGANISATIONS.XLSX): preview, then save the ORIS IDs. */
+function OrganisationsUpload({ onDone }: { onDone: () => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<OrganisationsResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const send = async (chosen: File, dryRun: boolean) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append('file', chosen);
+      form.append('dryRun', String(dryRun));
+      const res = await fetch('/api/oris-export/organisations', { method: 'POST', body: form });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Upload failed');
+      setResult(body);
+      if (!dryRun && body.applied > 0) onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setResult(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+
+  return (
+    <div className="border-t border-amber-300 pt-2 space-y-2">
+      <div className="text-muted-foreground">
+        Or upload the organisations list exported from ORIS (ORGANISATIONS.XLSX). Counteragents are found by tax ID (column B, or the
+        number in the name). A counteragent without an ORIS ID gets the code in column A when exactly one organisation in the file has its
+        tax ID; existing ORIS IDs are never changed. You see what will be set before anything is saved.
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
+          {busy && result === null ? 'Reading…' : 'Upload ORIS organisations file'}
+        </Button>
+        {file && <span className="text-xs text-muted-foreground">{file.name}</span>}
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".xlsx,.xls"
+          className="hidden"
+          onChange={(e) => {
+            const chosen = e.target.files?.[0];
+            if (fileRef.current) fileRef.current.value = '';
+            if (!chosen) return;
+            setFile(chosen);
+            setResult(null);
+            void send(chosen, true);
+          }}
+        />
+      </div>
+      {error && <div className="text-red-700">{error}</div>}
+      {result && (
+        <div className="space-y-1">
+          {result.dryRun ? (
+            <div>
+              {result.organisations.toLocaleString('en-US')} organisations in the file. <b>{result.changes.length}</b> counteragents get an ORIS ID;{' '}
+              {result.unchanged.toLocaleString('en-US')} already have it.
+            </div>
+          ) : (
+            <div className="text-green-700">
+              Saved <b>{result.applied}</b> ORIS IDs.
+            </div>
+          )}
+          <ResultList title="Will be set" show={result.dryRun} items={result.changes.map((c) => `${c.counteragent}: ${c.to}`)} />
+          <ResultList
+            title="Not changed: the counteragent has another ORIS ID than the file"
+            items={result.differs.map((d) => `${d.counteragent}: ${d.current} (file: ${d.codes.join(' / ')})`)}
+          />
+          <ResultList
+            title="Not set: ORIS has several organisations with this tax ID (set it on the Counteragents page)"
+            items={result.ambiguous.map((a) => `${a.counteragent}: ${a.codes.join(' / ')}`)}
+            warn
+          />
+          <ResultList
+            title="Not set: the code already belongs to a counteragent with another tax ID"
+            items={result.conflicts.map((c) => `${c.counteragent}: ${c.code} belongs to ${c.owner}`)}
+            warn
+          />
+          <ResultList
+            title="Tax ID has no counteragent"
+            items={result.noCounteragent.map((r) => `${r.code} · ${r.taxId} · ${r.name}`)}
+          />
+          <ResultList title="No tax ID in the row" items={result.noTaxId.map((r) => `${r.code} · ${r.name}`)} />
+          {result.dryRun && file && result.changes.length > 0 && (
+            <Button size="sm" disabled={busy} onClick={() => void send(file, false)}>
+              {busy ? 'Saving…' : `Save ${result.changes.length} ORIS IDs`}
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultList({ title, items, warn, show = true }: { title: string; items: string[]; warn?: boolean; show?: boolean }) {
+  if (!show || items.length === 0) return null;
+  return (
+    <details className="text-xs">
+      <summary className={`cursor-pointer ${warn ? 'text-red-700' : ''}`}>
+        {title}: <b>{items.length}</b>
+      </summary>
+      <ul className="max-h-48 overflow-auto list-disc pl-5 mt-1">
+        {items.map((item, i) => (
+          <li key={i}>{item}</li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

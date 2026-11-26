@@ -23,6 +23,10 @@ export type OrisLine = {
   date: string;
   supplierName: string | null;
   supplierOris: string | null;
+  /** The supplier's counteragent, when the waybill has one (used to fill missing ORIS IDs). */
+  supplierUuid?: string | null;
+  /** The supplier's counteragent label, e.g. "name (ს.კ. 123) - შპს". */
+  supplierLabel?: string | null;
   /** The waybill is from the company itself (internal transfer). */
   isOwnCompany: boolean;
   /** RS.ge waybill state, e.g. დასრულებული, აქტიური, გაუქმებული. */
@@ -271,7 +275,7 @@ export function sylfaenRow(entry: OrisEntry): Array<string | number> {
 }
 
 // The sheet's CSV formula: Georgian letters to the ORIS (AcadNusx) font characters, ² → 2, ³ → 3.
-const ORIS_LETTERS: Record<string, string> = {
+export const ORIS_LETTERS: Record<string, string> = {
   ა: 'À', ბ: 'Á', გ: 'Â', დ: 'Ã', ე: 'Ä', ვ: 'Å', ზ: 'Æ', თ: 'È', ი: 'É', კ: 'Ê', ლ: 'Ë',
   მ: 'Ì', ნ: 'Í', ო: 'Ï', პ: 'Ð', ჟ: 'Ñ', რ: 'Ò', ს: 'Ó', ტ: 'Ô', უ: 'Ö', ფ: '×', ქ: 'Ø',
   ღ: 'Ù', ყ: 'Ú', შ: 'Û', ჩ: 'Ü', ც: 'Ý', ძ: 'Þ', წ: 'ß', ჭ: 'à', ხ: 'á', ჯ: 'ã', ჰ: 'ä',

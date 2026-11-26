@@ -17,6 +17,7 @@ export async function loadOrisLines(insiderUuid: string, from: string, to: strin
         supplier_name: string | null;
         supplier_oris: string | null;
         counteragent_uuid: string | null;
+        supplier_label: string | null;
         state: string | null;
         type: string | null;
         vat: boolean;
@@ -34,7 +35,7 @@ export async function loadOrisLines(insiderUuid: string, from: string, to: strin
     >(
       `SELECT i.id, coalesce(w.waybill_no, i.waybill_no) AS waybill_no, w.activation_time,
               coalesce(c.name, w.counteragent_name) AS supplier_name, nullif(btrim(c.oris_id), '') AS supplier_oris,
-              w.counteragent_uuid::text AS counteragent_uuid, w.state, w.type, w.vat,
+              w.counteragent_uuid::text AS counteragent_uuid, c.counteragent AS supplier_label, w.state, w.type, w.vat,
               i.total_price::text AS total_price, i.goods_name, coalesce(d.dimension, i.unit) AS unit, i.quantity::text AS quantity,
               coalesce(nullif(nullif(btrim(i.start_address), ''), 'null'), w.departure_address) AS start_address,
               coalesce(nullif(nullif(btrim(i.end_address), ''), 'null'), w.shipping_address) AS end_address,
@@ -65,6 +66,8 @@ export async function loadOrisLines(insiderUuid: string, from: string, to: strin
     date: formatActivationDate(row.activation_time) ?? '',
     supplierName: row.supplier_name,
     supplierOris: row.supplier_oris,
+    supplierUuid: row.counteragent_uuid,
+    supplierLabel: row.supplier_label,
     isOwnCompany: row.counteragent_uuid === insiderUuid,
     state: row.state,
     type: row.type,
