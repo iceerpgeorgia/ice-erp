@@ -72,6 +72,7 @@ const NAV: NavGroup[] = [
       { label: 'TX Batches', href: '/bank-transaction-batches', icon: Layers2 },
       { label: 'Waybills In', href: '/dictionaries/waybills', icon: ClipboardList },
       { label: 'Waybill Items', href: '/dictionaries/waybill-items', icon: ListTree },
+      { label: 'ORIS Export', href: '/dictionaries/oris-export', icon: FileSpreadsheet },
     ],
   },
   {

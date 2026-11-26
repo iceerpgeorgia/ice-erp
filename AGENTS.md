@@ -88,6 +88,7 @@ What each page of the app is for, in plain words. Every page in `app/` must have
 **Waybills and inventory**
 - `/dictionaries/waybills` — Waybills: incoming waybills synced from RS.ge every hour; bind a waybill to a project, financial code or account.
 - `/dictionaries/waybill-items` — Waybill Items: the goods lines of the waybills; pick the inventory for a line in the Inventory column (it offers only inventories with the line's unit, and fills the same goods name + unit on unbound lines), lines whose goods name exactly matches an inventory name, or was bound to an inventory before, are bound automatically (Match Status "auto"); confirm the other suggested inventories (≈ marks a closest-size suggestion); a line can never be bound to an inventory with another unit.
+- `/dictionaries/oris-export` — ORIS Export: accounting entries for incoming waybills of a period (by waybill activation date) in the file layout the ORIS accounting program imports; preview the entries and the lines that cannot be exported (with the reason), then download the .xlsx in the ORIS font. The same lines can be exported again.
 - `/dictionaries/inventories` — Inventories: the company's inventory items (internal number, group, unit, name).
 - `/dictionaries/inventory-groups` — Inventory Groups: groups of inventory items, each with a unit.
 - `/dictionaries/dimensions` — Dimensions: units of measure (ცალი, მეტრი, კგ…); drag RS unit chips onto a dimension to map them; the amber tray shows unit texts not mapped yet.
@@ -515,6 +516,21 @@ When a waybill is bound (or re-bound) to a project, the system automatically cre
 
 ### Open Issue — Item-Level Priority
 When waybill items are bound to different projects, item-level binding should take priority over waybill-level payment derivation. This is not yet implemented; the current implementation operates at the waybill level only.
+
+## ORIS Accounting Export
+<!-- chat: include; routes: /dictionaries/oris-export, /dictionaries/waybill-items, /dictionaries/waybills -->
+Replaces the Google Sheets "RS_Export_WB" (tabs კორ. ანგ საქონელი / კორ. ანგ ხარჯი / პროექტის დანახარჯი → TRANSACTIONS + VAT TRANSACTIONS → Sylfaen → CSV). Built 2026-11-26. Logic: `lib/oris-export/entries.ts` (pure, tested in `entries.test.ts`), data: `lib/oris-export/load-lines.ts`, API: `GET /api/oris-export?from=&to=[&format=xlsx]`, page: `/dictionaries/oris-export`.
+- Lines: incoming waybill items whose waybill was activated in the period (Tbilisi days). A line's own corresponding account and project win over its waybill's.
+- Left out: cancelled waybills, the company's own waybills (internal transfers), return waybills, and zero or negative amounts.
+- Scheme per line: account starting with 7 → expense; account starting with 2 → fixed asset, not exported (as in the sheet); any other account → goods; no account but a project → project cost; neither → not exported.
+- Goods: debit `{account}_{inventory internal number}` (e.g. `1_6_20_10754`), credit `3_1_10_{supplier ORIS ID}`, amount = line total minus VAT, where VAT = round(total ÷ 1.18 × 0.18, 2) when the waybill has VAT; unit (the dimension's full name) and quantity.
+- Expense: one entry per waybill, debit = the first line's account, credit the supplier; amount = sum of round(total ÷ 1.18, 2) (or the total without VAT). Unlike the sheet, an expense waybill without VAT gets no VAT entry (the sheet put its whole amount into VAT).
+- Project cost: two entries per line: `1_6_20_{inventory}` ← supplier, then the project's ORIS 1630 account (`projects.oris_1630`, e.g. `1 6 30 2492`, sent with spaces as in the sheet) ← `1_6_20_{inventory}`.
+- VAT: one entry per waybill and type: debit `3_3_40_01` (`3_3_40_001` when the debit account starts with 2), credit the supplier, amount = the VAT parts of that waybill's entries.
+- A line is held back (listed with the reason) when the supplier has no ORIS ID, a goods or project line has no inventory (or the inventory has no internal number), or the project has no ORIS 1630 account. The sheet exported such lines with `#N/A` accounts (125 rows in January 2025).
+- File: the sheet's CSV tab as .xlsx: three empty columns, then doc no. (waybill number without leading zeros), 0, date dd.mm.yyyy, debit, credit, empty memorial, amount as " 0.00", GEL, comment ("საქონელი: name" + transport start and end), stock flags (1 when the account is `1_6_20`, `1_6_10`, `1_6_70` or starts with 2), unit, quantity twice, IMPORT, "სისტემის ადმინისტრატ", 0, 9, 0 and four empty columns. All Georgian letters are converted to the ORIS (AcadNusx) font exactly like the sheet (ა→À … ჰ→ä, ²→2, ³→3). No header row.
+- Exporting is not recorded: the same lines can be exported any number of times.
+- Checked against the sheet for January 2025: every waybill ICE ERP exports is in the sheet's export, 107 of 147 with identical entries; the rest differ only by lines ICE ERP holds back (missing inventory, ORIS ID or project 1630) and the sheet's `#N/A` rows. 44 sheet waybills are missing because their lines have a corresponding account only in the sheet; since 2025 only about 2% of waybill lines in ICE ERP have an account, so goods and expense entries need accounts to be set on the waybills or lines first.
 
 ## Handovers Job Distribution UI & Emission
 <!-- chat: include; routes: /handovers, /handovers/print, /dictionaries/inventories -->

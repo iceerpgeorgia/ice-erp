@@ -12,6 +12,7 @@ export const MASTER_NAV: MasterNavItem[] = [
   { routeKey: '/bank-transaction-batches', label: 'TX Batches', defaultIcon: 'Layers2', defaultGroup: 'Banking', desc: 'Batch payment processing' },
   { routeKey: '/dictionaries/waybills', label: 'Waybills In', defaultIcon: 'ClipboardList', defaultGroup: 'Banking', desc: 'RS.ge buyer waybills' },
   { routeKey: '/dictionaries/waybill-items', label: 'Waybill Items', defaultIcon: 'ListTree', defaultGroup: 'Banking', desc: 'Line-item detail' },
+  { routeKey: '/dictionaries/oris-export', label: 'ORIS Export', defaultIcon: 'FileSpreadsheet', defaultGroup: 'Banking', desc: 'Accounting entries for ORIS' },
 
   // Finance
   { routeKey: '/dictionaries/payments', label: 'Payments', defaultIcon: 'Wallet', defaultGroup: 'Finance', desc: 'Payment records' },

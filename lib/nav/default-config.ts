@@ -64,6 +64,7 @@ export const DEFAULT_ITEMS: DefaultItem[] = [
   // RS.GE (3)
   { routeKey: '/dictionaries/waybills',      folderIndex: 3, sortOrder: 0, icon: null },
   { routeKey: '/dictionaries/waybill-items', folderIndex: 3, sortOrder: 1, icon: null },
+  { routeKey: '/dictionaries/oris-export',   folderIndex: 3, sortOrder: 2, icon: null },
 
   // Salaries (4)
   { routeKey: '/dictionaries/salary-accruals', folderIndex: 4, sortOrder: 0, icon: null },
