@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { OrisExportGrid, type GridColumn } from '@/components/oris-export-grid';
 
 type Entry = {
   kind: 'goods' | 'expense' | 'project_in' | 'project_out' | 'vat';
@@ -65,6 +66,43 @@ const SCHEME_LABELS: Record<string, string> = {
 };
 
 const money = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const moneyCell = (value: any) => (typeof value === 'number' ? money(value) : '');
+// Dates are kept as yyyy-mm-dd in the grid rows so they sort right, and shown as dd.mm.yyyy.
+const toIso = (date: string) => date.split('.').reverse().join('-');
+const showDate = (value: any) => (typeof value === 'string' && value ? value.split('-').reverse().join('.') : '');
+
+type EntryRow = {
+  kind: string; docNo: string; date: string; debit: string; credit: string;
+  amount: number; vat: number; unit: string; quantity: number | null; comment: string; fullComment: string;
+};
+const ENTRY_COLUMNS: GridColumn<keyof EntryRow & string>[] = [
+  { key: 'kind', label: 'Type', width: 140 },
+  { key: 'docNo', label: 'Waybill', width: 100 },
+  { key: 'date', label: 'Date', width: 95, render: showDate },
+  { key: 'debit', label: 'Debit', width: 140, mono: true },
+  { key: 'credit', label: 'Credit', width: 140, mono: true },
+  { key: 'amount', label: 'Amount', width: 100, format: 'number', align: 'right', render: moneyCell },
+  { key: 'vat', label: 'VAT part', width: 85, format: 'number', align: 'right', render: moneyCell },
+  { key: 'unit', label: 'Unit', width: 80 },
+  { key: 'quantity', label: 'Qty', width: 70, format: 'number', align: 'right' },
+  { key: 'comment', label: 'Comment', width: 360 },
+];
+
+type ProblemRow = {
+  waybillNo: string; date: string; supplier: string; goodsName: string; total: number;
+  account: string; project: string; scheme: string; reason: string;
+};
+const PROBLEM_COLUMNS: GridColumn<keyof ProblemRow & string>[] = [
+  { key: 'waybillNo', label: 'Waybill', width: 100 },
+  { key: 'date', label: 'Date', width: 95, render: showDate },
+  { key: 'supplier', label: 'Supplier', width: 180 },
+  { key: 'goodsName', label: 'Goods', width: 260 },
+  { key: 'total', label: 'Amount', width: 100, format: 'number', align: 'right', render: moneyCell },
+  { key: 'account', label: 'Account', width: 90, mono: true },
+  { key: 'project', label: 'Project', width: 200 },
+  { key: 'scheme', label: 'Kind', width: 170 },
+  { key: 'reason', label: 'Why not exported', width: 280 },
+];
 
 function previousMonth() {
   const now = new Date();
@@ -84,6 +122,39 @@ export function OrisExport() {
   const [tab, setTab] = useState<'entries' | 'problems'>('entries');
 
   const query = `from=${from}&to=${to}`;
+
+  const entryRows = useMemo<EntryRow[]>(
+    () =>
+      (preview?.entries ?? []).map((e) => ({
+        kind: KIND_LABELS[e.kind],
+        docNo: e.docNo,
+        date: toIso(e.date),
+        debit: e.debit,
+        credit: e.credit,
+        amount: e.amount,
+        vat: e.vat,
+        unit: e.unit ?? '',
+        quantity: e.quantity,
+        comment: e.comment?.split('\n')[0] ?? '',
+        fullComment: e.comment ?? '',
+      })),
+    [preview]
+  );
+  const problemRows = useMemo<ProblemRow[]>(
+    () =>
+      (preview?.notExported ?? []).map((r) => ({
+        waybillNo: r.waybillNo,
+        date: toIso(r.date),
+        supplier: r.supplier ?? '',
+        goodsName: r.goodsName ?? '',
+        total: r.total,
+        account: r.account ?? '',
+        project: r.project ?? '',
+        scheme: SCHEME_LABELS[r.scheme] ?? r.scheme,
+        reason: r.problems.join('; '),
+      })),
+    [preview]
+  );
 
   const load = async () => {
     setLoading(true);
@@ -151,38 +222,13 @@ export function OrisExport() {
           </div>
 
           {tab === 'entries' ? (
-            <div className="overflow-auto max-h-[60vh] border rounded">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-muted">
-                  <tr className="text-left">
-                    <th className="px-2 py-1">Type</th>
-                    <th className="px-2 py-1">Waybill</th>
-                    <th className="px-2 py-1">Date</th>
-                    <th className="px-2 py-1">Debit</th>
-                    <th className="px-2 py-1">Credit</th>
-                    <th className="px-2 py-1 text-right">Amount</th>
-                    <th className="px-2 py-1">Unit</th>
-                    <th className="px-2 py-1 text-right">Qty</th>
-                    <th className="px-2 py-1">Comment</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.entries.map((entry, index) => (
-                    <tr key={index} className="border-t align-top">
-                      <td className="px-2 py-1 whitespace-nowrap">{KIND_LABELS[entry.kind]}</td>
-                      <td className="px-2 py-1">{entry.docNo}</td>
-                      <td className="px-2 py-1 whitespace-nowrap">{entry.date}</td>
-                      <td className="px-2 py-1 font-mono whitespace-nowrap">{entry.debit}</td>
-                      <td className="px-2 py-1 font-mono whitespace-nowrap">{entry.credit}</td>
-                      <td className="px-2 py-1 text-right tabular-nums">{money(entry.amount)}</td>
-                      <td className="px-2 py-1">{entry.unit ?? ''}</td>
-                      <td className="px-2 py-1 text-right tabular-nums">{entry.quantity ?? ''}</td>
-                      <td className="px-2 py-1 max-w-[360px] truncate" title={entry.comment ?? ''}>{entry.comment?.split('\n')[0] ?? ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <OrisExportGrid
+              storageKey="oris-export-entries-grid"
+              columns={ENTRY_COLUMNS}
+              rows={entryRows}
+              defaultSort="docNo"
+              rowTitle={(row) => row.fullComment || undefined}
+            />
           ) : (
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2 text-xs">
@@ -192,36 +238,7 @@ export function OrisExport() {
                   </span>
                 ))}
               </div>
-              <div className="overflow-auto max-h-[60vh] border rounded">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-muted">
-                    <tr className="text-left">
-                      <th className="px-2 py-1">Waybill</th>
-                      <th className="px-2 py-1">Date</th>
-                      <th className="px-2 py-1">Supplier</th>
-                      <th className="px-2 py-1">Goods</th>
-                      <th className="px-2 py-1 text-right">Amount</th>
-                      <th className="px-2 py-1">Account</th>
-                      <th className="px-2 py-1">Project</th>
-                      <th className="px-2 py-1">Why not exported</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.notExported.map((row) => (
-                      <tr key={row.itemId} className="border-t align-top">
-                        <td className="px-2 py-1">{row.waybillNo}</td>
-                        <td className="px-2 py-1 whitespace-nowrap">{row.date}</td>
-                        <td className="px-2 py-1">{row.supplier ?? ''}</td>
-                        <td className="px-2 py-1 max-w-[280px] truncate" title={row.goodsName ?? ''}>{row.goodsName ?? ''}</td>
-                        <td className="px-2 py-1 text-right tabular-nums">{money(row.total)}</td>
-                        <td className="px-2 py-1 font-mono">{row.account ?? ''}</td>
-                        <td className="px-2 py-1 max-w-[200px] truncate" title={row.project ?? ''}>{row.project ?? ''}</td>
-                        <td className="px-2 py-1 text-amber-800">{row.problems.join('; ')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <OrisExportGrid storageKey="oris-export-problems-grid" columns={PROBLEM_COLUMNS} rows={problemRows} defaultSort="waybillNo" />
             </div>
           )}
         </>
