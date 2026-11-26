@@ -5510,3 +5510,13 @@
 - Commit: 230ac3c
 - Production: https://ice-5ewtissay-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
+
+## 2026-11-26 (3)
+- Summary: ORIS Export page: accounting entries for incoming waybills in the ORIS import layout.
+- Changes:
+  - New page /dictionaries/oris-export and GET /api/oris-export: goods, expenses per waybill, project cost in two entries and VAT per waybill, built with the RS_Export_WB Google Sheets rules; preview with held-back lines and reasons; .xlsx download in the ORIS font. Same lines can be exported again.
+  - Lines missing a supplier ORIS ID, inventory code or project ORIS 1630 account are held back instead of exported as #N/A; expense waybills without VAT get no VAT entry.
+  - Menu entry under Waybill Items; AGENTS.md section "ORIS Accounting Export".
+- Commit: d8895a7
+- Production: https://ice-diqmn7jrh-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint, unit tests (8) and build passed; January 2025 checked against the sheet (107 of 147 waybills identical, the rest explained by held-back lines and #N/A rows).
