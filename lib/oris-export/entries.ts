@@ -5,10 +5,12 @@
 // Scheme per line (from the sheets' Case_Matrix and filters):
 //   account set, starts with 7   → expense: one entry per waybill, debit = the first line's account
 //   account set, starts with 2   → fixed asset: not exported (the 2024 sheet filters these out)
-//   account set, anything else   → goods: debit account_inventoryCode, credit 3_1_10_supplierOris
-//   no account, project set      → project cost: 1_6_20_inventoryCode ← supplier, then project 1630 ← 1_6_20_inventoryCode
+//   account set, anything else   → goods: debit "account inventoryCode", credit "3 1 10 supplierOris"
+//   no account, project set      → project cost: "1 6 20 inventoryCode" ← supplier, then project 1630 ← "1 6 20 inventoryCode"
 //   neither                      → not exportable
-// VAT: one entry per waybill and VAT type, debit 3_3_40_01 (3_3_40_001 when the debit account starts
+// Accounts are written with spaces, not underscores ("1 6 20 10754"), decided 2026-11-26; accounts
+// stored with underscores (corresponding_account "1_6_20") are converted.
+// VAT: one entry per waybill and VAT type, debit 3 3 40 01 (3 3 40 001 when the debit account starts
 // with 2), credit the supplier account, amount = the VAT parts of that waybill's entries.
 //
 // One deliberate difference from the sheet: an expense waybill without VAT gets VAT 0. The sheet's
@@ -72,10 +74,13 @@ const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 1
 
 export const vatPart = (total: number) => round2((total / 1.18) * 0.18);
 
-const SUPPLIER_ACCOUNT_PREFIX = '3_1_10_';
-const PROJECT_STOCK_ACCOUNT = '1_6_20';
-const VAT_ACCOUNT = '3_3_40_01';
-const VAT_CAPEX_ACCOUNT = '3_3_40_001';
+const SUPPLIER_ACCOUNT_PREFIX = '3 1 10 ';
+const PROJECT_STOCK_ACCOUNT = '1 6 20';
+const VAT_ACCOUNT = '3 3 40 01';
+const VAT_CAPEX_ACCOUNT = '3 3 40 001';
+
+/** Account as ORIS gets it: parts separated by single spaces ("1_6_20" → "1 6 20"). */
+export const orisAccount = (account: string) => account.trim().replace(/[_\s]+/g, ' ');
 
 export const supplierAccount = (line: OrisLine) => `${SUPPLIER_ACCOUNT_PREFIX}${line.supplierOris}`;
 
@@ -122,7 +127,7 @@ export function buildEntries(lines: OrisLine[]) {
         kind: 'goods',
         docNo: line.waybillNo,
         date: line.date,
-        debit: `${line.account!.trim()}_${line.inventoryCode}`,
+        debit: `${orisAccount(line.account!)} ${line.inventoryCode}`,
         credit: supplierAccount(line),
         amount: round2(line.total - vat),
         vat,
@@ -148,7 +153,7 @@ export function buildEntries(lines: OrisLine[]) {
       kind: 'expense',
       docNo: first.waybillNo,
       date: first.date,
-      debit: first.account!.trim(),
+      debit: orisAccount(first.account!),
       credit: supplierAccount(first),
       amount,
       vat,
@@ -166,7 +171,7 @@ export function buildEntries(lines: OrisLine[]) {
       kind: 'project_in',
       docNo: line.waybillNo,
       date: line.date,
-      debit: `${PROJECT_STOCK_ACCOUNT}_${line.inventoryCode}`,
+      debit: `${PROJECT_STOCK_ACCOUNT} ${line.inventoryCode}`,
       credit: supplierAccount(line),
       amount: round2(line.total - vat),
       vat,
@@ -179,7 +184,7 @@ export function buildEntries(lines: OrisLine[]) {
   const projectOut: OrisEntry[] = projectIn.map((entry, index) => ({
     ...entry,
     kind: 'project_out',
-    debit: projectLines[index].project1630!.trim(),
+    debit: orisAccount(projectLines[index].project1630!),
     credit: entry.debit,
     vat: 0,
   }));
@@ -218,11 +223,13 @@ export function buildEntries(lines: OrisLine[]) {
 
 // ── File layout ──────────────────────────────────────────────────────────────
 
-const STOCK_PREFIXES = ['1_6_20', '1_6_10', '2', '1_6_70'];
+const STOCK_PREFIXES = ['1 6 20', '1 6 10', '2', '1 6 70'];
 
-/** The sheet's stock flag: 1 when the account is a stock account (1_6_20, 1_6_10, 1_6_70 or 2…). */
-export const isStockAccount = (account: string) =>
-  STOCK_PREFIXES.includes(account.startsWith('2') ? account.slice(0, 1) : account.slice(0, 6));
+/** The sheet's stock flag: 1 when the account is a stock account (1 6 20, 1 6 10, 1 6 70 or 2…). */
+export const isStockAccount = (account: string) => {
+  const normalized = orisAccount(account);
+  return STOCK_PREFIXES.includes(normalized.startsWith('2') ? normalized.slice(0, 1) : normalized.slice(0, 6));
+};
 
 /** TEXT(x, " ######0.00"): a leading space, then the amount with two decimals. */
 export const formatAmount = (value: number) => ` ${value.toFixed(2)}`;

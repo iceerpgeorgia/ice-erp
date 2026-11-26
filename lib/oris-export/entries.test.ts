@@ -28,8 +28,8 @@ describe('ORIS export entries', () => {
     const { entries } = buildEntries([line()]);
     expect(entries).toHaveLength(2);
     const [goods, vat] = entries;
-    expect(goods).toMatchObject({ kind: 'goods', debit: '1_6_20_10754', credit: '3_1_10_2676', amount: 593.22, vat: 106.78, quantity: 14 });
-    expect(vat).toMatchObject({ kind: 'vat', debit: '3_3_40_01', credit: '3_1_10_2676', amount: 106.78 });
+    expect(goods).toMatchObject({ kind: 'goods', debit: '1 6 20 10754', credit: '3 1 10 2676', amount: 593.22, vat: 106.78, quantity: 14 });
+    expect(vat).toMatchObject({ kind: 'vat', debit: '3 3 40 01', credit: '3 1 10 2676', amount: 106.78 });
   });
 
   it('matches the sheet amount for 97 GEL with VAT', () => {
@@ -41,8 +41,8 @@ describe('ORIS export entries', () => {
     const { entries } = buildEntries([line({ account: null, projectName: 'Dry Port', project1630: '1 6 30 2492', total: 20, inventoryCode: '01801' })]);
     const kinds = entries.map((e) => e.kind);
     expect(kinds).toEqual(['project_in', 'project_out', 'vat']);
-    expect(entries[0]).toMatchObject({ debit: '1_6_20_01801', credit: '3_1_10_2676' });
-    expect(entries[1]).toMatchObject({ debit: '1 6 30 2492', credit: '1_6_20_01801', amount: entries[0].amount, vat: 0 });
+    expect(entries[0]).toMatchObject({ debit: '1 6 20 01801', credit: '3 1 10 2676' });
+    expect(entries[1]).toMatchObject({ debit: '1 6 30 2492', credit: '1 6 20 01801', amount: entries[0].amount, vat: 0 });
     expect(entries[2].amount).toBe(entries[0].vat);
   });
 
@@ -52,7 +52,7 @@ describe('ORIS export entries', () => {
       line({ itemId: '2', account: '7_4_91', total: 12.6, inventoryCode: null }),
     ]);
     const expense = entries.find((e) => e.kind === 'expense')!;
-    expect(expense.debit).toBe('7_4_41');
+    expect(expense.debit).toBe('7 4 41');
     expect(expense.amount).toBe(Math.round((25.5 / 1.18) * 100) / 100 + Math.round((12.6 / 1.18) * 100) / 100);
     expect(expense.itemIds).toEqual(['1', '2']);
   });
@@ -77,7 +77,7 @@ describe('ORIS export entries', () => {
   it('builds the Sylfaen row and the CSV row in the ORIS font', () => {
     const { entries } = buildEntries([line()]);
     const row = sylfaenRow(entries[0]);
-    expect(row.slice(0, 15)).toEqual(['873309993', 0, '20.01.2025', '1_6_20_10754', '3_1_10_2676', '', ' 593.22', 'GEL', expect.any(String), 1, '', 'ცალი', 14, 14, 'IMPORT']);
+    expect(row.slice(0, 15)).toEqual(['873309993', 0, '20.01.2025', '1 6 20 10754', '3 1 10 2676', '', ' 593.22', 'GEL', expect.any(String), 1, '', 'ცალი', 14, 14, 'IMPORT']);
     const csv = csvRows(entries)[0];
     expect(csv.slice(0, 3)).toEqual(['', '', '']);
     expect(csv[14]).toBe('ÝÀËÉ');
@@ -90,6 +90,7 @@ describe('ORIS export entries', () => {
     expect(toOrisFont('მ² მ³ ჯ ჰ')).toBe('Ì2 Ì3 ã ä');
     expect(isStockAccount('1_6_20_10754')).toBe(true);
     expect(isStockAccount('2_1_60_1')).toBe(true);
+    expect(isStockAccount('1 6 70 03098')).toBe(true);
     expect(isStockAccount('1_6_35_1')).toBe(false);
     expect(isStockAccount('1 6 30 2492')).toBe(false);
   });
