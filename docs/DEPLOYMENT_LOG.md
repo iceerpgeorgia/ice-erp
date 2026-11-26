@@ -5501,3 +5501,12 @@
 - Commit: 1d69ee5
 - Production: https://ice-dvyaha7fs-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; popup checked locally in the browser on a project (cell and column total).
+
+## 2026-11-26 (2)
+- Summary: Waybill item AI matching no longer reads standards, codes and pack weights as sizes.
+- Changes:
+  - Steps 4-5 size rule ignores DIN/ISO/GOST numbers, leading catalogue codes ("2.11-"), short codes and grades in brackets ("(1C)", "(A/1)") and package weights ("25კგ"); the prompt says the same.
+  - Read-only measurements added: scripts/eval-shortlist-recall.ts, scripts/eval-unsuggested-rerun.ts (dry run since 29.05.2026: 89 of 1,427 unsuggested goods names would get a suggestion).
+- Commit: 230ac3c
+- Production: https://ice-5ewtissay-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
