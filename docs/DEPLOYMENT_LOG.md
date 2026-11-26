@@ -5520,3 +5520,11 @@
 - Commit: d8895a7
 - Production: https://ice-diqmn7jrh-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint, unit tests (8) and build passed; January 2025 checked against the sheet (107 of 147 waybills identical, the rest explained by held-back lines and #N/A rows).
+
+## 2026-11-26 (4)
+- Summary: ORIS Export grids get filters, sorting, search, resizable and reorderable columns.
+- Changes:
+  - Entries and Not exported grids: per-column filters (shared filter popover), sorting, search, column resize, drag-to-reorder, Columns menu and reset; layout and filters saved per grid in the browser.
+- Commit: 407bcb6
+- Production: https://ice-c4har3asj-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; grid checked locally on January 2025 (resize, reorder, sort, Type = VAT filter).
