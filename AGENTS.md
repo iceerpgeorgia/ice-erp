@@ -80,7 +80,7 @@ What each page of the app is for, in plain words. Every page in `app/` must have
 
 **Projects and jobs**
 - `/dictionaries/projects` — Projects: projects with value, currency, counteragent and insider; changing a value rescales the project's automatic ledger entries.
-- `/dictionaries/projects-report` — Projects Report: each project's value, payments and balance.
+- `/dictionaries/projects-report` — Projects Report: each project's value, payments and balance; hovering over an amount (or a column total) shows the names of the counteragents of the payments in it (first 25, then "+N more"; names only, no amounts).
 - `/dictionaries/jobs` — Jobs: jobs (for example lifts) bound to projects, with selling price.
 - `/handovers` — Handovers: for one project, its jobs, the income payments and how they are distributed across the jobs; emit (lock) a handover; export to Excel.
 - `/handovers/print` — Handover Print Form: the printable handover document.

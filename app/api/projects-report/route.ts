@@ -121,13 +121,15 @@ export async function GET(request: NextRequest) {
           COALESCE(j.job_name, NULL) AS job_name,
           COALESCE(insider_ca.insider_name, insider_ca.name, insider_ca.counteragent, '-') AS insider_name,
           COALESCE(proj.department, '-') AS department,
-          COALESCE(j.floors, 0) AS job_floors
+          COALESCE(j.floors, 0) AS job_floors,
+          NULLIF(BTRIM(COALESCE(pay_ca.name, pay_ca.counteragent, '')), '') AS counteragent_name
         FROM payments p
         LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
         LEFT JOIN project_states ps ON proj.state_uuid = ps.uuid
         LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
         LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
         LEFT JOIN counteragents insider_ca ON proj.insider_uuid = insider_ca.counteragent_uuid
+        LEFT JOIN counteragents pay_ca ON pay_ca.counteragent_uuid = p.counteragent_uuid
         WHERE p.is_active = true
           AND p.project_uuid IN (${projectPlaceholders})
           ${insiderFilter}
@@ -300,6 +302,7 @@ export async function GET(request: NextRequest) {
         MAX(sp.job_floors) AS job_floors,
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) AS payment_ids,
         COUNT(DISTINCT sp.payment_id) AS payment_count,
+        ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.counteragent_name ORDER BY sp.counteragent_name), NULL) AS counteragent_names,
         SUM(COALESCE(la.total_accrual, 0)) AS accrual,
         SUM(COALESCE(ll.latest_accrual, 0)) AS latest_accrual,
         SUM(COALESCE(la.total_order, 0)) AS "order",
@@ -389,6 +392,7 @@ export async function GET(request: NextRequest) {
         accrualPerFloor: number;
         jobFloors: number;
         paymentIds: string[];
+        counteragentNames: string[];
         latestDate: string | null;
         accrualTax: number;
         latestAccrualTax: number;
@@ -452,6 +456,10 @@ export async function GET(request: NextRequest) {
         jobFloors: floors,
         paymentIds: Array.isArray(row.payment_ids)
           ? row.payment_ids.filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
+          : [],
+        // Counteragents of the payments summed in this cell (shown on hover in the report).
+        counteragentNames: Array.isArray(row.counteragent_names)
+          ? row.counteragent_names.filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
           : [],
         latestDate: row.latest_date || null,
         accrualTax: Number(row.accrual_tax || 0),

@@ -51,6 +51,7 @@ type CellData = {
   accrualPerFloor: number;
   jobFloors: number;
   paymentIds: string[];
+  counteragentNames?: string[];
   latestDate: string | null;
   accrualTax: number;
   latestAccrualTax: number;
@@ -223,6 +224,13 @@ export function ProjectsReportTable() {
   const [showNulls, setShowNulls] = useState(true);
   const [defaultCurrency, setDefaultCurrency] = useState<'GEL' | 'USD' | 'EUR'>('GEL');
   const [fcTooltip, setFcTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  // Hover popup on amounts: the counteragents of the payments summed in that amount (names only).
+  const [caTooltip, setCaTooltip] = useState<{ names: string[]; x: number; y: number } | null>(null);
+  const counteragentHover = (getNames: () => string[]) => ({
+    onMouseEnter: (e: React.MouseEvent) => setCaTooltip({ names: getNames(), x: e.clientX, y: e.clientY }),
+    onMouseMove: (e: React.MouseEvent) => setCaTooltip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t)),
+    onMouseLeave: () => setCaTooltip(null),
+  });
   const [projectCurrencies, setProjectCurrencies] = useState<Record<string, 'USD' | 'GEL' | 'EUR'>>({});
   const [projectOrder, setProjectOrder] = useState<string[]>([]);
   const [projectLoadingUuids, setProjectLoadingUuids] = useState<Set<string>>(new Set());
@@ -1648,6 +1656,23 @@ export function ProjectsReportTable() {
           {fcTooltip.text}
         </div>
       )}
+      {caTooltip && (
+        <div
+          className="fixed z-[9999] px-2 py-1.5 bg-gray-800 text-white text-[11px] rounded shadow-lg max-w-[320px] leading-snug pointer-events-none"
+          style={{ left: caTooltip.x, top: caTooltip.y - 10, transform: 'translate(-50%, -100%)' }}
+        >
+          {caTooltip.names.length > 0 ? (
+            <>
+              {caTooltip.names.slice(0, 25).map((name) => <div key={name} className="truncate">{name}</div>)}
+              {caTooltip.names.length > 25 && (
+                <div className="italic text-gray-300">+{caTooltip.names.length - 25} more</div>
+              )}
+            </>
+          ) : (
+            <div className="italic text-gray-300">No counteragent</div>
+          )}
+        </div>
+      )}
       {/* ── Views bar ── */}
       {viewsReady && (
         <div className="flex items-center gap-2">
@@ -2506,7 +2531,7 @@ export function ProjectsReportTable() {
                                     key={`${fc.uuid}:${m}`}
                                     className={`relative px-3 py-2 text-right tabular-nums overflow-hidden ${isLast ? 'border-r border-gray-200' : 'border-r border-gray-100'}`}
                                     style={{ width: colW, maxWidth: colW }}
-                                    title={cell?.paymentIds?.join(', ') || undefined}
+                                    {...(value !== 0 ? counteragentHover(() => cell?.counteragentNames ?? []) : {})}
                                   >
                                     {mi === 0 && (
                                       <button
@@ -2563,6 +2588,9 @@ export function ProjectsReportTable() {
                                 key={`${fc.uuid}:${m}`}
                                 className={`px-3 py-2 text-right tabular-nums ${isLast ? 'border-r border-gray-200' : 'border-r border-gray-100'}`}
                                 style={{ width: colW, maxWidth: colW }}
+                                {...(!NON_ADDITIVE_METRICS.has(m) && colTotal !== 0
+                                  ? counteragentHover(() => Array.from(new Set(jobList.flatMap((job) => cellMap.get(`${job.key}:${fc.uuid}`)?.counteragentNames ?? []))).sort((a, b) => a.localeCompare(b)))
+                                  : {})}
                               >
                                 {NON_ADDITIVE_METRICS.has(m)
                                   ? <span className="text-gray-300">—</span>
