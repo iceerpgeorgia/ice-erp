@@ -5537,3 +5537,12 @@
 - Commits: 1318334, 86aadad
 - Production: https://ice-jatlbmnnn-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint, unit tests (8) and build passed; first-click filter checked locally on Countries.
+
+## 2026-11-26 (6)
+- Summary: ORIS export fills missing supplier ORIS IDs from Excel and from the ORIS organisations file.
+- Changes:
+  - "Supplier has no ORIS ID" chip on the Not exported tab opens a panel: download the period's suppliers without an ORIS ID (label, UUID, lines, amount, empty ORIS ID column) and upload the filled file (`/api/oris-export/supplier-oris`).
+  - Upload of the ORIS organisations export (`/api/oris-export/organisations`): matched by tax ID; an empty ORIS ID is filled only when exactly one ORIS organisation has the tax ID and no other counteragent holds the code; existing ORIS IDs are never changed; preview before saving; audit log per change.
+- Commits: cf4620c
+- Production: https://ice-r6y02eusv-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint, unit tests (10) and build passed; dry run on the ORIS file: 258 ORIS IDs to fill. Nothing uploaded yet.
