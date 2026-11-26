@@ -5528,3 +5528,12 @@
 - Commit: 407bcb6
 - Production: https://ice-c4har3asj-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; grid checked locally on January 2025 (resize, reorder, sort, Type = VAT filter).
+
+## 2026-11-26 (5)
+- Summary: Filter options show on the first click in every table; ORIS export accounts use spaces.
+- Changes:
+  - Shared column filter popover: value list element kept in state with an initial size, so options appear on the first click (all tables using ColumnFilterPopover).
+  - ORIS export writes accounts with spaces instead of underscores (1 6 20 10754, 3 1 10 2676, 3 3 40 01, 7 4 41).
+- Commits: 1318334, 86aadad
+- Production: https://ice-jatlbmnnn-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint, unit tests (8) and build passed; first-click filter checked locally on Countries.
