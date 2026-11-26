@@ -267,12 +267,17 @@ export function ColumnFilterPopover({
     return defaultSortValues(filteredValues, renderValue);
   }, [filteredValues, renderValue, sortValues]);
 
-  const facetScrollRef = React.useRef<HTMLDivElement>(null);
+  // The list element lives in state, not a ref: the popover content mounts after the virtualizer
+  // first runs, and only a state change re-renders it with the element in place. With a plain ref
+  // the value list stayed empty until a second click or a keystroke re-rendered the popover.
+  // initialRect lets the first render already show rows before the list is measured.
+  const [facetScrollElement, setFacetScrollElement] = useState<HTMLDivElement | null>(null);
   const facetVirtualizer = useVirtualizer({
     count: sortedFilteredValues.length,
-    getScrollElement: () => facetScrollRef.current,
+    getScrollElement: () => facetScrollElement,
     estimateSize: () => 32,
     overscan: 8,
+    initialRect: { width: 240, height: 192 },
   });
 
   // ── Open / close ──────────────────────────────────────────────────────────
@@ -503,7 +508,7 @@ export function ColumnFilterPopover({
                     className="pl-7 h-8 text-sm"
                   />
                 </div>
-                <div ref={facetScrollRef} className="max-h-48 overflow-auto border rounded p-2">
+                <div ref={setFacetScrollElement} className="max-h-48 overflow-auto border rounded p-2">
                   {optionsLoading ? (
                     <div className="text-xs text-muted-foreground py-6 text-center">Loading options...</div>
                   ) : sortedFilteredValues.length === 0 ? (
