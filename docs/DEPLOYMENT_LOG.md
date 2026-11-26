@@ -5492,3 +5492,12 @@
 - Commit: 2f4be75
 - Production: https://ice-il8gz4sm2-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; recheck trigger tested in a rolled-back transaction.
+
+## 2026-11-26 (1)
+- Summary: Projects Report shows counteragent names when hovering an amount (request from the AI chat).
+- Changes:
+  - Hovering an amount cell or column total shows the counteragents of the payments in it (names only; first 25, then "+N more"); replaces the payment-ID title.
+  - AGENTS.md and the chat textbook describe it.
+- Commit: 1d69ee5
+- Production: https://ice-dvyaha7fs-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed; popup checked locally in the browser on a project (cell and column total).
