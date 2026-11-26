@@ -80,6 +80,7 @@ Pick the candidate that is the same product:
 - The candidate may state more than the goods line, for example a length the goods line leaves out ("drill bit 16MM" = "drill bit 16*150მმ"), as long as nothing in it contradicts the goods line. When several candidates fit, prefer the one whose type and material agree best (metal, wood, stone, SDS).
 - A candidate without any size may match only when it is otherwise the same product and no other candidate has the matching size.
 - Brand names, article codes and colours in the goods line may be missing from the inventory name; that alone is not a mismatch.
+- These numbers are not sizes and may be missing from the candidate: standard numbers (DIN 934, ISO 4032, GOST), catalogue or article codes ("2.11-", "(1C)", "EPLRD0611"), grades in brackets ("(A/1)"), and the package weight of goods sold by weight ("25კგ" on a bag of nuts). "M 10 მმ DIN 934" is the same nut as "M10".
 
 Candidates marked "previously bound" show a goods line that a person already assigned to that inventory. Use it as evidence only when that goods line describes the same product with the same sizes.
 
@@ -95,11 +96,22 @@ export function nameNumbers(value: string | null | undefined): Set<string> {
   return new Set(matches.map((token) => String(Number(token.replace(',', '.')))));
 }
 
-// Size numbers of a goods line. Left out because they are not sizes: article codes (a token starting
-// with two or more Latin letters followed by a digit, such as "TOL648-75162", or holding a 5+ digit
-// number) and percentages ("30%").
+// Size numbers of a goods line. Left out because they are not sizes:
+// - article codes: a token starting with two or more Latin letters followed by a digit
+//   ("TOL648-75162"), or holding a 5+ digit number;
+// - percentages ("30%");
+// - standards: the number after DIN / ISO / GOST / ГОСТ / EN ("DIN 934");
+// - a leading catalogue code such as "2.11-" or "1.09-" ("2.11-M10- 25კგ ქანჩი");
+// - short codes and grades in brackets: "(1C)", "(A/1)", "(V)";
+// - package weights ("25კგ", "20 kg"): for nuts and screws sold by weight that is the pack, not
+//   the item size. The model still sees the full name and decides on weights itself.
 export function sizeNumbers(value: string | null | undefined): Set<string> {
   const withoutCodes = String(value ?? '')
+    .replace(/\b(?:DIN|ISO|GOST|EN)\s*\d+(?:[.,]\d+)?/gi, ' ')
+    .replace(/ГОСТ\s*\d+(?:[.,-]\d+)*/gi, ' ')
+    .replace(/^\s*\d+\.\d+\s*-/, ' ')
+    .replace(/\(\s*\d*[A-Za-zА-Яа-я]{1,3}\s*(?:\/\s*\d{1,2})?\s*\)/g, ' ')
+    .replace(/\d+(?:[.,]\d+)?\s*(?:კგ|kg|кг)(?![A-Za-zა-ჰ])/gi, ' ')
     .split(/\s+/)
     .filter((token) => !/^[A-Za-z]{2,}\d/.test(token) && !/\d{5,}/.test(token))
     .join(' ')
@@ -156,8 +168,14 @@ const formatInventoryLabel = (row: {
  * and the most similar inventories that carry every size of the goods line (so a differently worded
  * inventory with the right size is not crowded out by other sizes of a similar name).
  * excludeItemId leaves that row out of the history candidates (used by the accuracy test).
+ * excludeSameGoodsName leaves out every earlier line with the same goods name, so a test can treat
+ * the goods name as seen for the first time (otherwise its own binding is among the candidates).
  */
-export async function loadLlmCandidates(item: LlmMatchItem, excludeItemId?: bigint): Promise<LlmCandidate[]> {
+export async function loadLlmCandidates(
+  item: LlmMatchItem,
+  excludeItemId?: bigint,
+  excludeSameGoodsName = false
+): Promise<LlmCandidate[]> {
   // Units must match: without a dimension nothing qualifies.
   if (!item.dimensionUuid) return [];
   const sizes = sizeNumbers(item.goodsName);
@@ -192,6 +210,7 @@ export async function loadLlmCandidates(item: LlmMatchItem, excludeItemId?: bigi
                   target t
             WHERE h.insider_uuid = $2::uuid AND h.inventory_uuid IS NOT NULL
               AND h.id <> $3
+              AND NOT ($6::boolean AND waybill_norm_name(h.goods_name) = t.n)
               AND waybill_norm_name(h.goods_name) % t.n
             ORDER BY h.inventory_uuid, s DESC
          ) x
@@ -221,7 +240,8 @@ export async function loadLlmCandidates(item: LlmMatchItem, excludeItemId?: bigi
       item.insiderUuid,
       excludeItemId ?? BigInt(-1),
       item.dimensionUuid,
-      sizedUuids
+      sizedUuids,
+      excludeSameGoodsName
     )
   );
 
