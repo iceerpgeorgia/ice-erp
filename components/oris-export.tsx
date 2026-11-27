@@ -265,6 +265,17 @@ export function OrisExport() {
   );
 }
 
+/** The reply as JSON; a timeout or server page (not JSON) becomes a readable error. */
+async function readJson(res: Response) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (res.status === 504) throw new Error('The server took too long (timeout). Part of the work may be saved; upload the file again to finish.');
+    throw new Error(`The server answered with an error (HTTP ${res.status}).`);
+  }
+}
+
 const SUPPLIER_ORIS_PROBLEM = 'Supplier has no ORIS ID';
 const FIXABLE_PROBLEMS = [SUPPLIER_ORIS_PROBLEM];
 
@@ -285,7 +296,7 @@ function SupplierOrisPanel({ period, onDone }: { period: { from: string; to: str
       const form = new FormData();
       form.append('file', file);
       const res = await fetch('/api/oris-export/supplier-oris', { method: 'POST', body: form });
-      const body = await res.json();
+      const body = await readJson(res);
       if (!res.ok) throw new Error(body.error || 'Upload failed');
       setResult(body);
       if (body.updated > 0) onDone();
@@ -375,7 +386,7 @@ function OrganisationsUpload({ onDone }: { onDone: () => void }) {
       form.append('file', chosen);
       form.append('dryRun', String(dryRun));
       const res = await fetch('/api/oris-export/organisations', { method: 'POST', body: form });
-      const body = await res.json();
+      const body = await readJson(res);
       if (!res.ok) throw new Error(body.error || 'Upload failed');
       setResult(body);
       if (!dryRun && body.applied > 0) onDone();

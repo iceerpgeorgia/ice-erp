@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
-import { logAudit } from '@/lib/audit';
 import { parseOrisOrganisations, planOrganisations, type CounteragentRow } from '@/lib/oris-export/organisations';
 
 export const revalidate = 0;
@@ -46,21 +45,29 @@ export async function POST(request: NextRequest) {
     const plan = planOrganisations(organisations, counteragents);
 
     let applied = 0;
-    if (!dryRun) {
-      for (const change of plan.changes) {
-        // Only while the ORIS ID is still empty: existing ORIS IDs are never changed by this file.
-        const { count } = await prisma.counteragents.updateMany({
-          where: { id: change.counteragentId, OR: [{ oris_id: null }, { oris_id: '' }] },
-          data: { oris_id: change.to },
-        });
-        if (count === 0) continue;
-        await logAudit({
-          table: 'counteragents',
-          recordId: change.counteragentId,
-          action: 'update',
-          changes: { oris_id: { from: null, to: change.to }, source: 'ORIS organisations file' },
-        });
-        applied += 1;
+    if (!dryRun && plan.changes.length > 0) {
+      // One statement for all rows (one by one took ~0.7 s each and ran past the time limit), and
+      // only while the ORIS ID is still empty: existing ORIS IDs are never changed by this file.
+      const saved = await prisma.$queryRawUnsafe<Array<{ id: bigint; oris_id: string }>>(
+        `UPDATE counteragents c SET oris_id = v.oris_id
+           FROM unnest($1::bigint[], $2::text[]) AS v(id, oris_id)
+          WHERE c.id = v.id AND nullif(btrim(c.oris_id), '') IS NULL
+         RETURNING c.id, c.oris_id`,
+        plan.changes.map((c) => c.counteragentId.toString()),
+        plan.changes.map((c) => c.to)
+      );
+      applied = saved.length;
+      if (saved.length > 0) {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "AuditLog" ("table", "record_id", "action", "user_email", "user_id", "changes")
+           SELECT 'counteragents', v.id, 'update', $3, $4,
+                  jsonb_build_object('oris_id', jsonb_build_object('from', NULL, 'to', v.oris_id), 'source', 'ORIS organisations file')
+             FROM unnest($1::bigint[], $2::text[]) AS v(id, oris_id)`,
+          saved.map((r) => r.id.toString()),
+          saved.map((r) => r.oris_id),
+          auth.user.email ?? null,
+          auth.user.id ?? null
+        );
       }
     }
 
