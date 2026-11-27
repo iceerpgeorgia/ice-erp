@@ -427,6 +427,8 @@ model counteragents {
   insider_name                String?
   department                  String?
   job_title                   String?
+  /// Default cost financial code for this counteragent's incoming waybills (is_income = false, leaf)
+  default_cost_fc_uuid        String?                    @db.Uuid
   bank_transaction_batches    bank_transaction_batches[]
   counteragent_audit_log      counteragent_audit_log[]
 

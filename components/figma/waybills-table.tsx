@@ -23,11 +23,6 @@ import { useTableFilters } from './shared/use-table-filters';
 import * as XLSX from 'xlsx';
 import { CounteragentFormDialog } from './CounteragentFormDialog';
 
-const CORRESPONDING_ACCOUNTS = [
-  '1_4_30','1_6_10','1_6_20','1_6_30','1_6_55','1_6_70','2_1_50','2_1_60','2_1_70',
-  '3_1_10','3_1_90','7_4_15','7_4_20','7_4_21','7_4_22','7_4_22_1','7_4_22_2','7_4_30',
-  '7_4_41','7_4_42','7_4_45','7_4_56','7_4_60','7_4_65','7_4_70','7_4_85','7_4_90','7_4_91'
-];
 const NONE_OPTION_VALUE = '__none__';
 const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
 
@@ -63,6 +58,10 @@ type Waybill = {
   project_uuid?: string | null;
   financial_code_uuid?: string | null;
   corresponding_account?: string | null;
+  // Set when items of the waybill carry their own values (a split): the distinct values, null = none.
+  split_projects?: Array<string | null> | null;
+  split_financial_codes?: Array<string | null> | null;
+  split_accounts?: Array<string | null> | null;
   date?: string | null;
   period?: string | null;
   insiderName?: string | null;
@@ -188,7 +187,6 @@ export function WaybillsTable() {
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [bulkProjectUuid, setBulkProjectUuid] = useState('');
   const [bulkFinancialCodeUuid, setBulkFinancialCodeUuid] = useState('');
-  const [bulkCorrespondingAccount, setBulkCorrespondingAccount] = useState('');
   const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -877,7 +875,6 @@ export function WaybillsTable() {
         body: JSON.stringify({
           project_uuid: editing.project_uuid || null,
           financial_code_uuid: editing.financial_code_uuid || null,
-          corresponding_account: editing.corresponding_account || null,
           note: editing.note || null,
         })
       });
@@ -887,6 +884,8 @@ export function WaybillsTable() {
         setData((prev) => prev.map((row) => (row.id === body.data.id ? body.data : row)));
       }
       setEditing(null);
+      // The items follow the waybill's new values and its split may have ended: reload to show it.
+      void fetchWaybills();
     } catch (err: any) {
       console.error('Update error', err);
       alert(err?.message || 'Update failed');
@@ -938,6 +937,24 @@ export function WaybillsTable() {
   const getCellValue = useCallback((row: Waybill, columnKey: ColumnKey) => {
     if (columnKey === 'insiderName') {
       return requiredInsiderName;
+    }
+    // Split at item level: show every value the items carry.
+    const split =
+      columnKey === 'project_uuid' ? row.split_projects
+        : columnKey === 'financial_code_uuid' ? row.split_financial_codes
+          : columnKey === 'corresponding_account' ? row.split_accounts
+            : null;
+    if (split && split.length > 0) {
+      const label = (value: string | null) => {
+        if (!value) return '(none)';
+        if (columnKey === 'project_uuid') {
+          const project = projects.find((p) => p.project_uuid === value);
+          return project?.project_name || projectLabelMap.get(value) || value;
+        }
+        if (columnKey === 'financial_code_uuid') return financialCodeLabelMap.get(value) || value;
+        return value;
+      };
+      return `Split: ${split.map(label).join(' + ')}`;
     }
     if (columnKey === 'project_uuid') {
       if (!row.project_uuid) return '';
@@ -1305,13 +1322,12 @@ export function WaybillsTable() {
   const resetBulkEdit = () => {
     setBulkProjectUuid('');
     setBulkFinancialCodeUuid('');
-    setBulkCorrespondingAccount('');
     setIsBulkSaving(false);
   };
 
   const handleBulkEditSave = async () => {
     if (!selectedIds.size) return;
-    if (!bulkProjectUuid && !bulkFinancialCodeUuid && !bulkCorrespondingAccount) {
+    if (!bulkProjectUuid && !bulkFinancialCodeUuid) {
       alert('Select at least one field to update');
       return;
     }
@@ -1328,11 +1344,6 @@ export function WaybillsTable() {
       if (bulkFinancialCodeUuid !== '') {
         payload.financial_code_uuid =
           bulkFinancialCodeUuid === NONE_OPTION_VALUE ? null : bulkFinancialCodeUuid;
-      }
-
-      if (bulkCorrespondingAccount !== '') {
-        payload.corresponding_account =
-          bulkCorrespondingAccount === NONE_OPTION_VALUE ? null : bulkCorrespondingAccount;
       }
 
       const response = await fetch('/api/waybills/bulk', {
@@ -1355,15 +1366,14 @@ export function WaybillsTable() {
             financial_code_uuid: bulkFinancialCodeUuid !== ''
               ? (bulkFinancialCodeUuid === NONE_OPTION_VALUE ? null : bulkFinancialCodeUuid)
               : row.financial_code_uuid || null,
-            corresponding_account: bulkCorrespondingAccount !== ''
-              ? (bulkCorrespondingAccount === NONE_OPTION_VALUE ? null : bulkCorrespondingAccount)
-              : row.corresponding_account || null,
           };
         })
       );
       setSelectedIds(new Set());
       setIsBulkEditOpen(false);
       resetBulkEdit();
+      // The corresponding account follows the new financial code in the database: reload to show it.
+      if (bulkFinancialCodeUuid !== '') void fetchWaybills();
     } catch (err: any) {
       console.error('Bulk update error', err);
       alert(err?.message || 'Bulk update failed');
@@ -1650,20 +1660,6 @@ export function WaybillsTable() {
                       emptyText="No financial codes found"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Corresponding Account</Label>
-                    <select
-                      className="w-full border rounded px-3 py-2 text-sm"
-                      value={bulkCorrespondingAccount}
-                      onChange={(e) => setBulkCorrespondingAccount(e.target.value)}
-                    >
-                      <option value="">Select account</option>
-                      <option value={NONE_OPTION_VALUE}>No corresponding account</option>
-                      {CORRESPONDING_ACCOUNTS.map((acc) => (
-                        <option key={acc} value={acc}>{acc}</option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
                   <Button variant="outline" onClick={() => setIsBulkEditOpen(false)} disabled={isBulkSaving}>
@@ -1923,6 +1919,14 @@ export function WaybillsTable() {
           </DialogHeader>
           {editing && (
             <div className="space-y-4">
+              {(editing.split_projects || editing.split_financial_codes) && (
+                <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  This waybill is split across its items ({[
+                    editing.split_projects ? 'projects' : '',
+                    editing.split_financial_codes ? 'financial codes' : '',
+                  ].filter(Boolean).join(' and ')}). Changing the project or financial code here gives it to all items and ends the split.
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Project</Label>
                 <Combobox
@@ -1957,23 +1961,12 @@ export function WaybillsTable() {
               </div>
               <div className="space-y-2">
                 <Label>Corresponding Account</Label>
-                <select
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  value={editing.corresponding_account ?? NONE_OPTION_VALUE}
-                  onChange={(e) =>
-                    setEditing({
-                      ...editing,
-                      corresponding_account: e.target.value === NONE_OPTION_VALUE
-                        ? null
-                        : e.target.value,
-                    })
-                  }
-                >
-                  <option value={NONE_OPTION_VALUE}>No corresponding account</option>
-                  {CORRESPONDING_ACCOUNTS.map((acc) => (
-                    <option key={acc} value={acc}>{acc}</option>
-                  ))}
-                </select>
+                <div className="w-full rounded border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                  {editing.corresponding_account || '—'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Set automatically from the financial code&apos;s ORIS account when the financial code is saved.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Note</Label>

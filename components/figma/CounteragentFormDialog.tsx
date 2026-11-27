@@ -28,6 +28,7 @@ interface FormData {
   email: string;
   phone: string;
   orisId: string;
+  defaultCostFcUuid: string;
   isActive: boolean;
   isEmploye: boolean;
   wasEmploye: boolean;
@@ -89,6 +90,7 @@ export function CounteragentFormDialog({
     email: '',
     phone: '',
     orisId: '',
+    defaultCostFcUuid: '',
     isActive: true,
     isEmploye: false,
     wasEmploye: false,
@@ -98,6 +100,21 @@ export function CounteragentFormDialog({
   });
 
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+  // Default Cost Code options: cost codes (is_income = false) without child codes.
+  const [costCodes, setCostCodes] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
+  useEffect(() => {
+    if (!isOpen || costCodes.length > 0) return;
+    let cancelled = false;
+    fetch('/api/financial-codes?isIncome=false&leafOnly=true')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!cancelled) setCostCodes(Array.isArray(data) ? data.filter((c: any) => c.uuid) : []);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, costCodes.length]);
   const [loading, setLoading] = useState(false);
 
   const getErrorMessage = (error: unknown): string => {
@@ -141,6 +158,7 @@ export function CounteragentFormDialog({
         email: editData.email || '',
         phone: editData.phone || '',
         orisId: editData.orisId || '',
+        defaultCostFcUuid: editData.defaultCostFcUuid || '',
         isActive: editData.isActive ?? true,
         isEmploye: editData.isEmploye ?? false,
         wasEmploye: editData.wasEmploye ?? false,
@@ -171,6 +189,7 @@ export function CounteragentFormDialog({
         email: '',
         phone: '',
         orisId: '',
+        defaultCostFcUuid: '',
         isActive: true,
         isEmploye: false,
         wasEmploye: false,
@@ -271,6 +290,7 @@ export function CounteragentFormDialog({
         email: formData.email || null,
         phone: formData.phone || null,
         oris_id: formData.orisId || null,
+        default_cost_fc_uuid: formData.defaultCostFcUuid || null,
         country_uuid: formData.countryUuid || null,
         entity_type_uuid: formData.entityTypeUuid || null,
         is_active: formData.isActive,
@@ -565,6 +585,22 @@ export function CounteragentFormDialog({
                 id="oris"
                 value={formData.orisId}
                 onChange={(e) => updateField('orisId', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Default Cost Code: incoming waybills from this counteragent get it as their financial code */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="default-cost-fc" className="text-right">Default Cost Code</Label>
+            <div className="col-span-3">
+              <Combobox
+                options={[
+                  { value: '', label: '— None —', keywords: 'none' },
+                  ...costCodes.map((c) => ({ value: c.uuid, label: `${c.code} ${c.name}`, keywords: `${c.code} ${c.name}` })),
+                ]}
+                value={formData.defaultCostFcUuid}
+                onValueChange={(value) => updateField('defaultCostFcUuid', value)}
+                placeholder="Select cost code"
               />
             </div>
           </div>

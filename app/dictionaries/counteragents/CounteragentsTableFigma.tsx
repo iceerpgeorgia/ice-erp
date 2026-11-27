@@ -67,6 +67,8 @@ export default function CounteragentsTableFigma() {
           email: row.email || row.EMAIL || null,
           phone: row.phone || row.PHONE || null,
           orisId: row.oris_id || row.orisId || null,
+          defaultCostFcUuid: row.default_cost_fc_uuid || row.defaultCostFcUuid || null,
+          defaultCostFc: row.default_cost_fc || row.defaultCostFc || null,
           counteragent: row.counteragent || row.COUNTERAGENT || null,
           countryUuid: row.country_uuid || row.countryUuid || null,
           entityTypeUuid: row.entity_type_uuid || row.entityTypeUuid || null,

@@ -38,15 +38,10 @@ export async function PATCH(req: NextRequest) {
       || Object.prototype.hasOwnProperty.call(body, 'projectUuid');
     const hasFinancialCode = Object.prototype.hasOwnProperty.call(body, 'financial_code_uuid')
       || Object.prototype.hasOwnProperty.call(body, 'financialCodeUuid');
-    const hasCorrespondingAccount = Object.prototype.hasOwnProperty.call(body, 'corresponding_account')
-      || Object.prototype.hasOwnProperty.call(body, 'correspondingAccount');
 
     const projectUuid = hasProject ? (body?.project_uuid ?? body?.projectUuid ?? null) : null;
     const financialCodeUuid = hasFinancialCode
       ? (body?.financial_code_uuid ?? body?.financialCodeUuid ?? null)
-      : null;
-    const correspondingAccount = hasCorrespondingAccount
-      ? (body?.corresponding_account ?? body?.correspondingAccount ?? null)
       : null;
 
     if (!ids.length) {
@@ -68,9 +63,7 @@ export async function PATCH(req: NextRequest) {
       }
       updates.financial_code_uuid = normalized;
     }
-    if (hasCorrespondingAccount) {
-      updates.corresponding_account = correspondingAccount ? String(correspondingAccount) : null;
-    }
+    // corresponding_account is not accepted: the database sets it from the financial code's ORIS account.
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });

@@ -75,6 +75,8 @@ export type Counteragent = {
   email: string | null;
   phone: string | null;
   orisId: string | null;
+  defaultCostFcUuid: string | null;
+  defaultCostFc: string | null;
   counteragent: string | null;
   countryUuid: string | null;
   entityTypeUuid: string | null;
@@ -123,6 +125,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'email', label: 'Email', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'phone', label: 'Phone', width: 130, visible: true, sortable: true, filterable: true },
   { key: 'orisId', label: 'ORIS ID', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'defaultCostFc', label: 'Default Cost Code', width: 220, visible: true, sortable: true, filterable: true },
   { key: 'counteragent', label: 'Counteragent', width: 150, visible: false, sortable: true, filterable: true },
   { key: 'countryUuid', label: 'Country UUID', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'entityTypeUuid', label: 'Entity Type UUID', width: 200, visible: false, sortable: true, filterable: true },
@@ -172,6 +175,8 @@ const mapCounteragentData = (row: any): Counteragent => ({
   email: row.email || row.EMAIL || null,
   phone: row.phone || row.PHONE || null,
   orisId: row.oris_id || row.orisId || null,
+  defaultCostFcUuid: row.default_cost_fc_uuid || row.defaultCostFcUuid || null,
+  defaultCostFc: row.default_cost_fc || row.defaultCostFc || null,
   counteragent: row.counteragent || row.COUNTERAGENT || null,
   countryUuid: row.country_uuid || row.countryUuid || null,
   entityTypeUuid: row.entity_type_uuid || row.entityTypeUuid || null,
@@ -220,6 +225,8 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
   // Dropdown data - API returns snake_case field names
   const [entityTypesList, setEntityTypesList] = useState<Array<{id: number, name_ka: string, entity_type_uuid: string, is_natural_person?: boolean, is_id_exempt?: boolean}>>([]);
   const [countriesList, setCountriesList] = useState<Array<{id: number, country: string, country_uuid: string}>>([]);
+  // Default Cost Code options: cost codes (is_income = false) without child codes.
+  const [costCodesList, setCostCodesList] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
   const [insidersList, setInsidersList] = useState<Array<{ counteragent_uuid: string; counteragent?: string | null; name?: string | null }>>([]);
   
   // Horizontal scroll synchronization between the table and a sticky bottom scroller
@@ -279,6 +286,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
     email: '',
     phone: '',
     orisId: '',
+    defaultCostFcUuid: '',
     isActive: true,
     isEmploye: false,
     wasEmploye: false,
@@ -354,6 +362,12 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
           setEntityTypesList(entityTypesData);
         }
         
+        const costCodesRes = await fetch('/api/financial-codes?isIncome=false&leafOnly=true');
+        if (costCodesRes.ok) {
+          const costCodesData = await costCodesRes.json();
+          setCostCodesList(Array.isArray(costCodesData) ? costCodesData.filter((c: any) => c.uuid) : []);
+        }
+
         // Fetch countries
         const countriesRes = await fetch('/api/countries');
         if (countriesRes.ok) {
@@ -721,6 +735,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
             email: formData.email || null,
             phone: formData.phone || null,
             oris_id: formData.orisId || null,
+            default_cost_fc_uuid: formData.defaultCostFcUuid || null,
             country_uuid: formData.countryUuid || undefined,
             entity_type_uuid: formData.entityTypeUuid || undefined,
             is_active: formData.isActive,
@@ -787,6 +802,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
             email: formData.email || null,
             phone: formData.phone || null,
             oris_id: formData.orisId || null,
+            default_cost_fc_uuid: formData.defaultCostFcUuid || null,
             country_uuid: formData.countryUuid || undefined,
             entity_type_uuid: formData.entityTypeUuid || undefined,
             is_active: formData.isActive,
@@ -855,6 +871,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
       email: '',
       phone: '',
       orisId: '',
+      defaultCostFcUuid: '',
       isActive: true,
       isEmploye: false,
       wasEmploye: false,
@@ -899,6 +916,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
       email: counteragent.email || '',
       phone: counteragent.phone || '',
       orisId: counteragent.orisId || '',
+      defaultCostFcUuid: counteragent.defaultCostFcUuid || '',
       isActive: counteragent.isActive ?? true,
       isEmploye: counteragent.isEmploye ?? false,
       wasEmploye: counteragent.wasEmploye ?? false,
@@ -1400,6 +1418,22 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
                   </div>
                 </div>
 
+                {/* Default Cost Code: waybills from this counteragent get it as their financial code */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="add-default-cost-fc" className="text-right">Default Cost Code</Label>
+                  <div className="col-span-3">
+                    <Combobox
+                      options={[
+                        { value: '', label: '— None —', keywords: 'none' },
+                        ...costCodesList.map((c) => ({ value: c.uuid, label: `${c.code} ${c.name}`, keywords: `${c.code} ${c.name}` })),
+                      ]}
+                      value={formData.defaultCostFcUuid}
+                      onValueChange={(value) => setFormData({...formData, defaultCostFcUuid: value})}
+                      placeholder="Select cost code"
+                    />
+                  </div>
+                </div>
+
                 {/* Status */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-isActive" className="text-right">Status</Label>
@@ -1749,6 +1783,22 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
                       id="edit-oris"
                       value={formData.orisId}
                       onChange={(e) => setFormData({...formData, orisId: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                {/* Default Cost Code: waybills from this counteragent get it as their financial code */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-default-cost-fc" className="text-right">Default Cost Code</Label>
+                  <div className="col-span-3">
+                    <Combobox
+                      options={[
+                        { value: '', label: '— None —', keywords: 'none' },
+                        ...costCodesList.map((c) => ({ value: c.uuid, label: `${c.code} ${c.name}`, keywords: `${c.code} ${c.name}` })),
+                      ]}
+                      value={formData.defaultCostFcUuid}
+                      onValueChange={(value) => setFormData({...formData, defaultCostFcUuid: value})}
+                      placeholder="Select cost code"
                     />
                   </div>
                 </div>
@@ -2131,6 +2181,8 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
                           <span className="text-sm">{counteragent.phone || '-'}</span>
                         ) : column.key === 'orisId' ? (
                           <span className="text-sm">{counteragent.orisId || '-'}</span>
+                        ) : column.key === 'defaultCostFc' ? (
+                          <span className="text-sm">{counteragent.defaultCostFc || '-'}</span>
                         ) : column.key === 'counteragent' ? (
                           <span className="text-sm">{counteragent.counteragent || '-'}</span>
                         ) : column.key === 'countryUuid' ? (

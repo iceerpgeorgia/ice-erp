@@ -19,11 +19,6 @@ import { BLANK_FACET_TOKEN } from './shared/table-filters';
 import type { ColumnFilter, ColumnFormat } from './shared/table-filters';
 import * as XLSX from 'xlsx';
 
-const CORRESPONDING_ACCOUNTS = [
-  '1_4_30','1_6_10','1_6_20','1_6_30','1_6_55','1_6_70','2_1_50','2_1_60','2_1_70',
-  '3_1_10','3_1_90','7_4_15','7_4_20','7_4_21','7_4_22','7_4_22_1','7_4_22_2','7_4_30',
-  '7_4_41','7_4_42','7_4_45','7_4_56','7_4_60','7_4_65','7_4_70','7_4_85','7_4_90','7_4_91'
-];
 const NONE_OPTION_VALUE = '__none__';
 const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
 
@@ -235,7 +230,6 @@ export function WaybillItemsTable() {
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [bulkProjectUuid, setBulkProjectUuid] = useState('');
   const [bulkFinancialCodeUuid, setBulkFinancialCodeUuid] = useState('');
-  const [bulkCorrespondingAccount, setBulkCorrespondingAccount] = useState('');
   const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -652,21 +646,20 @@ export function WaybillItemsTable() {
   const handleSaveEdit = async () => {
     if (!editing) return;
     try {
-      const res = await fetch(`/api/waybill-items?id=${editing.id}`, {
+      // Splits the waybill at item level; the account follows the financial code (set by the database).
+      const res = await fetch('/api/waybill-items/bindings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ids: [editing.id],
           project_uuid: editing.project_uuid || null,
           financial_code_uuid: editing.financial_code_uuid || null,
-          corresponding_account: editing.corresponding_account || null,
         })
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body?.error || 'Update failed');
-      if (body?.data) {
-        setData((prev) => prev.map((row) => (row.id === body.data.id ? body.data : row)));
-      }
       setEditing(null);
+      refreshAfterChange();
     } catch (err: any) {
       console.error('Update error', err);
       alert(err?.message || 'Update failed');
@@ -1341,13 +1334,12 @@ export function WaybillItemsTable() {
   const resetBulkEdit = () => {
     setBulkProjectUuid('');
     setBulkFinancialCodeUuid('');
-    setBulkCorrespondingAccount('');
     setIsBulkSaving(false);
   };
 
   const handleBulkEditSave = async () => {
     if (!selectedIds.size) return;
-    if (!bulkProjectUuid && !bulkFinancialCodeUuid && !bulkCorrespondingAccount) {
+    if (!bulkProjectUuid && !bulkFinancialCodeUuid) {
       alert('Select at least one field to update');
       return;
     }
@@ -1366,12 +1358,7 @@ export function WaybillItemsTable() {
           bulkFinancialCodeUuid === NONE_OPTION_VALUE ? null : bulkFinancialCodeUuid;
       }
 
-      if (bulkCorrespondingAccount !== '') {
-        payload.corresponding_account =
-          bulkCorrespondingAccount === NONE_OPTION_VALUE ? null : bulkCorrespondingAccount;
-      }
-
-      const response = await fetch('/api/waybill-items/bulk', {
+      const response = await fetch('/api/waybill-items/bindings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -1391,9 +1378,6 @@ export function WaybillItemsTable() {
             financial_code_uuid: bulkFinancialCodeUuid !== ''
               ? (bulkFinancialCodeUuid === NONE_OPTION_VALUE ? null : bulkFinancialCodeUuid)
               : row.financial_code_uuid || null,
-            corresponding_account: bulkCorrespondingAccount !== ''
-              ? (bulkCorrespondingAccount === NONE_OPTION_VALUE ? null : bulkCorrespondingAccount)
-              : row.corresponding_account || null,
           };
         })
       );
@@ -1710,9 +1694,12 @@ export function WaybillItemsTable() {
             }}>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Bulk Edit Items</DialogTitle>
+                  <DialogTitle>Edit {selectedIds.size} selected items</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Gives these items their own project or financial code (splits their waybills). Fields left empty are not changed.
+                  </p>
                   <div className="space-y-2">
                     <Label>Project</Label>
                     <Combobox
@@ -1735,20 +1722,6 @@ export function WaybillItemsTable() {
                       emptyText="No financial codes found"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Corresponding Account</Label>
-                    <select
-                      className="w-full border rounded px-3 py-2 text-sm"
-                      value={bulkCorrespondingAccount}
-                      onChange={(e) => setBulkCorrespondingAccount(e.target.value)}
-                    >
-                      <option value="">Select account</option>
-                      <option value={NONE_OPTION_VALUE}>No corresponding account</option>
-                      {CORRESPONDING_ACCOUNTS.map((acc) => (
-                        <option key={acc} value={acc}>{acc}</option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
                   <Button variant="outline" onClick={() => setIsBulkEditOpen(false)} disabled={isBulkSaving}>
@@ -1760,6 +1733,12 @@ export function WaybillItemsTable() {
                 </div>
               </DialogContent>
             </Dialog>
+          )}
+          {selectedIds.size > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setIsBulkEditOpen(true)}>
+              <Edit2 className="mr-1 h-4 w-4" />
+              Edit selected ({selectedIds.size})
+            </Button>
           )}
           {selectedSuggestedIds.length > 0 && (
             <Button
@@ -2042,23 +2021,12 @@ export function WaybillItemsTable() {
               </div>
               <div className="space-y-2">
                 <Label>Corresponding Account</Label>
-                <select
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  value={editing.corresponding_account ?? NONE_OPTION_VALUE}
-                  onChange={(e) =>
-                    setEditing({
-                      ...editing,
-                      corresponding_account: e.target.value === NONE_OPTION_VALUE
-                        ? null
-                        : e.target.value,
-                    })
-                  }
-                >
-                  <option value={NONE_OPTION_VALUE}>No corresponding account</option>
-                  {CORRESPONDING_ACCOUNTS.map((acc) => (
-                    <option key={acc} value={acc}>{acc}</option>
-                  ))}
-                </select>
+                <div className="w-full rounded border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                  {editing.corresponding_account || '—'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Follows the financial code: the waybill&apos;s account for the waybill&apos;s code, otherwise the code&apos;s ORIS account.
+                </p>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>

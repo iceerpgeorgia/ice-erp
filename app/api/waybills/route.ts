@@ -20,6 +20,8 @@ const toNumber = (value: any) => (typeof value === 'bigint' ? Number(value) : va
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_FILTER_FIELDS = new Set(['counteragent_uuid', 'driver_uuid', 'project_uuid', 'financial_code_uuid']);
+// Fields a waybill can be split on at item level (items may carry their own values).
+const SPLIT_FIELDS = new Set(['project_uuid', 'financial_code_uuid', 'corresponding_account']);
 const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
 
 const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
@@ -312,6 +314,17 @@ export async function GET(req: NextRequest) {
 
         if (UUID_FILTER_FIELDS.has(key)) {
           const uuidValues = nonBlank.filter((item) => isValidUuid(item));
+          // A waybill split at item level matches every project / code its items carry.
+          if (SPLIT_FIELDS.has(key)) {
+            const anyOf: Prisma.rs_waybills_in_apiWhereInput[] = [];
+            if (uuidValues.length > 0) {
+              anyOf.push({ [key]: { in: uuidValues } } as Prisma.rs_waybills_in_apiWhereInput);
+              anyOf.push({ waybill_items: { some: { [key]: { in: uuidValues } } } } as Prisma.rs_waybills_in_apiWhereInput);
+            }
+            if (includeBlank) anyOf.push({ [key]: null } as Prisma.rs_waybills_in_apiWhereInput);
+            if (anyOf.length > 0) clauses.push({ OR: anyOf });
+            return;
+          }
           if (uuidValues.length > 0 && includeBlank) {
             clauses.push({ OR: [{ [key]: { in: uuidValues } }, { [key]: null }] } as Prisma.rs_waybills_in_apiWhereInput);
           } else if (uuidValues.length > 0) {
@@ -365,6 +378,17 @@ export async function GET(req: NextRequest) {
           } else if (includeBlank) {
             clauses.push({ activation_time: null });
           }
+          return;
+        }
+
+        if (key === 'corresponding_account' && nonBlank.length > 0) {
+          // Also waybills split at item level whose items carry one of these accounts.
+          const anyOf: Prisma.rs_waybills_in_apiWhereInput[] = [
+            { corresponding_account: { in: nonBlank } },
+            { waybill_items: { some: { corresponding_account: { in: nonBlank } } } },
+          ];
+          if (includeBlank) anyOf.push({ corresponding_account: null }, { corresponding_account: '' });
+          clauses.push({ OR: anyOf });
           return;
         }
 
@@ -549,6 +573,28 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Split waybills: items with their own project / financial code / account. For each waybill on the
+    // page, the distinct values its items carry (only when they differ from the waybill's own value).
+    const splitByRsId = new Map<string, { projects: Array<string | null>; codes: Array<string | null>; accounts: Array<string | null> }>();
+    const rsIds = rows.map((row: any) => row.rs_id).filter(Boolean) as string[];
+    if (rsIds.length > 0) {
+      const itemValues = await withRetry(() => prisma.$queryRaw<Array<{ rs_id: string; projects: Array<string | null>; codes: Array<string | null>; accounts: Array<string | null> }>>`
+        SELECT i.rs_id,
+               array_agg(DISTINCT i.project_uuid::text) AS projects,
+               array_agg(DISTINCT i.financial_code_uuid::text) AS codes,
+               array_agg(DISTINCT nullif(btrim(i.corresponding_account), '')) AS accounts
+          FROM rs_waybills_in_items i
+         WHERE i.rs_id IN (${Prisma.join(rsIds)})
+         GROUP BY i.rs_id`);
+      itemValues.forEach((row) => splitByRsId.set(row.rs_id, row));
+    }
+    const splitOf = (values: Array<string | null> | undefined, own: string | null | undefined) => {
+      if (!values) return null;
+      const normalized = Array.from(new Set(values.map((v) => (v === null || v === undefined || v === '' ? null : String(v)))));
+      const ownValue = own === null || own === undefined || own === '' ? null : String(own);
+      return normalized.length > 1 || (normalized.length === 1 && normalized[0] !== ownValue) ? normalized : null;
+    };
+
     let facets: Record<string, any[]> | undefined;
     if (includeFacets) {
       const facetFields = facetField && allowedFilterFields.has(facetField)
@@ -665,6 +711,16 @@ export async function GET(req: NextRequest) {
             const values = rows
               .map((row: any) => row[field])
               .map((value) => (value === null || value === undefined ? '' : String(value)));
+            if (SPLIT_FIELDS.has(field)) {
+              // Values of split items, so a split waybill can be found by any of them.
+              const itemRows = await prisma.rs_waybills_in_items.findMany({
+                where: { waybill: searchedFacetWhere, NOT: { [field]: null } } as Prisma.rs_waybills_in_itemsWhereInput,
+                distinct: [field as any],
+                select: { [field]: true } as Prisma.rs_waybills_in_itemsSelect,
+                take: facetLimit,
+              });
+              itemRows.forEach((row: any) => values.push(String(row[field])));
+            }
             return [field, Array.from(new Set(values))] as const;
           } catch (err) {
             console.error(`[facets] field "${field}" failed:`, err);
@@ -679,8 +735,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       data: rows.map((row: any) => {
         const resolved = counteragentMap.get(row.counteragent_uuid) || row.counteragent_name || row.counteragent;
+        const split = splitByRsId.get(row.rs_id);
         return serializeWaybill({
           ...row,
+          // Arrays of the distinct values the items carry (null = items without a value) when the
+          // waybill is split on that field, otherwise null.
+          split_projects: splitOf(split?.projects, row.project_uuid),
+          split_financial_codes: splitOf(split?.codes, row.financial_code_uuid),
+          split_accounts: splitOf(split?.accounts, row.corresponding_account),
           counteragent_name: resolved,
           insider_uuid: row.insider_uuid ?? insider?.insiderUuid ?? null,
           insider_name: insider?.insiderName ?? null,
@@ -739,10 +801,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// corresponding_account is not editable: the trg_rs_waybills_in_api_financial_code trigger sets it from
+// the financial code's ORIS account whenever the financial code changes.
 const allowedUpdateFields = new Set([
   'project_uuid',
   'financial_code_uuid',
-  'corresponding_account',
   'counteragent_uuid',
   'driver_uuid',
   'note',

@@ -20,6 +20,34 @@ const normalizeInsiderFlag = (value: unknown): boolean => {
   return value === true;
 };
 
+// Default cost code: a cost financial code (is_income = false) without child codes. Waybills from this
+// counteragent get it as their financial code when imported (database trigger on rs_waybills_in_api).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function validateDefaultCostFc(raw: unknown): Promise<{ value?: string | null; error?: string }> {
+  if (raw === undefined) return { value: undefined };
+  if (raw === null || raw === '') return { value: null };
+  const uuid = String(raw).trim();
+  if (!UUID_RE.test(uuid)) return { error: 'Invalid default cost code' };
+  const rows = await prisma.$queryRaw<Array<{ is_income: boolean | null; has_children: boolean }>>`
+    SELECT f.is_income, EXISTS (SELECT 1 FROM financial_codes c WHERE c.parent_uuid = f.uuid) AS has_children
+      FROM financial_codes f WHERE f.uuid = ${uuid}::uuid`;
+  if (rows.length === 0) return { error: 'Default cost code not found' };
+  if (rows[0].is_income || rows[0].has_children) {
+    return { error: 'The default cost code must be a cost code (not income) without child codes' };
+  }
+  return { value: uuid };
+}
+
+// Adds default_cost_fc ("code name") for display next to default_cost_fc_uuid.
+async function enrichWithDefaultCostFc<T extends { default_cost_fc_uuid?: string | null }>(rows: T[]): Promise<Array<T & { default_cost_fc: string | null }>> {
+  const uuids = Array.from(new Set(rows.map((r) => r.default_cost_fc_uuid).filter((v): v is string => !!v)));
+  const codes = uuids.length
+    ? await prisma.financial_codes.findMany({ where: { uuid: { in: uuids } }, select: { uuid: true, code: true, name: true } })
+    : [];
+  const labels = new Map(codes.map((c) => [c.uuid, `${c.code} ${c.name}`]));
+  return rows.map((r) => ({ ...r, default_cost_fc: r.default_cost_fc_uuid ? labels.get(r.default_cost_fc_uuid) ?? null : null }));
+}
+
 // Map Prisma (snake_case) to API JSON
 function toApi(row: any) {
   return {
@@ -47,6 +75,8 @@ function toApi(row: any) {
     email: row.email,
     phone: row.phone,
     oris_id: row.oris_id,
+    default_cost_fc_uuid: row.default_cost_fc_uuid ?? null,
+    default_cost_fc: row.default_cost_fc ?? null,
 
     counteragent: row.counteragent,
     country_uuid: row.country_uuid,
@@ -160,6 +190,7 @@ export async function GET(req: NextRequest) {
         email: true,
         phone: true,
         oris_id: true,
+        default_cost_fc_uuid: true,
 
         counteragent: true,
         country_uuid: true,
@@ -174,7 +205,7 @@ export async function GET(req: NextRequest) {
         insider_name: true,
       },
     }));
-    const rowsWithInsiderName = await enrichWithInsiderName(rows);
+    const rowsWithInsiderName = await enrichWithDefaultCostFc(await enrichWithInsiderName(rows));
     return NextResponse.json(rowsWithInsiderName.map(toApi), { status: 200 });
   } catch (err: any) {
     console.error("GET /counteragents/api failed:", err);
@@ -187,6 +218,9 @@ export async function POST(req: NextRequest) {
   if (isAuthError(auth)) return auth;
   try {
     const body = await req.json();
+
+    const defaultCostFc = await validateDefaultCostFc(body.default_cost_fc_uuid);
+    if (defaultCostFc.error) return NextResponse.json({ error: defaultCostFc.error }, { status: 400 });
 
     const normalizedIdentificationNumber = normalizeIdentificationNumber(body.identification_number);
     if (normalizedIdentificationNumber) {
@@ -234,6 +268,7 @@ export async function POST(req: NextRequest) {
         email: body.email ?? null,
         phone: body.phone ?? null,
         oris_id: body.oris_id ?? null,
+        default_cost_fc_uuid: defaultCostFc.value ?? null,
 
         // Only set UUIDs - triggers will populate the name fields
         country_uuid: body.country_uuid ?? null,
@@ -283,6 +318,7 @@ export async function POST(req: NextRequest) {
         email: true,
         phone: true,
         oris_id: true,
+        default_cost_fc_uuid: true,
 
         counteragent: true,
         country_uuid: true,
@@ -321,7 +357,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const updatedWithInsiderName = await enrichWithInsiderName([updated]);
+    const updatedWithInsiderName = await enrichWithDefaultCostFc(await enrichWithInsiderName([updated]));
     return NextResponse.json(
       {
         ...toApi(updatedWithInsiderName[0]),
@@ -365,6 +401,9 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
 
+    const defaultCostFc = await validateDefaultCostFc(body.default_cost_fc_uuid);
+    if (defaultCostFc.error) return NextResponse.json({ error: defaultCostFc.error }, { status: 400 });
+
     if (Object.prototype.hasOwnProperty.call(body, 'identification_number')) {
       const normalizedIdentificationNumber = normalizeIdentificationNumber(body.identification_number);
       if (normalizedIdentificationNumber) {
@@ -407,6 +446,7 @@ export async function PATCH(req: NextRequest) {
         email: true,
         phone: true,
         oris_id: true,
+        default_cost_fc_uuid: true,
         country_uuid: true,
         entity_type_uuid: true,
         internal_number: true,
@@ -455,6 +495,7 @@ export async function PATCH(req: NextRequest) {
       email: 'email',
       phone: 'phone',
       oris_id: 'oris_id',
+      default_cost_fc_uuid: 'default_cost_fc_uuid',
       country_uuid: 'country_uuid',
       entity_type_uuid: 'entity_type_uuid',
       internal_number: 'internal_number',
@@ -521,6 +562,7 @@ export async function PATCH(req: NextRequest) {
           email: body.email !== undefined ? body.email : undefined,
           phone: body.phone !== undefined ? body.phone : undefined,
           oris_id: body.oris_id !== undefined ? body.oris_id : undefined,
+          default_cost_fc_uuid: defaultCostFc.value,
           // Only update UUIDs - triggers will populate the name fields
           country_uuid: body.country_uuid !== undefined ? body.country_uuid : undefined,
           entity_type_uuid: body.entity_type_uuid !== undefined ? body.entity_type_uuid : undefined,
@@ -554,6 +596,7 @@ export async function PATCH(req: NextRequest) {
           email: true,
           phone: true,
           oris_id: true,
+          default_cost_fc_uuid: true,
           counteragent: true,
           country_uuid: true,
           entity_type_uuid: true,
@@ -615,7 +658,7 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const updatedWithInsiderName = await enrichWithInsiderName([updated]);
+    const updatedWithInsiderName = await enrichWithDefaultCostFc(await enrichWithInsiderName([updated]));
     return NextResponse.json(
       {
         ...toApi(updatedWithInsiderName[0]),
