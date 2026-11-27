@@ -5563,3 +5563,12 @@
 - Commits: 3df255e
 - Production: https://ice-16zmq997q-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
+
+## 2026-11-27 (3)
+- Summary: changing a project from a bundle financial code unbinds the bank transactions of the deactivated bundle payments.
+- Changes:
+  - The bundle cleanup in `PATCH /api/projects` unbinds every raw bank table transaction bound to the old bundle payments (payment, project and financial code cleared, nominal back to account currency, parsing lock released), with an audit entry per table. The confirmation shows the real number of bank transactions.
+  - Data: the two transactions left bound to bundle payments deactivated earlier today were unbound.
+- Commits: 704dda1
+- Production: https://ice-jd6rcasic-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
