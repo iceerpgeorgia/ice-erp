@@ -1074,8 +1074,11 @@ export function WaybillItemsTable() {
   const [newInventoryGroup, setNewInventoryGroup] = useState('');
   const [newInventoryError, setNewInventoryError] = useState<string | null>(null);
   const [newInventorySaving, setNewInventorySaving] = useState(false);
+  // CAPEX button: the same dialog, the inventory is saved with is_capex = true.
+  const [newInventoryCapex, setNewInventoryCapex] = useState(false);
 
-  const openNewInventory = useCallback(async (row: WaybillItem) => {
+  const openNewInventory = useCallback(async (row: WaybillItem, capex = false) => {
+    setNewInventoryCapex(capex);
     setNewInventoryRow(row);
     setNewInventoryInfo(null);
     setNewInventoryError(null);
@@ -1117,7 +1120,7 @@ export function WaybillItemsTable() {
       const res = await fetch('/api/waybill-items/create-inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: newInventoryRow.id, name: newInventoryName, inventory_group_uuid: newInventoryGroup }),
+        body: JSON.stringify({ id: newInventoryRow.id, name: newInventoryName, inventory_group_uuid: newInventoryGroup, is_capex: newInventoryCapex }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -1133,7 +1136,7 @@ export function WaybillItemsTable() {
     } finally {
       setNewInventorySaving(false);
     }
-  }, [addInventoryOption, closeNewInventory, newInventoryGroup, newInventoryInfo, newInventoryName, newInventoryRow, pickInventory]);
+  }, [addInventoryOption, closeNewInventory, newInventoryCapex, newInventoryGroup, newInventoryInfo, newInventoryName, newInventoryRow, pickInventory]);
 
   const bindExistingInventory = useCallback(async () => {
     const existing = newInventoryInfo?.existing;
@@ -1295,6 +1298,18 @@ export function WaybillItemsTable() {
                       onClick={() => void openNewInventory(row)}
                     >
                       <Plus className="h-3 w-3" />
+                    </Button>
+                  )}
+                  {!row.inventory_uuid && row.dimension_uuid && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 shrink-0 px-1.5 text-[10px] font-semibold text-purple-700 hover:text-purple-800"
+                      title="Create a new CAPEX inventory from this item and bind it"
+                      disabled={bindingIds.has(row.id)}
+                      onClick={() => void openNewInventory(row, true)}
+                    >
+                      CAPEX
                     </Button>
                   )}
                 </div>
@@ -1613,7 +1628,7 @@ export function WaybillItemsTable() {
           <Dialog open={newInventoryRow !== null} onOpenChange={(open) => { if (!open && !newInventorySaving) closeNewInventory(); }}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>New inventory from waybill item</DialogTitle>
+                <DialogTitle>{newInventoryCapex ? 'New CAPEX inventory from waybill item' : 'New inventory from waybill item'}</DialogTitle>
               </DialogHeader>
               {newInventoryRow && (
                 <div className="space-y-4">
@@ -1633,6 +1648,11 @@ export function WaybillItemsTable() {
                           <div className="font-medium">{newInventoryInfo.dimension ?? newInventoryInfo.unit ?? ''}</div>
                         </div>
                       </div>
+                      {newInventoryCapex && (
+                        <div className="rounded border border-purple-200 bg-purple-50 px-2 py-1 text-sm text-purple-800">
+                          The inventory is saved as CAPEX.
+                        </div>
+                      )}
                       <div className="space-y-1">
                         <Label htmlFor="new-inventory-name">Name</Label>
                         <Input id="new-inventory-name" value={newInventoryName} onChange={(e) => setNewInventoryName(e.target.value)} />
@@ -1676,7 +1696,7 @@ export function WaybillItemsTable() {
                       onClick={() => void saveNewInventory()}
                       disabled={!newInventoryInfo || newInventorySaving || !newInventoryName.trim() || !newInventoryGroup}
                     >
-                      {newInventorySaving ? 'Creating…' : 'Create and bind'}
+                      {newInventorySaving ? 'Creating…' : newInventoryCapex ? 'Create CAPEX and bind' : 'Create and bind'}
                     </Button>
                   </div>
                 </div>

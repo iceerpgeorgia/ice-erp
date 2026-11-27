@@ -11,7 +11,7 @@ export const revalidate = 0;
  * GET  ?id=<item id>  → what the dialog needs: goods name, the item's unit (dimension), the groups with
  *                       that unit (default: the "დაუხარისხებელი" one), the next internal number, and an
  *                       existing active inventory with the same name and unit, if any.
- * POST { id, name, inventory_group_uuid } → creates the inventory with the item's dimension and the next
+ * POST { id, name, inventory_group_uuid, is_capex? } → creates the inventory with the item's dimension and the next
  *                       internal number; the page then binds the item to it (bind-inventory).
  * Internal number = the highest numeric internal number of the insider's on-balance inventories
  * (is_nonbalance = false; off-balance ones use their own 100000+ range) plus one, 5 digits.
@@ -102,6 +102,8 @@ export async function POST(req: NextRequest) {
   const id = parseId(body?.id);
   const name = typeof body?.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
   const groupUuid = typeof body?.inventory_group_uuid === 'string' ? body.inventory_group_uuid : '';
+  // The CAPEX button creates the same inventory with is_capex = true.
+  const isCapex = body?.is_capex === true;
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
   if (!name) return NextResponse.json({ error: 'Enter the inventory name' }, { status: 400 });
   if (!groupUuid) return NextResponse.json({ error: 'Choose the inventory group' }, { status: 400 });
@@ -138,20 +140,21 @@ export async function POST(req: NextRequest) {
           dimension_uuid: item.dimension_uuid!,
           internal_number: internalNumber,
           is_nonbalance: false,
-          is_capex: false,
+          is_capex: isCapex,
           is_active: true,
           updated_at: new Date(),
         },
-        select: { id: true, uuid: true, internal_number: true, name: true },
+        select: { id: true, uuid: true, internal_number: true, name: true, is_capex: true },
       });
     });
-    await logAudit({ table: 'inventories', recordId: created.id, action: 'create', changes: { source: 'waybill item', waybill_item_id: id } });
+    await logAudit({ table: 'inventories', recordId: created.id, action: 'create', changes: { source: 'waybill item', waybill_item_id: id, is_capex: isCapex } });
 
     return NextResponse.json(
       {
         uuid: created.uuid,
         internal_number: created.internal_number,
         name: created.name,
+        is_capex: created.is_capex,
         dimension_uuid: item.dimension_uuid,
         // Same "Internal # | Group | Dimension | Name" label as the Inventory column.
         label: [created.internal_number, group.name, item.dimension, created.name].filter(Boolean).join(' | '),
