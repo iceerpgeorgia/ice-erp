@@ -10,7 +10,8 @@ import { Label } from './ui/label';
 import { Combobox } from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
-import { Search, Eye, Edit2, Settings, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Check, FileText, X } from 'lucide-react';
+import { Search, Eye, Edit2, Settings, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Check, FileText, X, Plus } from 'lucide-react';
+import { openWaybillPdf } from '@/lib/waybills/open-waybill-pdf';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { InventoryCellPicker, type InventoryOption } from './inventory-cell-picker';
 import { ClearFiltersButton } from './shared/clear-filters-button';
@@ -202,22 +203,6 @@ const formatCell = (value: any, format?: ColumnConfig['format']) => {
   }
   return String(value);
 };
-
-// A waybill's PDF from RS.ge (same request and file name as the Waybills page).
-async function downloadWaybillPdf(rsId: string) {
-  try {
-    const res = await fetch(`/api/waybills/pdf?rs_id=${encodeURIComponent(rsId)}`);
-    if (!res.ok) throw new Error('Failed');
-    const url = URL.createObjectURL(await res.blob());
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `waybill-${rsId}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch {
-    alert('PDF download failed');
-  }
-}
 
 // Filter lists can exceed the URL length limit (HTTP 431); long reads are sent as a POST body.
 const MAX_QUERY_URL_LENGTH = 1500;
@@ -526,12 +511,18 @@ export function WaybillItemsTable() {
     fetchOptions();
   }, []);
 
+  // Bumped after a change (confirm, decline, bind, bulk edit): reload the page rows, total and filter values.
+  const [reloadToken, setReloadToken] = useState(0);
+  const silentReloadRef = useRef(false);
+
   // Load the active server page; filtering and totals remain database-wide.
   useEffect(() => {
     if (!filtersInitialized) return;
 
     const fetchItemsPage = async () => {
-      setLoading(true);
+      const silent = silentReloadRef.current;
+      silentReloadRef.current = false;
+      if (!silent) setLoading(true);
       try {
         const params = buildQueryParams({ includeFacets: false });
         params.set('skipCount', 'true');
@@ -560,7 +551,7 @@ export function WaybillItemsTable() {
     };
 
     void fetchItemsPage();
-  }, [filtersInitialized, currentPage, pageSize, appliedSearch, periodFrom, periodTo, sortColumn, sortDirection, columnFilters, advancedFilters, buildQueryParams]);
+  }, [filtersInitialized, currentPage, pageSize, appliedSearch, periodFrom, periodTo, sortColumn, sortDirection, columnFilters, advancedFilters, buildQueryParams, reloadToken]);
 
   useEffect(() => {
     const applyPendingResize = () => {
@@ -882,6 +873,16 @@ export function WaybillItemsTable() {
     });
   }, []);
 
+  // After a change: clear the selection, drop cached filter values (they may have changed) and reload
+  // the page quietly, so rows that no longer match the filters leave the table.
+  const refreshAfterChange = useCallback(() => {
+    setSelectedIds(new Set());
+    facetSignatureRef.current.clear();
+    setFacetValues(new Map());
+    silentReloadRef.current = true;
+    setReloadToken((token) => token + 1);
+  }, []);
+
   // Confirm binds items to their suggested inventory; decline drops the suggestion (status 'declined').
   // Either acts on every identical pending suggestion; the server only changes rows still 'suggested'.
   const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
@@ -918,6 +919,7 @@ export function WaybillItemsTable() {
       if (notes.length > 0) {
         alert(`${doneIds.size} items ${verb}: ${notes.join('; ')}.`);
       }
+      refreshAfterChange();
     } catch (error) {
       console.error(`Failed to ${action} inventory suggestions:`, error);
       alert(error instanceof Error ? error.message : `Failed to ${action} suggestions`);
@@ -928,7 +930,7 @@ export function WaybillItemsTable() {
         return next;
       });
     }
-  }, []);
+  }, [refreshAfterChange]);
 
   const selectedSuggestedRows = useMemo(
     () => paginatedData.filter((row) => selectedIds.has(row.id) && row.inventory_match_status === 'suggested'),
@@ -1000,7 +1002,7 @@ export function WaybillItemsTable() {
   // Picking an inventory for one row also fills every unbound item with the same goods name and
   // unit; the server counts them first (dryRun) so the user can confirm.
   const [bindingIds, setBindingIds] = useState<Set<number>>(new Set());
-  const pickInventory = useCallback(async (row: WaybillItem, inventoryUuid: string | null) => {
+  const pickInventory = useCallback(async (row: WaybillItem, inventoryUuid: string | null, knownLabel?: string) => {
     const post = async (dryRun: boolean) => {
       const res = await fetch('/api/waybill-items/bind-inventory', {
         method: 'POST',
@@ -1016,13 +1018,13 @@ export function WaybillItemsTable() {
       if (inventoryUuid) {
         const { groupCount } = await post(true);
         if (groupCount > 0) {
-          const message = `${groupCount} more unbound item${groupCount === 1 ? ' has' : 's have'} the goods name "${row.goods_name}" and unit "${row.unit ?? ''}".\n\nBind all ${groupCount + 1} items to:\n${inventoryLabelByUuid.get(inventoryUuid) ?? inventoryUuid}?`;
+          const message = `${groupCount} more unbound item${groupCount === 1 ? ' has' : 's have'} the goods name "${row.goods_name}" and unit "${row.unit ?? ''}".\n\nBind all ${groupCount + 1} items to:\n${knownLabel ?? inventoryLabelByUuid.get(inventoryUuid) ?? inventoryUuid}?`;
           if (!window.confirm(message)) return;
         }
       }
       const body = await post(false);
       const updated = new Set<number>(Array.isArray(body.updated) ? body.updated : []);
-      const label = inventoryUuid ? inventoryLabelByUuid.get(inventoryUuid) ?? '' : '';
+      const label = inventoryUuid ? knownLabel ?? inventoryLabelByUuid.get(inventoryUuid) ?? '' : '';
       setData((rows) => rows.map((item) => {
         if (!updated.has(item.id)) return item;
         if (!inventoryUuid) {
@@ -1041,6 +1043,7 @@ export function WaybillItemsTable() {
           suggestion_group_count: 0,
         };
       }));
+      refreshAfterChange();
     } catch (error) {
       console.error('Failed to bind inventory:', error);
       alert(error instanceof Error ? error.message : 'Failed to bind inventory');
@@ -1051,7 +1054,94 @@ export function WaybillItemsTable() {
         return next;
       });
     }
-  }, [inventoryLabelByUuid]);
+  }, [inventoryLabelByUuid, refreshAfterChange]);
+
+  // New inventory from a waybill item (+ button): name and group are filled from the item, the
+  // internal number is the next on-balance number; after saving, the item is bound to it.
+  type NewInventoryInfo = {
+    name: string;
+    unit: string | null;
+    dimension_uuid: string;
+    dimension: string | null;
+    groups: Array<{ uuid: string; name: string }>;
+    default_group_uuid: string | null;
+    next_internal_number: string;
+    existing: { uuid: string; internal_number: string | null; name: string; group_name: string | null } | null;
+  };
+  const [newInventoryRow, setNewInventoryRow] = useState<WaybillItem | null>(null);
+  const [newInventoryInfo, setNewInventoryInfo] = useState<NewInventoryInfo | null>(null);
+  const [newInventoryName, setNewInventoryName] = useState('');
+  const [newInventoryGroup, setNewInventoryGroup] = useState('');
+  const [newInventoryError, setNewInventoryError] = useState<string | null>(null);
+  const [newInventorySaving, setNewInventorySaving] = useState(false);
+
+  const openNewInventory = useCallback(async (row: WaybillItem) => {
+    setNewInventoryRow(row);
+    setNewInventoryInfo(null);
+    setNewInventoryError(null);
+    setNewInventoryName(row.goods_name ?? '');
+    setNewInventoryGroup('');
+    try {
+      const res = await fetch(`/api/waybill-items/create-inventory?id=${row.id}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error || 'Failed to prepare the new inventory');
+      setNewInventoryInfo(body);
+      setNewInventoryName(body.name || row.goods_name || '');
+      setNewInventoryGroup(body.default_group_uuid ?? '');
+    } catch (error) {
+      setNewInventoryError(error instanceof Error ? error.message : 'Failed to prepare the new inventory');
+    }
+  }, []);
+
+  const closeNewInventory = useCallback(() => {
+    setNewInventoryRow(null);
+    setNewInventoryInfo(null);
+    setNewInventoryError(null);
+  }, []);
+
+  const addInventoryOption = useCallback((uuid: string, label: string, dimensionUuid: string) => {
+    setInventoryOptionsByDimension((current) => {
+      const next = new Map(current ?? []);
+      const list = [...(next.get(dimensionUuid) ?? []), { uuid, label, search: label.toLowerCase() }];
+      list.sort((a, b) => a.label.localeCompare(b.label));
+      next.set(dimensionUuid, list);
+      return next;
+    });
+  }, []);
+
+  const saveNewInventory = useCallback(async () => {
+    if (!newInventoryRow || !newInventoryInfo) return;
+    setNewInventorySaving(true);
+    setNewInventoryError(null);
+    try {
+      const res = await fetch('/api/waybill-items/create-inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: newInventoryRow.id, name: newInventoryName, inventory_group_uuid: newInventoryGroup }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        if (body?.existing) setNewInventoryInfo((info) => (info ? { ...info, existing: body.existing } : info));
+        throw new Error(body?.error || 'Failed to create the inventory');
+      }
+      addInventoryOption(body.uuid, body.label, body.dimension_uuid);
+      const row = newInventoryRow;
+      closeNewInventory();
+      await pickInventory(row, body.uuid, body.label);
+    } catch (error) {
+      setNewInventoryError(error instanceof Error ? error.message : 'Failed to create the inventory');
+    } finally {
+      setNewInventorySaving(false);
+    }
+  }, [addInventoryOption, closeNewInventory, newInventoryGroup, newInventoryInfo, newInventoryName, newInventoryRow, pickInventory]);
+
+  const bindExistingInventory = useCallback(async () => {
+    const existing = newInventoryInfo?.existing;
+    const row = newInventoryRow;
+    if (!existing || !row) return;
+    closeNewInventory();
+    await pickInventory(row, existing.uuid);
+  }, [closeNewInventory, newInventoryInfo, newInventoryRow, pickInventory]);
 
   const renderedRows = useMemo(() => {
     if (paginatedData.length === 0) {
@@ -1114,7 +1204,7 @@ export function WaybillItemsTable() {
                   onSelect={(inventoryUuid) => void pickInventory(row, inventoryUuid)}
                 />
               ) : col.key === 'waybill_no' ? (
-                // The waybill's PDF from RS.ge, downloaded the same way as on the Waybills page.
+                // The waybill's PDF from RS.ge, opened in a new tab as on the Waybills page.
                 <div className="flex items-center gap-1">
                   <div className="min-w-0 flex-1 truncate" title={row.waybill_no ?? ''}>
                     {row.waybill_no ?? ''}
@@ -1122,15 +1212,15 @@ export function WaybillItemsTable() {
                   {row.rs_id && (
                     <button
                       type="button"
-                      title="Download waybill PDF"
+                      title="Open waybill PDF in a new tab"
                       className="flex-shrink-0 text-red-500 transition-colors hover:text-red-700"
-                      onClick={() => void downloadWaybillPdf(row.rs_id!)}
+                      onClick={() => openWaybillPdf(row.rs_id!)}
                     >
                       <FileText className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
-              ) : col.key === 'suggested_inventory_name' && row.suggested_inventory_name ? (
+              ) : col.key === 'suggested_inventory_name' && (row.suggested_inventory_name || (!row.inventory_uuid && row.dimension_uuid)) ? (
                 <div className="flex items-center gap-2">
                   {row.inventory_match_method === 'expanded' && (
                     // Step 5: same kind of item in the closest size or variant, not the exact product.
@@ -1141,16 +1231,20 @@ export function WaybillItemsTable() {
                       ≈
                     </span>
                   )}
-                  <div
-                    className="min-w-0 flex-1 truncate"
-                    title={`${row.suggested_inventory_name} (${row.inventory_match_method ?? ''}${
-                      row.inventory_match_method === 'fuzzy' && row.inventory_match_score !== null && row.inventory_match_score !== undefined
-                        ? ` ${Math.round(row.inventory_match_score * 100)}%`
-                        : ''
-                    })`}
-                  >
-                    {row.suggested_inventory_name}
-                  </div>
+                  {row.suggested_inventory_name ? (
+                    <div
+                      className="min-w-0 flex-1 truncate"
+                      title={`${row.suggested_inventory_name} (${row.inventory_match_method ?? ''}${
+                        row.inventory_match_method === 'fuzzy' && row.inventory_match_score !== null && row.inventory_match_score !== undefined
+                          ? ` ${Math.round(row.inventory_match_score * 100)}%`
+                          : ''
+                      })`}
+                    >
+                      {row.suggested_inventory_name}
+                    </div>
+                  ) : (
+                    <div className="min-w-0 flex-1" />
+                  )}
                   {row.inventory_match_status === 'suggested' && (row.suggestion_group_count ?? 0) > 1 && (
                     <span
                       className="shrink-0 rounded border px-1 text-xs text-muted-foreground"
@@ -1191,6 +1285,18 @@ export function WaybillItemsTable() {
                       <X className="h-3 w-3" />
                     </Button>
                   )}
+                  {!row.inventory_uuid && row.dimension_uuid && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 shrink-0 px-2 text-blue-600 hover:text-blue-700"
+                      title="Create a new inventory from this item and bind it"
+                      disabled={bindingIds.has(row.id)}
+                      onClick={() => void openNewInventory(row)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div
@@ -1215,7 +1321,7 @@ export function WaybillItemsTable() {
         </tr>
       );
     });
-  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, confirmingIds, confirmRows, declineRows, inventoryOptionsByDimension, bindingIds, pickInventory]);
+  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, confirmingIds, confirmRows, declineRows, openNewInventory, inventoryOptionsByDimension, bindingIds, pickInventory]);
 
   const resetBulkEdit = () => {
     setBulkProjectUuid('');
@@ -1276,7 +1382,7 @@ export function WaybillItemsTable() {
           };
         })
       );
-      setSelectedIds(new Set());
+      refreshAfterChange();
       setIsBulkEditOpen(false);
       resetBulkEdit();
     } catch (err: any) {
@@ -1504,6 +1610,79 @@ export function WaybillItemsTable() {
             }
             onClear={handleClearFilters}
           />
+          <Dialog open={newInventoryRow !== null} onOpenChange={(open) => { if (!open && !newInventorySaving) closeNewInventory(); }}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>New inventory from waybill item</DialogTitle>
+              </DialogHeader>
+              {newInventoryRow && (
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Waybill {newInventoryRow.waybill_no ?? ''}: {newInventoryRow.goods_name ?? ''}
+                  </div>
+                  {!newInventoryInfo && !newInventoryError && <div className="text-sm">Loading…</div>}
+                  {newInventoryInfo && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="text-muted-foreground">Internal number</div>
+                          <div className="font-medium">{newInventoryInfo.next_internal_number}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Unit</div>
+                          <div className="font-medium">{newInventoryInfo.dimension ?? newInventoryInfo.unit ?? ''}</div>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="new-inventory-name">Name</Label>
+                        <Input id="new-inventory-name" value={newInventoryName} onChange={(e) => setNewInventoryName(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="new-inventory-group">Group</Label>
+                        <select
+                          id="new-inventory-group"
+                          className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                          value={newInventoryGroup}
+                          onChange={(e) => setNewInventoryGroup(e.target.value)}
+                        >
+                          <option value="">Choose a group</option>
+                          {newInventoryInfo.groups.map((group) => (
+                            <option key={group.uuid} value={group.uuid}>{group.name}</option>
+                          ))}
+                        </select>
+                        {newInventoryInfo.groups.length === 0 && (
+                          <div className="text-xs text-red-600">No active group has this unit. Add one on Inventory Groups first.</div>
+                        )}
+                      </div>
+                      {newInventoryInfo.existing && (
+                        <div className="rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">
+                          An inventory with this name and unit already exists:{' '}
+                          <span className="font-medium">
+                            {[newInventoryInfo.existing.internal_number, newInventoryInfo.existing.group_name, newInventoryInfo.existing.name].filter(Boolean).join(' | ')}
+                          </span>
+                          <div className="mt-2">
+                            <Button size="sm" variant="outline" onClick={() => void bindExistingInventory()} disabled={newInventorySaving}>
+                              Bind to the existing one
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {newInventoryError && <div className="text-sm text-red-600">{newInventoryError}</div>}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={closeNewInventory} disabled={newInventorySaving}>Cancel</Button>
+                    <Button
+                      onClick={() => void saveNewInventory()}
+                      disabled={!newInventoryInfo || newInventorySaving || !newInventoryName.trim() || !newInventoryGroup}
+                    >
+                      {newInventorySaving ? 'Creating…' : 'Create and bind'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
           {selectedIds.size > 0 && (
             <Dialog open={isBulkEditOpen} onOpenChange={(open) => {
               setIsBulkEditOpen(open);
