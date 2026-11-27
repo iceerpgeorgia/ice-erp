@@ -5618,3 +5618,14 @@
 - Commits: 648620a
 - Production: https://ice-hpci9c28g-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
+
+## 2026-11-27 (9)
+- Summary: default cost code per counteragent, waybill account from the financial code's ORIS account, item-level waybill splits.
+- Changes:
+  - Counteragents: Default Cost Code column and form field (cost codes without children). Imported waybills without a financial code take the counteragent's default.
+  - Waybills: corresponding account is set from the financial code's ORIS account and can no longer be entered by hand (edit form shows it read-only, APIs refuse it).
+  - Splits: the waybill's project and financial code are the default for its items; items may carry their own (Edit / Edit selected on Waybill Items via `PATCH /api/waybill-items/bindings`). Waybills shows split waybills as "Split: A + B", and its filters find them by item values. Existing item values (127 projects, 26 financial codes) were kept.
+- Migrations: 20261127140000_counteragent_default_cost_code, 20261127150000_waybill_items_inherit_waybill, 20261127160000_waybill_items_split (applied before deploy).
+- Commits: d37b177
+- Production: https://ice-7sjo5ncyz-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
