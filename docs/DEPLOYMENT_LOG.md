@@ -5580,3 +5580,14 @@
 - Commits: 6b07e98
 - Production: https://ice-baevaxzjg-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed. Viewing a real file not checked signed in (local storage settings are placeholders).
+
+## 2026-11-27 (5)
+- Summary: Waybill Items shows every Waybills column, downloads waybill PDFs, and suggestions can be declined.
+- Changes:
+  - All Waybills columns available on Waybill Items (Check, Transport Start, Submission and Cancellation Date, Note, Period, RS ID, Transport Cost, the waybill's own Project, Financial Code and Corresponding Account); every waybill column filters, lists values and sorts with blanks last.
+  - PDF button next to the waybill number downloads the waybill's RS.ge PDF, as on Waybills.
+  - Decline (✗) for suggested inventories, per row and for selected rows; identical pending items are declined together; status `declined`, no further automatic suggestion. Bound items show no suggestion.
+- Migration: 20261127120000_waybill_items_declined_suggestions (applied before deploy; only allows the `declined` status).
+- Commits: 87d8df4
+- Production: https://ice-psdubllrc-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
