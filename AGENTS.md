@@ -105,7 +105,7 @@ What each page of the app is for, in plain words. Every page in `app/` must have
 - `/admin/permissions` — Permissions: which modules and features each user may use.
 - `/admin/modules` — Module Management: the app's modules and features that permissions refer to.
 - `/admin/analytics` — Permission Analytics: overview of permission usage and recent changes.
-- `/admin/financial-codes` — Financial Codes: the chart of financial codes (income and cost codes).
+- `/admin/financial-codes` — Financial Codes: the chart of financial codes (income and cost codes); the ORIS column holds each code's corresponding account for waybill items in the ORIS export.
 - `/admin/projects` — Projects (admin view).
 - `/admin/document-types` — Document Types: kinds of documents that can be attached.
 - `/admin/attachments` — Attachments: all uploaded documents and what they are linked to.
@@ -532,7 +532,8 @@ When waybill items are bound to different projects, item-level binding should ta
 ## ORIS Accounting Export
 <!-- chat: include; routes: /dictionaries/oris-export, /dictionaries/waybill-items, /dictionaries/waybills -->
 Replaces the Google Sheets "RS_Export_WB" (tabs კორ. ანგ საქონელი / კორ. ანგ ხარჯი / პროექტის დანახარჯი → TRANSACTIONS + VAT TRANSACTIONS → Sylfaen → CSV). Built 2026-11-26. Logic: `lib/oris-export/entries.ts` (pure, tested in `entries.test.ts`), data: `lib/oris-export/load-lines.ts`, API: `GET /api/oris-export?from=&to=[&format=xlsx]`, page: `/dictionaries/oris-export`.
-- Lines: incoming waybill items whose waybill was activated in the period (Tbilisi days). A line's own corresponding account and project win over its waybill's.
+- Lines: incoming waybill items whose waybill was activated in the period (Tbilisi days).
+- Financial codes have an ORIS account (`financial_codes.oris_account`, added 2026-11-27, migration `20261127130000_financial_codes_oris_account`; free text, edited on the Financial Codes page, column ORIS): the corresponding account to use for waybill items of that financial code. It is stored only; the export does not use it yet. A line's own corresponding account and project win over its waybill's.
 - Left out: cancelled waybills, the company's own waybills (internal transfers), return waybills, and zero or negative amounts.
 - Scheme per line: account starting with 7 → expense; account starting with 2 → fixed asset, not exported (as in the sheet); any other account → goods; no account but a project → project cost; neither → not exported.
 - Goods: debit `{account} {inventory internal number}` (e.g. `1 6 20 10754`), credit `3 1 10 {supplier ORIS ID}`, amount = line total minus VAT, where VAT = round(total ÷ 1.18 × 0.18, 2) when the waybill has VAT; unit (the dimension's full name) and quantity.

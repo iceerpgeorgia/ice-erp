@@ -9,6 +9,7 @@ function serializeFinancialCode(code: any) {
     ...code,
     id: String(code.id),
     default_code_fc: code.default_code_fc ?? null,
+    oris_account: code.oris_account ?? null,
   };
 }
 
@@ -151,6 +152,8 @@ function validatePayload(body: any) {
   const isActive = typeof body?.isActive === "boolean" ? body.isActive : true;
   const automatedPaymentId = typeof body?.automatedPaymentId === "boolean" ? body.automatedPaymentId : false;
   const isBundle = typeof body?.isBundle === "boolean" ? body.isBundle : false;
+  // ORIS corresponding account for waybill items (free text; empty = none).
+  const orisAccount = typeof body?.orisAccount === "string" ? body.orisAccount.trim().replace(/\s+/g, " ") : "";
 
   // Validate defaultCodeFc UUID if provided
   const uuidRegexFC = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -202,6 +205,7 @@ function validatePayload(body: any) {
       isBundle,
       parentUuid,
       defaultCodeFc,
+      orisAccount: orisAccount || null,
     },
   } as const;
 }
@@ -275,6 +279,7 @@ export async function POST(req: NextRequest) {
         automated_payment_id: payload.automatedPaymentId,
         is_bundle: payload.isBundle ?? false,
         default_code_fc: payload.defaultCodeFc ?? null,
+        oris_account: payload.orisAccount,
         ...(payload.parentUuid && { parent_uuid: payload.parentUuid }),
         depth,
         sort_order: sortOrder,
@@ -360,6 +365,7 @@ export async function PATCH(req: NextRequest) {
     if (existingAny.parentUuid !== payload.parentUuid) changes.parentUuid = { from: existingAny.parentUuid, to: payload.parentUuid };
     if (existingAny.automated_payment_id !== payload.automatedPaymentId) changes.automatedPaymentId = { from: existingAny.automated_payment_id, to: payload.automatedPaymentId };
     if ((existingAny.is_bundle ?? false) !== (payload.isBundle ?? false)) changes.isBundle = { from: existingAny.is_bundle ?? false, to: payload.isBundle ?? false };
+    if ((existingAny.oris_account ?? null) !== payload.orisAccount) changes.orisAccount = { from: existingAny.oris_account ?? null, to: payload.orisAccount };
 
     // Calculate depth if code changed
     let updateData: any = {
@@ -374,6 +380,7 @@ export async function PATCH(req: NextRequest) {
       is_bundle: payload.isBundle ?? false,
       parent_uuid: payload.parentUuid,
       default_code_fc: payload.defaultCodeFc ?? null,
+      oris_account: payload.orisAccount,
     };
 
     if (payload.code !== existing.code) {

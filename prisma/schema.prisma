@@ -567,6 +567,8 @@ model financial_codes {
   automated_payment_id     Boolean                    @default(false)
   is_bundle                Boolean                    @default(false)
   default_code_fc          String?                    @db.Uuid
+  /// ORIS corresponding account for waybill items (ORIS conversion)
+  oris_account             String?
   bank_transaction_batches bank_transaction_batches[]
   financial_codes          financial_codes?           @relation("financial_codesTofinancial_codes", fields: [parent_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
   other_financial_codes    financial_codes[]          @relation("financial_codesTofinancial_codes")

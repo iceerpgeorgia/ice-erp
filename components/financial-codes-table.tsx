@@ -21,6 +21,7 @@ type FinancialCode = {
   automatedPaymentId: boolean;
   isBundle: boolean;
   defaultCodeFc: string | null;
+  orisAccount: string | null;
   children?: FinancialCode[];
 };
 
@@ -56,6 +57,7 @@ export function FinancialCodesTable() {
             automatedPaymentId: code.automatedPaymentId ?? code.automated_payment_id ?? false,
             isBundle: code.isBundle ?? code.is_bundle ?? false,
             defaultCodeFc: code.default_code_fc ?? null,
+            orisAccount: code.oris_account ?? null,
             children: [],
           }))
         : [];
@@ -288,6 +290,9 @@ export function FinancialCodesTable() {
                 })()
               : ''}
           </td>
+          <td className="px-4 py-3 font-mono text-sm text-slate-600">
+            {code.orisAccount || ''}
+          </td>
           <td className="px-4 py-3">
             <div className="flex items-center gap-2">
               <button
@@ -360,6 +365,7 @@ export function FinancialCodesTable() {
               <th className="px-4 py-3 text-center font-semibold text-slate-700">Auto Payment</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-700">Bundle</th>
               <th className="px-4 py-3 text-left font-semibold text-slate-700">Default Cost FC</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700" title="Corresponding account for waybill items in the ORIS export">ORIS</th>
               <th className="px-4 py-3 text-left font-semibold text-slate-700">Actions</th>
             </tr>
           </thead>
@@ -411,6 +417,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
     automatedPaymentId: false,
     isBundle: false,
     defaultCodeFc: null as string | null,
+    orisAccount: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -445,6 +452,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
         automatedPaymentId: code.automatedPaymentId,
         isBundle: code.isBundle,
         defaultCodeFc: code.defaultCodeFc ?? null,
+        orisAccount: code.orisAccount ?? '',
       });
     }
   }, [code, parent]);
@@ -481,6 +489,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
         isBundle: formData.isBundle,
         parentUuid: parent?.uuid || null,
         defaultCodeFc: formData.isIncome ? (formData.defaultCodeFc || null) : null,
+        orisAccount: formData.orisAccount,
       };
 
       const method = code ? "PATCH" : "POST";
@@ -667,6 +676,20 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
               </p>
             </div>
           )}
+
+          <div>
+            <label className="block text-sm font-medium mb-1">ORIS</label>
+            <input
+              type="text"
+              value={formData.orisAccount}
+              onChange={(e) => setFormData({ ...formData, orisAccount: e.target.value })}
+              placeholder="e.g. 7 4 41"
+              className="w-full px-3 py-2 border rounded-lg font-mono"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Corresponding account for waybill items in the ORIS export.
+            </p>
+          </div>
 
           {errors._form && <p className="text-red-600 text-sm">{errors._form}</p>}
 
