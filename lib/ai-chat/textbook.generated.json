@@ -1,6 +1,6 @@
 {
  "source": "AGENTS.md",
- "sourceSha256": "2f31b57a0d67d23f2c0f08080a21a5fee6646ac8ea8eee16a98050b2022fd658",
+ "sourceSha256": "11bb37c454e982b6af1dd64e1b0f2406a79a06ac6bb7e58204c7e919fe3c7f9d",
  "sections": [
   {
    "title": "Pages",
@@ -46,7 +46,7 @@
    "routes": [
     "/dictionaries/payments-report"
    ],
-   "content": "- In the payments report attachment dialog (`PaymentAttachments`), **Attach to Project** must call project attachment APIs (`/api/projects/attachments/upload` + `/api/projects/attachments/confirm`) so links are created under `owner_table='projects'` only.\n- **Attach to Payment** must keep using payment attachment APIs and may add an optional secondary project link via `linkedProjectUuid`.\n- Ledger auto-create prompt applies to payment-target uploads only; project-target uploads must not create ledger entries automatically.\n- Payment options are scoped to the transaction counteragent and bank-account insider. Project insider is authoritative for normal payments (`projects.insider_uuid`, falling back to `payments.insider_uuid`); inactive payments are included only when they are the transaction's currently bound payment ID.\n- `/api/bank-transactions/[id]` resolves normal `payments` IDs first, then existing `salary_accruals.payment_id` IDs with salary counteragent/financial-code/currency metadata."
+   "content": "- In the payments report attachment dialog (`PaymentAttachments`), **Attach to Project** must call project attachment APIs (`/api/projects/attachments/upload` + `/api/projects/attachments/confirm`) so links are created under `owner_table='projects'` only.\n- **Attach to Payment** must keep using payment attachment APIs and may add an optional secondary project link via `linkedProjectUuid`.\n- Ledger auto-create prompt applies to payment-target uploads only; project-target uploads must not create ledger entries automatically.\n- Payment options are scoped to the transaction counteragent and bank-account insider. Project insider is authoritative for normal payments (`projects.insider_uuid`, falling back to `payments.insider_uuid`); inactive payments are included only when they are the transaction's currently bound payment ID.\n- `/api/bank-transactions/[id]` resolves normal `payments` IDs first, then existing `salary_accruals.payment_id` IDs with salary counteragent/financial-code/currency metadata.\n- Viewing an attachment (payment, project and job attachment dialogs) opens `/api/attachments/{attachment uuid}/open`, which signs a fresh storage link on every load (valid 6 hours) and shows PDFs, images and text in a full-window frame; other files go straight to a fresh download link. The file comes directly from storage, so large files work. Before 2026-11-27 the tab held a signed link valid for 1 hour, so reloading or restoring the tab later showed `\"exp\" claim timestamp check failed`."
   },
   {
    "title": "Bank Transactions Data Architecture",

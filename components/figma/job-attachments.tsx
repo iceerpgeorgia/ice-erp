@@ -302,18 +302,10 @@ export function JobAttachments({
     }
   };
 
-  const handleView = async (attachment: Attachment) => {
-    try {
-      const response = await fetch(
-        `/api/payments/attachments/download?bucket=${encodeURIComponent(attachment.storageBucket || '')}&path=${encodeURIComponent(attachment.storagePath)}`,
-      );
-      if (!response.ok) throw new Error('Failed to get view URL');
-      const { signedUrl } = await response.json();
-      window.open(signedUrl, '_blank');
-    } catch (error) {
-      console.error('Error viewing attachment:', error);
-      alert('Failed to view attachment');
-    }
+  const handleView = (attachment: Attachment) => {
+    // A stable app address that signs a fresh storage link on every load, so reloading or
+    // restoring the tab later never hits an expired link.
+    window.open(`/api/attachments/${encodeURIComponent(attachment.attachmentUuid)}/open`, '_blank', 'noopener');
   };
 
   const handleDownload = async (attachment: Attachment) => {

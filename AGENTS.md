@@ -333,6 +333,7 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Ledger auto-create prompt applies to payment-target uploads only; project-target uploads must not create ledger entries automatically.
 - Payment options are scoped to the transaction counteragent and bank-account insider. Project insider is authoritative for normal payments (`projects.insider_uuid`, falling back to `payments.insider_uuid`); inactive payments are included only when they are the transaction's currently bound payment ID.
 - `/api/bank-transactions/[id]` resolves normal `payments` IDs first, then existing `salary_accruals.payment_id` IDs with salary counteragent/financial-code/currency metadata.
+- Viewing an attachment (payment, project and job attachment dialogs) opens `/api/attachments/{attachment uuid}/open`, which signs a fresh storage link on every load (valid 6 hours) and shows PDFs, images and text in a full-window frame; other files go straight to a fresh download link. The file comes directly from storage, so large files work. Before 2026-11-27 the tab held a signed link valid for 1 hour, so reloading or restoring the tab later showed `"exp" claim timestamp check failed`.
 
 ## Bank Transactions Data Architecture
 <!-- chat: include; routes: /dictionaries/bank-transactions, /bank-transaction-batches, /dictionaries/salary-accruals, /handovers -->
