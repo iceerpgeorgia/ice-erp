@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { reparseByPaymentId } from '@/lib/bank-import/reparse';
+import { countTransactionsByPaymentIds, unbindTransactionsFromPaymentIds } from '@/lib/bank-transactions/unbind-payment-ids';
 
 const SOURCE_TABLES = [
   "GE78BG0000000893486000_BOG_GEL",
@@ -735,7 +736,7 @@ export async function PATCH(req: NextRequest) {
             if (!confirmBundleCleanup) {
               const paymentIds = bundlePayments.map((p: any) => p.payment_id).filter(Boolean) as string[];
               let ledgerCount = 0;
-              let bankCount = 0; // consolidated_bank_accounts removed - raw tables used instead
+              let bankCount = 0;
               if (paymentIds.length > 0) {
                 const placeholders = paymentIds.map((_: any, i: number) => `$${i + 1}`).join(',');
                 const lc = await prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
@@ -743,9 +744,7 @@ export async function PATCH(req: NextRequest) {
                   ...paymentIds
                 );
                 ledgerCount = Number(lc[0]?.cnt ?? 0);
-                // Note: Bank transaction check removed - consolidated_bank_accounts is obsolete
-                // Raw bank tables (GE65TB..._TBC_GEL, etc.) are now the primary source
-                // bankCount left at 0 for now
+                bankCount = await countTransactionsByPaymentIds(paymentIds);
               }
               return NextResponse.json({
                 bundleCleanupRequired: true,
@@ -1258,7 +1257,8 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Bundle cleanup: deactivate old bundle payments, delete their ledger entries,
-    // and unbind consolidated bank account transactions.
+    // and unbind the bank transactions bound to them (raw bank tables), so no transaction keeps
+    // pointing at a deactivated payment.
     if (oldBundlePaymentsToCleanup.length > 0) {
       try {
         const paymentIds = oldBundlePaymentsToCleanup
@@ -1268,8 +1268,10 @@ export async function PATCH(req: NextRequest) {
             `DELETE FROM payments_ledger WHERE payment_id = ANY($1::text[])`,
             paymentIds
           );
-          // Note: consolidated_bank_accounts update removed - table is obsolete
-          // Raw bank tables are now the primary source and don't need cleanup
+          await unbindTransactionsFromPaymentIds(
+            paymentIds,
+            `Bundle payments of project ${project.project_uuid} deactivated (financial code is no longer a bundle)`
+          );
         }
         for (const bp of oldBundlePaymentsToCleanup) {
           await prisma.$queryRawUnsafe(

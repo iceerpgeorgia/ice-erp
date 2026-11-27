@@ -381,6 +381,12 @@ When a payment is assigned to a bank transaction via `PATCH /api/bank-transactio
   - `parsing_lock` is set to `false`
 - **Rationale**: Handovers job distribution grid filters by `project_uuid` and income `financial_code_uuid`. Without this sync, manually editing a transaction with an existing payment would orphan it from the handovers view.
 
+## Project Financial Code Change: Bundle Cleanup
+<!-- chat: include; routes: /dictionaries/projects, /dictionaries/bank-transactions -->
+- When a project's financial code changes from a bundle code to a non-bundle code (`PATCH /api/projects`), the app first asks for confirmation, listing the bundle payments, the number of ledger entries and the number of bank transactions bound to them.
+- After confirmation it deletes those payments' ledger entries, deactivates the bundle payments and unbinds every bank transaction bound to them (`unbindTransactionsFromPaymentIds`, `lib/bank-transactions/unbind-payment-ids.ts`), the same way as clearing the payment by hand: payment ID, project and financial code cleared, nominal amount back to the account currency, parsing lock released. Each bank table gets one audit entry listing the unbound transactions and their old payment IDs.
+- No bank transaction may stay bound to a deactivated bundle payment. Before 2026-11-27 the unbinding step was missing (it had been removed together with the old consolidated table), so transactions kept their old payment IDs.
+
 ## Project Value Scaling
 <!-- chat: include; routes: /dictionaries/projects, /dictionaries/payments-ledger -->
 - When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.
