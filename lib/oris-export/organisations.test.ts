@@ -18,11 +18,34 @@ describe('ORIS organisations file', () => {
       ['0048', null, '×/Ð ÍÉÍÏ ÌÄÉÈÉÍÄ'],
     ]);
     expect(organisations).toEqual([
-      { row: 2, code: '42', taxId: '12345678901', name: 'ფ/პ გიორგი მეითინე პ/ნ 12345678901' },
-      { row: 3, code: '1005', taxId: '123456789', name: 'შპს ტესტი    ს/ნ 123456789' },
-      { row: 4, code: '48', taxId: null, name: 'ფ/პ ნინო მეითინე' },
+      { row: 2, code: '42', candidates: ['12345678901'], taxId: '12345678901', name: 'ფ/პ გიორგი მეითინე პ/ნ 12345678901' },
+      { row: 3, code: '1005', candidates: ['123456789'], taxId: '123456789', name: 'შპს ტესტი    ს/ნ 123456789' },
+      { row: 4, code: '48', candidates: [], taxId: null, name: 'ფ/პ ნინო მეითინე' },
     ]);
     expect(fromOrisFont('ÓÀØÏÍÄËÉ')).toBe('საქონელი');
+  });
+
+  it('finds the tax ID as a whole word, the name in column C before column B', () => {
+    const { organisations } = parseOrisOrganisations([
+      header,
+      ['1', '100000001', 'ÛÐÓ ÔÄÓÔÉ Ó/Í 100000002'], // B and C differ: C wins
+      ['2', null, '×/Ð ÔÄÓÔÉ LV1234567'], // foreign ID with letters
+      ['3', null, '×/Ð ÔÄÓÔÉ Ð/Í 61000000001'], // must not match 01000000001 inside it
+      ['4', null, 'ÛÐÓ Food 7 Ó/Í 100000003'], // short numbers are no tax ID
+    ]);
+    const plan = planOrganisations(organisations, [
+      ca(1, '100000001', null),
+      ca(2, '100000002', null),
+      ca(3, 'lv1234567', null),
+      ca(4, '01000000001', null),
+      ca(5, '100000003', null),
+    ]);
+    expect(plan.changes.map((c) => [c.counteragentUuid, c.to])).toEqual([
+      ['uuid-2', '1'],
+      ['uuid-3', '2'],
+      ['uuid-5', '4'],
+    ]);
+    expect(plan.noCounteragent.map((r) => [r.code, r.taxId])).toEqual([['3', '61000000001']]);
   });
 
   it('fills, keeps, replaces and refuses like the plan says', () => {

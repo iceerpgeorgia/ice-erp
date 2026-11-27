@@ -391,8 +391,8 @@ function OrganisationsUpload({ onDone }: { onDone: () => void }) {
   return (
     <div className="border-t border-amber-300 pt-2 space-y-2">
       <div className="text-muted-foreground">
-        Or upload the organisations list exported from ORIS (ORGANISATIONS.XLSX). Counteragents are found by tax ID (column B, or the
-        number in the name). A counteragent without an ORIS ID gets the code in column A when exactly one organisation in the file has its
+        Or upload the organisations list exported from ORIS (ORGANISATIONS.XLSX). A row belongs to the counteragent whose tax ID appears
+        in it as a whole word, the name in column C first, then column B. A counteragent without an ORIS ID gets the code in column A when exactly one organisation in the file has its
         tax ID; existing ORIS IDs are never changed. You see what will be set before anything is saved.
       </div>
       <div className="flex flex-wrap items-center gap-2">

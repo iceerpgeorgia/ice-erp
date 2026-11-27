@@ -9,7 +9,14 @@ export type OrisOrganisation = {
   row: number;
   /** The code as a number written out: "0042" → "42", like the ORIS IDs stored on counteragents. */
   code: string;
-  /** Tax ID from column B, else the last 9 or 11 digit number in the name; null when neither has one. */
+  /**
+   * Possible tax IDs, most trusted first: every word of column C (the name) that has a digit and at
+   * least 7 characters, last word first, then those of column B. Like REGEXMATCH: the row belongs to
+   * the first one that is a counteragent's tax ID. Column C goes first because where B and C differ
+   * (4 rows of the 2026-11-26 file) the name in C fits C's number.
+   */
+  candidates: string[];
+  /** The tax ID to show when no candidate matches: the first candidate; null when there is none. */
   taxId: string | null;
   /** The name converted from the ORIS font to Georgian letters. */
   name: string;
@@ -24,10 +31,15 @@ const GEORGIAN_FROM_ORIS: Record<string, string> = Object.fromEntries(
 /** ORIS font → Georgian letters (the reverse of toOrisFont, letters only). */
 export const fromOrisFont = (value: string) => value.replace(/[À-ÿ]/g, (ch) => GEORGIAN_FROM_ORIS[ch] ?? ch);
 
-const TAX_ID_RE = /^\d{9}$|^\d{11}$/;
+/**
+ * Tax IDs compared without leading zeros (some are stored with a leading 0 added to 10 digits) and
+ * case-insensitively (foreign IDs such as LV1234567).
+ */
+export const taxIdKey = (taxId: string) => taxId.trim().toUpperCase().replace(/^0+/, '');
 
-/** Tax IDs compared without leading zeros (some are stored with a leading 0 added to 10 digits). */
-export const taxIdKey = (taxId: string) => taxId.trim().replace(/^0+/, '');
+/** Whole words of letters and digits that could be a tax ID: at least 7 characters, at least one digit. */
+const taxIdWords = (text: string) =>
+  (text.match(/[A-Za-z0-9]+/g) ?? []).filter((word) => word.length >= 7 && /\d/.test(word)).map(taxIdKey);
 
 export function parseOrisOrganisations(rows: unknown[][]): { organisations: OrisOrganisation[]; badCodes: number[] } {
   const organisations: OrisOrganisation[] = [];
@@ -42,12 +54,8 @@ export function parseOrisOrganisations(rows: unknown[][]): { organisations: Oris
       return;
     }
     const columnB = String(cells[1] ?? '').trim();
-    let taxId: string | null = TAX_ID_RE.test(columnB) ? columnB : null;
-    if (!taxId) {
-      const found = rawName.match(/(?<!\d)(\d{11}|\d{9})(?!\d)/g);
-      taxId = found ? found[found.length - 1] : null;
-    }
-    organisations.push({ row, code: String(Number(rawCode)), taxId, name: fromOrisFont(rawName) });
+    const candidates = Array.from(new Set([...taxIdWords(rawName).reverse(), ...taxIdWords(columnB)]));
+    organisations.push({ row, code: String(Number(rawCode)), candidates, taxId: candidates[0] ?? null, name: fromOrisFont(rawName) });
   });
   return { organisations, badCodes };
 }
@@ -94,16 +102,6 @@ export type CounteragentRow = {
 export function planOrganisations(organisations: OrisOrganisation[], counteragents: CounteragentRow[]): OrganisationsPlan {
   const plan: OrganisationsPlan = { changes: [], unchanged: 0, differs: [], ambiguous: [], conflicts: [], noCounteragent: [], noTaxId: [] };
 
-  const codesByTaxId = new Map<string, OrisOrganisation[]>();
-  for (const org of organisations) {
-    if (!org.taxId) {
-      plan.noTaxId.push({ row: org.row, code: org.code, name: org.name });
-      continue;
-    }
-    const key = taxIdKey(org.taxId);
-    codesByTaxId.set(key, [...(codesByTaxId.get(key) ?? []), org]);
-  }
-
   const byTaxId = new Map<string, CounteragentRow[]>();
   const holdersByCode = new Map<string, CounteragentRow[]>();
   for (const ca of counteragents) {
@@ -112,12 +110,22 @@ export function planOrganisations(organisations: OrisOrganisation[], counteragen
     if (current) holdersByCode.set(current, [...(holdersByCode.get(current) ?? []), ca]);
   }
 
-  for (const [key, orgs] of codesByTaxId) {
-    const matches = byTaxId.get(key);
-    if (!matches) {
-      for (const org of orgs) plan.noCounteragent.push({ row: org.row, code: org.code, taxId: org.taxId!, name: org.name });
+  const codesByTaxId = new Map<string, OrisOrganisation[]>();
+  for (const org of organisations) {
+    if (!org.taxId) {
+      plan.noTaxId.push({ row: org.row, code: org.code, name: org.name });
       continue;
     }
+    const key = org.candidates.find((candidate) => byTaxId.has(candidate));
+    if (!key) {
+      plan.noCounteragent.push({ row: org.row, code: org.code, taxId: org.taxId, name: org.name });
+      continue;
+    }
+    codesByTaxId.set(key, [...(codesByTaxId.get(key) ?? []), org]);
+  }
+
+  for (const [key, orgs] of codesByTaxId) {
+    const matches = byTaxId.get(key)!;
     const codes = orgs.map((o) => o.code);
     for (const ca of matches) {
       const current = ca.oris_id?.trim() || null;

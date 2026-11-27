@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { logAudit } from '@/lib/audit';
-import { parseOrisOrganisations, planOrganisations, taxIdKey, type CounteragentRow } from '@/lib/oris-export/organisations';
+import { parseOrisOrganisations, planOrganisations, type CounteragentRow } from '@/lib/oris-export/organisations';
 
 export const revalidate = 0;
 export const maxDuration = 120;
@@ -32,13 +32,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const taxKeys = Array.from(new Set(organisations.filter((o) => o.taxId).map((o) => taxIdKey(o.taxId!))));
+    const taxKeys = Array.from(new Set(organisations.flatMap((o) => o.candidates)));
     const codes = Array.from(new Set(organisations.map((o) => o.code)));
     const counteragents = await prisma.$queryRawUnsafe<CounteragentRow[]>(
       `SELECT id, counteragent_uuid::text AS counteragent_uuid, coalesce(counteragent, name, counteragent_uuid::text) AS label,
               nullif(btrim(identification_number), '') AS tax_id, nullif(btrim(oris_id), '') AS oris_id
          FROM counteragents
-        WHERE ltrim(btrim(identification_number), '0') = ANY($1::text[])
+        WHERE ltrim(upper(btrim(identification_number)), '0') = ANY($1::text[])
            OR btrim(oris_id) = ANY($2::text[])`,
       taxKeys,
       codes
