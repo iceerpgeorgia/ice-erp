@@ -5554,3 +5554,12 @@
 - Commits: c16cdbb
 - Production: https://ice-dgt3ky0mi-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint, unit tests (11) and build passed.
+
+## 2026-11-27 (2)
+- Summary: ORIS organisations upload saves in one statement (fixes the 504 timeout).
+- Changes:
+  - Saving ORIS IDs from the organisations file is one UPDATE plus one audit insert instead of row by row (~0.7 s each); the first upload timed out after 169 of 266. Tested on the remaining 97 in a rolled-back transaction: ~1 s.
+  - Upload errors that are not JSON (timeouts) show a readable message.
+- Commits: 3df255e
+- Production: https://ice-16zmq997q-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
