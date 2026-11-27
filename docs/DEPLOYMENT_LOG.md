@@ -5546,3 +5546,11 @@
 - Commits: cf4620c
 - Production: https://ice-r6y02eusv-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint, unit tests (10) and build passed; dry run on the ORIS file: 258 ORIS IDs to fill. Nothing uploaded yet.
+
+## 2026-11-27
+- Summary: ORIS organisations upload matches tax IDs like REGEXMATCH.
+- Changes:
+  - A row belongs to the counteragent whose tax ID appears in it as a whole word (letters and digits, 7+ characters), the name in column C first, then column B; leading zeros and case ignored. Fixes rows where column B holds another organisation's tax ID and catches foreign IDs. Dry run on the ORIS file: 266 ORIS IDs to fill (was 258).
+- Commits: c16cdbb
+- Production: https://ice-dgt3ky0mi-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint, unit tests (11) and build passed.
