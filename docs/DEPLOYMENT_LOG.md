@@ -5609,3 +5609,12 @@
 - Commits: 6172265
 - Production: https://ice-5t6nv7qaa-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
+
+## 2026-11-27 (8)
+- Summary: ORIS account column on Financial Codes.
+- Changes:
+  - `financial_codes.oris_account` (free text), shown as the ORIS column and edited in the Financial Codes form; the corresponding account for waybill items in the ORIS export. Not used by the export yet.
+- Migration: 20261127130000_financial_codes_oris_account (applied before deploy; Prisma schema updated and client regenerated).
+- Commits: 648620a
+- Production: https://ice-hpci9c28g-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
