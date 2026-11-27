@@ -16,6 +16,35 @@ const INVENTORY_LABEL_COLUMNS: Record<string, 'inventory_uuid' | 'suggested_inve
   suggested_inventory_name: 'suggested_inventory_uuid',
 };
 
+// Waybill header columns (waybill_<field> = rs_waybills_in_api.<field>): every column of the Waybills
+// page is available on Waybill Items. waybill_check and waybill_activation_date are derived.
+const WAYBILL_COLUMNS = [
+  'state', 'condition', 'category', 'type', 'counteragent_name', 'counteragent_inn', 'vat', 'sum',
+  'driver', 'vehicle', 'transportation_sum', 'transportation_cost', 'departure_address', 'shipping_address',
+  'activation_time', 'transportation_beginning_time', 'submission_time', 'cancellation_time', 'note',
+  'period', 'project_uuid', 'financial_code_uuid', 'corresponding_account',
+].map((field) => `waybill_${field}`);
+const EXTRA_WAYBILL_COLUMNS = [...WAYBILL_COLUMNS, 'waybill_check'];
+const SORTABLE_WAYBILL_COLUMNS = WAYBILL_COLUMNS;
+const WAYBILL_UUID_FIELDS = new Set(['project_uuid', 'financial_code_uuid']);
+// Not text: "not blank" is only "not null", and text operators (contains…) do not apply.
+const NON_TEXT_WAYBILL_FIELDS = new Set([
+  'vat', 'sum', 'transportation_sum', 'transportation_cost', 'activation_time',
+  'transportation_beginning_time', 'submission_time', 'cancellation_time', 'project_uuid', 'financial_code_uuid',
+]);
+const WAYBILL_CHECKED: Prisma.rs_waybills_in_apiWhereInput = {
+  OR: [
+    { project_uuid: { not: null } },
+    { financial_code_uuid: { not: null } },
+    { AND: [{ corresponding_account: { not: null } }, { corresponding_account: { not: '' } }] },
+  ],
+};
+const WAYBILL_UNCHECKED: Prisma.rs_waybills_in_apiWhereInput = {
+  project_uuid: null,
+  financial_code_uuid: null,
+  OR: [{ corresponding_account: null }, { corresponding_account: '' }],
+};
+
 const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
 
 const formatInventoryLabel = (inventory: any) =>
@@ -112,12 +141,14 @@ export async function GET(req: NextRequest) {
       'waybill_counteragent_name', 'waybill_counteragent_inn', 'waybill_vat', 'waybill_sum',
       'waybill_driver', 'waybill_vehicle', 'waybill_activation_time', 'waybill_activation_date',
       'inventory_match_status', 'inventory_match_method', 'suggested_inventory_name',
+      'rs_id', ...EXTRA_WAYBILL_COLUMNS,
     ]);
 
     const allowedSortColumns = new Set([
       'waybill_no', 'goods_code', 'goods_name', 'unit', 'quantity', 'unit_price', 'total_price',
       'taxation', 'inventory_name', 'project_uuid', 'financial_code_uuid', 'corresponding_account',
-      'dimension_name', 'waybill_activation_time', 'waybill_activation_date', 'id', 'created_at'
+      'dimension_name', 'waybill_activation_time', 'waybill_activation_date', 'id', 'created_at',
+      'rs_id', ...SORTABLE_WAYBILL_COLUMNS,
     ]);
 
     // Build base search
@@ -220,10 +251,17 @@ export async function GET(req: NextRequest) {
           return;
         }
 
+        // Check = the waybill has a project, financial code or corresponding account (as on Waybills).
+        if (fieldName === 'check') {
+          const boolValues = new Set(nonBlank.map((v) => v.toLowerCase()).filter((v) => v === 'true' || v === 'false'));
+          if (boolValues.size === 1) clauses.push({ waybill: boolValues.has('true') ? WAYBILL_CHECKED : WAYBILL_UNCHECKED });
+          return;
+        }
+
         if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
           if (fieldName === 'vat') return;
-          if (fieldName === 'activation_time') {
-            clauses.push({ waybill: { activation_time: { not: null } } });
+          if (NON_TEXT_WAYBILL_FIELDS.has(fieldName)) {
+            clauses.push({ waybill: { [fieldName]: { not: null } } } as Prisma.rs_waybills_in_itemsWhereInput);
             return;
           }
           clauses.push({
@@ -257,11 +295,12 @@ export async function GET(req: NextRequest) {
           return;
         }
 
-        // Generic string field
-        if (nonBlank.length > 0 && includeBlank) {
-          clauses.push({ OR: [{ waybill: { [fieldName]: { in: nonBlank } } }, { waybill: { [fieldName]: null } }] } as Prisma.rs_waybills_in_itemsWhereInput);
-        } else if (nonBlank.length > 0) {
-          clauses.push({ waybill: { [fieldName]: { in: nonBlank } } } as Prisma.rs_waybills_in_itemsWhereInput);
+        // Generic field (UUID columns only take valid UUIDs)
+        const inValues = WAYBILL_UUID_FIELDS.has(fieldName) ? nonBlank.filter((v) => isValidUuid(v)) : nonBlank;
+        if (inValues.length > 0 && includeBlank) {
+          clauses.push({ OR: [{ waybill: { [fieldName]: { in: inValues } } }, { waybill: { [fieldName]: null } }] } as Prisma.rs_waybills_in_itemsWhereInput);
+        } else if (inValues.length > 0) {
+          clauses.push({ waybill: { [fieldName]: { in: inValues } } } as Prisma.rs_waybills_in_itemsWhereInput);
         } else if (includeBlank) {
           clauses.push({ waybill: { [fieldName]: null } } as Prisma.rs_waybills_in_itemsWhereInput);
         }
@@ -288,6 +327,22 @@ export async function GET(req: NextRequest) {
         // Inventory label columns: resolve the shown "Internal # | Group | Dimension | Name" label
         // back to the UUID column (inventory_uuid or suggested_inventory_uuid).
         const labelColumn = INVENTORY_LABEL_COLUMNS[key];
+        if (labelColumn === 'suggested_inventory_uuid') {
+          // A suggestion is only shown (and filtered) while the item is unbound.
+          const shown: Prisma.rs_waybills_in_itemsWhereInput = { suggested_inventory_uuid: { not: null }, inventory_uuid: null };
+          const blank: Prisma.rs_waybills_in_itemsWhereInput = { OR: [{ suggested_inventory_uuid: null }, { inventory_uuid: { not: null } }] };
+          if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
+            clauses.push(shown);
+            continue;
+          }
+          const selected = new Set(nonBlank);
+          const matchingUuids = (await getInventoryLabels())
+            .filter((inventory) => selected.has(inventory.label))
+            .map((inventory) => inventory.uuid);
+          const picked: Prisma.rs_waybills_in_itemsWhereInput = { suggested_inventory_uuid: { in: matchingUuids }, inventory_uuid: null };
+          clauses.push(includeBlank ? { OR: [picked, blank] } : picked);
+          continue;
+        }
         if (labelColumn) {
           if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
             clauses.push({ [labelColumn]: { not: null } } as Prisma.rs_waybills_in_itemsWhereInput);
@@ -370,7 +425,10 @@ export async function GET(req: NextRequest) {
           const matchingUuids = (await getInventoryLabels())
             .filter((inventory) => matches(inventory.label))
             .map((inventory) => inventory.uuid);
-          clauses.push({ [advancedLabelColumn]: { in: matchingUuids } } as Prisma.rs_waybills_in_itemsWhereInput);
+          clauses.push({
+            [advancedLabelColumn]: { in: matchingUuids },
+            ...(advancedLabelColumn === 'suggested_inventory_uuid' ? { inventory_uuid: null } : {}),
+          } as Prisma.rs_waybills_in_itemsWhereInput);
           continue;
         }
 
@@ -386,8 +444,8 @@ export async function GET(req: NextRequest) {
           }
         })();
 
-        if (key === 'waybill_activation_date') {
-          // Derived date label, not a column: text operators cannot run on it in the database.
+        if (key === 'waybill_activation_date' || key === 'waybill_check' || NON_TEXT_WAYBILL_FIELDS.has(key.replace('waybill_', ''))) {
+          // Derived columns, dates, numbers and UUIDs: text operators cannot run on them in the database.
           continue;
         } else if (key.startsWith('waybill_')) {
           const fieldName = key.replace('waybill_', '');
@@ -435,7 +493,8 @@ export async function GET(req: NextRequest) {
         orderBy['waybill'] = { activation_time: sortDirection };
       } else if (sortColumn.startsWith('waybill_') && sortColumn !== 'waybill_no') {
         const fieldName = sortColumn.replace('waybill_', '');
-        orderBy['waybill'] = { [fieldName]: sortDirection };
+        // Blanks last in both directions (most waybill columns are often empty); vat is never null.
+        orderBy['waybill'] = { [fieldName]: fieldName === 'vat' ? sortDirection : { sort: sortDirection, nulls: 'last' } };
       } else if (sortColumn === 'inventory_name') {
         orderBy['inventory'] = { name: sortDirection };
       } else if (sortColumn === 'dimension_name') {
@@ -492,6 +551,14 @@ export async function GET(req: NextRequest) {
               transportation_cost: true,
               shipping_address: true,
               departure_address: true,
+              transportation_beginning_time: true,
+              submission_time: true,
+              cancellation_time: true,
+              note: true,
+              period: true,
+              project_uuid: true,
+              financial_code_uuid: true,
+              corresponding_account: true,
             }
           }
         },
@@ -506,7 +573,7 @@ export async function GET(req: NextRequest) {
         'waybill_no', 'goods_code', 'goods_name', 'unit', 'quantity', 'unit_price',
         'total_price', 'taxation', 'inventory_uuid', 'project_uuid', 'financial_code_uuid',
         'corresponding_account', 'import_batch_id', 'dimension_uuid',
-        'inventory_match_status', 'inventory_match_method',
+        'inventory_match_status', 'inventory_match_method', 'rs_id',
       ]);
       const matchesSearch = (value: string) =>
         !facetSearch || value.toLowerCase().includes(facetSearch.toLowerCase());
@@ -529,7 +596,8 @@ export async function GET(req: NextRequest) {
         };
         const isSuggested = facetField === 'suggested_inventory_name';
         const itemRows = await withRetry(() => prisma.rs_waybills_in_items.findMany({
-          where: facetWhere,
+          // Suggestions of bound items are not shown, so they are not offered either.
+          where: isSuggested ? { AND: [facetWhere, { inventory_uuid: null }] } : facetWhere,
           distinct: [isSuggested ? 'suggested_inventory_uuid' : 'inventory_uuid'],
           select: isSuggested ? { suggested_inventory: inventorySelect } : { inventory: inventorySelect },
         }));
@@ -537,6 +605,13 @@ export async function GET(req: NextRequest) {
           const inventory = isSuggested ? row.suggested_inventory : row.inventory;
           return inventory ? formatInventoryLabel(inventory) : '';
         });
+        if (isSuggested && !values.includes('')) {
+          const anyBound = await withRetry(() => prisma.rs_waybills_in_items.findFirst({
+            where: { AND: [facetWhere, { inventory_uuid: { not: null } }] },
+            select: { id: true },
+          }));
+          if (anyBound) values.push('');
+        }
         values = Array.from(new Set(values))
           .filter((value) => matchesSearch(value))
           .sort((a, b) => a.localeCompare(b))
@@ -564,6 +639,8 @@ export async function GET(req: NextRequest) {
           .filter((value) => matchesSearch(String(value)))
           .sort((a, b) => String(a).localeCompare(String(b)))
           .slice(0, facetLimit);
+      } else if (facetField === 'waybill_check') {
+        values = [true, false];
       } else if (facetField === 'waybill_activation_date') {
         const waybillRows = await withRetry(() => prisma.rs_waybills_in_api.findMany({
           where: { waybill_items: { some: facetWhere } },
@@ -632,9 +709,10 @@ export async function GET(req: NextRequest) {
       taxation: row.taxation,
       inventory_uuid: row.inventory_uuid,
       inventory_name: formatInventoryLabel(row.inventory),
-      suggested_inventory_uuid: row.suggested_inventory_uuid,
+      // Once the item is bound (confirmed, auto or manual) the suggestion is no longer shown.
+      suggested_inventory_uuid: row.inventory_uuid ? null : row.suggested_inventory_uuid,
       suggestion_group_count: groupCounts.get(String(row.id)) ?? 0,
-      suggested_inventory_name: row.suggested_inventory ? formatInventoryLabel(row.suggested_inventory) : '',
+      suggested_inventory_name: !row.inventory_uuid && row.suggested_inventory ? formatInventoryLabel(row.suggested_inventory) : '',
       inventory_match_method: row.inventory_match_method,
       inventory_match_score: row.inventory_match_score === null ? null : Number(row.inventory_match_score),
       inventory_match_status: row.inventory_match_status,
@@ -665,6 +743,15 @@ export async function GET(req: NextRequest) {
       waybill_transportation_cost: row.waybill?.transportation_cost ? row.waybill.transportation_cost.toString() : null,
       waybill_shipping_address: row.waybill?.shipping_address ?? null,
       waybill_departure_address: row.waybill?.departure_address ?? null,
+      waybill_check: Boolean(row.waybill && (row.waybill.project_uuid || row.waybill.financial_code_uuid || row.waybill.corresponding_account)),
+      waybill_transportation_beginning_time: row.waybill?.transportation_beginning_time?.toISOString() ?? null,
+      waybill_submission_time: row.waybill?.submission_time?.toISOString() ?? null,
+      waybill_cancellation_time: row.waybill?.cancellation_time?.toISOString() ?? null,
+      waybill_note: row.waybill?.note ?? null,
+      waybill_period: row.waybill?.period ?? null,
+      waybill_project_uuid: row.waybill?.project_uuid ?? null,
+      waybill_financial_code_uuid: row.waybill?.financial_code_uuid ?? null,
+      waybill_corresponding_account: row.waybill?.corresponding_account ?? null,
     }));
 
     return NextResponse.json({ data, total, facets });

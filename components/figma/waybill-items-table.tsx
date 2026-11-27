@@ -10,7 +10,7 @@ import { Label } from './ui/label';
 import { Combobox } from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
-import { Search, Eye, Edit2, Settings, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Search, Eye, Edit2, Settings, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Check, FileText, X } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { InventoryCellPicker, type InventoryOption } from './inventory-cell-picker';
 import { ClearFiltersButton } from './shared/clear-filters-button';
@@ -77,6 +77,15 @@ type WaybillItem = {
   waybill_transportation_cost?: string | null;
   waybill_shipping_address?: string | null;
   waybill_departure_address?: string | null;
+  waybill_check?: boolean | null;
+  waybill_transportation_beginning_time?: string | null;
+  waybill_submission_time?: string | null;
+  waybill_cancellation_time?: string | null;
+  waybill_note?: string | null;
+  waybill_period?: string | null;
+  waybill_project_uuid?: string | null;
+  waybill_financial_code_uuid?: string | null;
+  waybill_corresponding_account?: string | null;
 };
 
 type ColumnKey = keyof WaybillItem;
@@ -124,6 +133,18 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'waybill_activation_date', label: 'Activation Date', visible: true, sortable: true, filterable: true, width: 130 },
   { key: 'waybill_departure_address', label: 'Departure Place', visible: false, sortable: true, filterable: true, width: 260 },
   { key: 'waybill_shipping_address', label: 'Delivery Address', visible: false, sortable: true, filterable: true, width: 260 },
+  // The rest of the Waybills page columns (hidden by default)
+  { key: 'waybill_check', label: 'Waybill Check', visible: false, sortable: false, filterable: true, format: 'boolean', width: 110 },
+  { key: 'waybill_transportation_beginning_time', label: 'Transport Start', visible: false, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'waybill_submission_time', label: 'Submission Date', visible: false, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'waybill_cancellation_time', label: 'Cancellation Date', visible: false, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'waybill_note', label: 'Note', visible: false, sortable: true, filterable: true, width: 260 },
+  { key: 'waybill_period', label: 'Period', visible: false, sortable: true, filterable: true, format: 'period', width: 120 },
+  { key: 'rs_id', label: 'RS ID', visible: false, sortable: true, filterable: true, width: 140 },
+  { key: 'waybill_transportation_cost', label: 'Transport Cost', visible: false, sortable: true, filterable: true, format: 'number', width: 140 },
+  { key: 'waybill_project_uuid', label: 'Waybill Project', visible: false, sortable: true, filterable: true, width: 200 },
+  { key: 'waybill_financial_code_uuid', label: 'Waybill Financial Code', visible: false, sortable: true, filterable: true, width: 220 },
+  { key: 'waybill_corresponding_account', label: 'Waybill Corresponding Account', visible: false, sortable: true, filterable: true, width: 200 },
 ];
 
 // dd.mm.yyyy day labels, newest first.
@@ -181,6 +202,22 @@ const formatCell = (value: any, format?: ColumnConfig['format']) => {
   }
   return String(value);
 };
+
+// A waybill's PDF from RS.ge (same request and file name as the Waybills page).
+async function downloadWaybillPdf(rsId: string) {
+  try {
+    const res = await fetch(`/api/waybills/pdf?rs_id=${encodeURIComponent(rsId)}`);
+    if (!res.ok) throw new Error('Failed');
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `waybill-${rsId}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    alert('PDF download failed');
+  }
+}
 
 // Filter lists can exceed the URL length limit (HTTP 431); long reads are sent as a POST body.
 const MAX_QUERY_URL_LENGTH = 1500;
@@ -688,18 +725,20 @@ export function WaybillItemsTable() {
   }, [financialCodes]);
 
   const getCellValue = useCallback((row: WaybillItem, columnKey: ColumnKey) => {
-    if (columnKey === 'project_uuid') {
-      if (!row.project_uuid) return '';
-      const project = projects.find(p => p.project_uuid === row.project_uuid);
-      if (!project) return projectLabelMap.get(row.project_uuid) || row.project_uuid || '';
+    if (columnKey === 'project_uuid' || columnKey === 'waybill_project_uuid') {
+      const projectUuid = row[columnKey];
+      if (!projectUuid) return '';
+      const project = projects.find(p => p.project_uuid === projectUuid);
+      if (!project) return projectLabelMap.get(projectUuid) || projectUuid || '';
       const projectName = project.project_name || '';
       const projectIndex = project.project_index || '';
       const currency = project.currency || '';
       const parts = [projectName, projectIndex, currency].filter(p => p);
       return parts.join(' | ');
     }
-    if (columnKey === 'financial_code_uuid') {
-      return financialCodeLabelMap.get(row.financial_code_uuid || '') || row.financial_code_uuid || '';
+    if (columnKey === 'financial_code_uuid' || columnKey === 'waybill_financial_code_uuid') {
+      const codeUuid = row[columnKey];
+      return financialCodeLabelMap.get(codeUuid || '') || codeUuid || '';
     }
     return (row as any)[columnKey];
   }, [financialCodeLabelMap, projectLabelMap, projects]);
@@ -770,7 +809,7 @@ export function WaybillItemsTable() {
 
   const renderFilterValue = useCallback((columnKey: ColumnKey, value: any) => {
     if (value === null || value === undefined || value === '') return '(Blank)';
-    if (columnKey === 'project_uuid') {
+    if (columnKey === 'project_uuid' || columnKey === 'waybill_project_uuid') {
       const project = projects.find(p => p.project_uuid === String(value));
       if (project) {
         const parts = [project.project_name, project.project_index].filter(p => p);
@@ -778,10 +817,10 @@ export function WaybillItemsTable() {
       }
       return projectLabelMap.get(String(value)) || String(value);
     }
-    if (columnKey === 'financial_code_uuid') {
+    if (columnKey === 'financial_code_uuid' || columnKey === 'waybill_financial_code_uuid') {
       return financialCodeLabelMap.get(String(value)) || String(value);
     }
-    if (columnKey === 'waybill_vat') {
+    if (columnKey === 'waybill_vat' || columnKey === 'waybill_check') {
       return value ? 'Yes' : 'No';
     }
     const columnFormat = columns.find((col) => col.key === columnKey)?.format;
@@ -843,40 +882,45 @@ export function WaybillItemsTable() {
     });
   }, []);
 
-  // Binds items to their suggested inventory; the server only changes rows still 'suggested'.
+  // Confirm binds items to their suggested inventory; decline drops the suggestion (status 'declined').
+  // Either acts on every identical pending suggestion; the server only changes rows still 'suggested'.
   const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
-  const confirmSuggestions = useCallback(async (ids: number[]) => {
+  const resolveSuggestions = useCallback(async (action: 'confirm' | 'decline', ids: number[]) => {
     if (ids.length === 0) return;
     setConfirmingIds((current) => new Set([...current, ...ids]));
     try {
-      const res = await fetch('/api/waybill-items/confirm-suggestion', {
+      const res = await fetch(`/api/waybill-items/${action}-suggestion`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.error || 'Failed to confirm suggestions');
-      const confirmed = new Set<number>(Array.isArray(body.confirmed) ? body.confirmed : []);
-      setData((rows) => rows.map((row) => (
-        confirmed.has(row.id)
+      if (!res.ok) throw new Error(body?.error || `Failed to ${action} suggestions`);
+      const doneIds = new Set<number>(Array.isArray(body[`${action}ed`]) ? body[`${action}ed`] : []);
+      setData((rows) => rows.map((row) => {
+        if (!doneIds.has(row.id)) return row;
+        // Either way the Suggested Inventory cell is left blank.
+        const cleared = { ...row, suggested_inventory_uuid: null, suggested_inventory_name: '', suggestion_group_count: 0 };
+        return action === 'confirm'
           ? {
-              ...row,
+              ...cleared,
               inventory_uuid: row.suggested_inventory_uuid ?? row.inventory_uuid,
               inventory_name: row.suggested_inventory_name || row.inventory_name,
               inventory_match_status: 'confirmed',
-              suggestion_group_count: 0,
             }
-          : row
-      )));
+          : { ...cleared, inventory_match_status: 'declined' };
+      }));
+      const verb = action === 'confirm' ? 'confirmed' : 'declined';
       const notes: string[] = [];
-      if (body.identicalConfirmed > 0) notes.push(`${body.identicalConfirmed} identical items confirmed with them`);
+      const identical = action === 'confirm' ? body.identicalConfirmed : body.identicalDeclined;
+      if (identical > 0) notes.push(`${identical} identical items ${verb} with them`);
       if (body.skipped > 0) notes.push(`${body.skipped} skipped (no longer waiting for confirmation)`);
       if (notes.length > 0) {
-        alert(`${confirmed.size} items confirmed: ${notes.join('; ')}.`);
+        alert(`${doneIds.size} items ${verb}: ${notes.join('; ')}.`);
       }
     } catch (error) {
-      console.error('Failed to confirm inventory suggestions:', error);
-      alert(error instanceof Error ? error.message : 'Failed to confirm suggestions');
+      console.error(`Failed to ${action} inventory suggestions:`, error);
+      alert(error instanceof Error ? error.message : `Failed to ${action} suggestions`);
     } finally {
       setConfirmingIds((current) => {
         const next = new Set(current);
@@ -892,22 +936,31 @@ export function WaybillItemsTable() {
   );
   const selectedSuggestedIds = useMemo(() => selectedSuggestedRows.map((row) => row.id), [selectedSuggestedRows]);
 
-  // Confirming a row confirms every identical pending suggestion, so show the full count first.
-  const confirmRows = useCallback((rowsToConfirm: WaybillItem[]) => {
+  // Confirming or declining a row does the same to every identical pending suggestion, so show the
+  // full count first. Declining always asks, since the item then gets no other suggestion.
+  const resolveRows = useCallback((action: 'confirm' | 'decline', rowsToResolve: WaybillItem[]) => {
     const groups = new Map<string, number>();
-    rowsToConfirm.forEach((row) => {
+    rowsToResolve.forEach((row) => {
       const key = `${row.suggested_inventory_uuid}|${String(row.goods_name ?? '').trim().replace(/\s+/g, ' ').toLowerCase()}`;
       groups.set(key, Math.max(groups.get(key) ?? 0, row.suggestion_group_count ?? 1));
     });
     const totalItems = Array.from(groups.values()).reduce((sum, count) => sum + Math.max(count, 1), 0);
-    if (totalItems > rowsToConfirm.length) {
-      const message = rowsToConfirm.length === 1
-        ? `${totalItems} items have the goods name "${rowsToConfirm[0].goods_name}" with the same suggestion:\n${rowsToConfirm[0].suggested_inventory_name}\n\nConfirm all ${totalItems}?`
-        : `These ${rowsToConfirm.length} selected suggestions, with their identical items, confirm ${totalItems} items in total. Continue?`;
+    const verb = action === 'confirm' ? 'Confirm' : 'Decline';
+    if (totalItems > rowsToResolve.length) {
+      const message = rowsToResolve.length === 1
+        ? `${totalItems} items have the goods name "${rowsToResolve[0].goods_name}" with the same suggestion:\n${rowsToResolve[0].suggested_inventory_name}\n\n${verb} all ${totalItems}?`
+        : `${verb} these ${rowsToResolve.length} selected suggestions? With their identical items this affects ${totalItems} items in total.`;
+      if (!window.confirm(message)) return;
+    } else if (action === 'decline') {
+      const message = rowsToResolve.length === 1
+        ? `Decline the suggestion for "${rowsToResolve[0].goods_name}"?\n${rowsToResolve[0].suggested_inventory_name}\n\nThe item gets no other suggestion; pick its inventory in the Inventory column.`
+        : `Decline these ${rowsToResolve.length} suggestions? The items get no other suggestion; pick their inventory in the Inventory column.`;
       if (!window.confirm(message)) return;
     }
-    void confirmSuggestions(rowsToConfirm.map((row) => row.id));
-  }, [confirmSuggestions]);
+    void resolveSuggestions(action, rowsToResolve.map((row) => row.id));
+  }, [resolveSuggestions]);
+  const confirmRows = useCallback((rows: WaybillItem[]) => resolveRows('confirm', rows), [resolveRows]);
+  const declineRows = useCallback((rows: WaybillItem[]) => resolveRows('decline', rows), [resolveRows]);
 
   // Inventory picker options: loaded once in the background when the page opens, grouped by
   // dimension so each row only offers inventories with its own unit.
@@ -1060,6 +1113,23 @@ export function WaybillItemsTable() {
                   busy={bindingIds.has(row.id)}
                   onSelect={(inventoryUuid) => void pickInventory(row, inventoryUuid)}
                 />
+              ) : col.key === 'waybill_no' ? (
+                // The waybill's PDF from RS.ge, downloaded the same way as on the Waybills page.
+                <div className="flex items-center gap-1">
+                  <div className="min-w-0 flex-1 truncate" title={row.waybill_no ?? ''}>
+                    {row.waybill_no ?? ''}
+                  </div>
+                  {row.rs_id && (
+                    <button
+                      type="button"
+                      title="Download waybill PDF"
+                      className="flex-shrink-0 text-red-500 transition-colors hover:text-red-700"
+                      onClick={() => void downloadWaybillPdf(row.rs_id!)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               ) : col.key === 'suggested_inventory_name' && row.suggested_inventory_name ? (
                 <div className="flex items-center gap-2">
                   {row.inventory_match_method === 'expanded' && (
@@ -1105,6 +1175,22 @@ export function WaybillItemsTable() {
                       <Check className="h-3 w-3" />
                     </Button>
                   )}
+                  {row.inventory_match_status === 'suggested' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 shrink-0 px-2 text-red-600 hover:text-red-700"
+                      title={
+                        (row.suggestion_group_count ?? 0) > 1
+                          ? `Decline this suggestion for all ${row.suggestion_group_count} identical items`
+                          : 'Decline this suggestion'
+                      }
+                      disabled={confirmingIds.has(row.id)}
+                      onClick={() => declineRows([row])}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div
@@ -1129,7 +1215,7 @@ export function WaybillItemsTable() {
         </tr>
       );
     });
-  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, confirmingIds, confirmRows, inventoryOptionsByDimension, bindingIds, pickInventory]);
+  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, confirmingIds, confirmRows, declineRows, inventoryOptionsByDimension, bindingIds, pickInventory]);
 
   const resetBulkEdit = () => {
     setBulkProjectUuid('');
@@ -1485,6 +1571,18 @@ export function WaybillItemsTable() {
             >
               <Check className="mr-1 h-4 w-4" />
               Confirm suggestions ({selectedSuggestedIds.length})
+            </Button>
+          )}
+          {selectedSuggestedIds.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700"
+              onClick={() => declineRows(selectedSuggestedRows)}
+              disabled={selectedSuggestedIds.some((id) => confirmingIds.has(id))}
+            >
+              <X className="mr-1 h-4 w-4" />
+              Decline suggestions ({selectedSuggestedIds.length})
             </Button>
           )}
           <Button
