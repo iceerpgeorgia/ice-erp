@@ -5601,3 +5601,11 @@
 - Commits: dfcfd25
 - Production: https://ice-1aotd0wzx-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
+
+## 2026-11-27 (7)
+- Summary: CAPEX button on Waybill Items.
+- Changes:
+  - CAPEX button next to + creates an inventory from a waybill line with the same dialog and internal number rule, saved with `is_capex = true`, then binds the line.
+- Commits: 6172265
+- Production: https://ice-5t6nv7qaa-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
