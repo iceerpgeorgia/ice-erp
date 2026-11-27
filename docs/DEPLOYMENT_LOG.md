@@ -5572,3 +5572,11 @@
 - Commits: 704dda1
 - Production: https://ice-jd6rcasic-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
+
+## 2026-11-27 (4)
+- Summary: viewing an attachment no longer fails with an expired link.
+- Changes:
+  - New `/api/attachments/[uuid]/open`: signs a fresh storage link (6 hours) on every load and shows PDFs, images and text in a full-window frame; other files redirect to a fresh link. The payment, project and job attachment dialogs open it instead of a 1-hour signed link, so reloaded or restored tabs keep working.
+- Commits: 6b07e98
+- Production: https://ice-baevaxzjg-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed. Viewing a real file not checked signed in (local storage settings are placeholders).
