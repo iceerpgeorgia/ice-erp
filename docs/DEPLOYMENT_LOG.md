@@ -5591,3 +5591,13 @@
 - Commits: 87d8df4
 - Production: https://ice-psdubllrc-iceerp.vercel.app
 - Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
+
+## 2026-11-27 (6)
+- Summary: new inventory from a waybill line, Waybill Items refreshes after changes, waybill PDFs open in a new tab.
+- Changes:
+  - + button on Waybill Items (Suggested Inventory, every unbound line with a unit) creates an inventory from the line: goods name, the line's unit, a group with that unit, internal number = next on-balance number (5 digits); then binds the line. Refuses a duplicate of an active inventory with the same name and unit.
+  - After confirm, decline, binding or bulk edit the selection is cleared and rows, total and filter values reload.
+  - Waybill PDFs on Waybills and Waybill Items open in a new tab instead of downloading.
+- Commits: dfcfd25
+- Production: https://ice-1aotd0wzx-iceerp.vercel.app
+- Status: Ready; alias ice-erp.vercel.app points to this deployment. Local tsc, lint and build passed.
